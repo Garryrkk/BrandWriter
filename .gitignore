@@ -1,0 +1,121 @@
+# -------------------------------
+# PYTHON BASICS
+# -------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.db
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Temporary files
+*.log
+*.tmp
+*.cache
+.cache/
+*.pid
+
+# -------------------------------
+# EDITOR SETTINGS
+# -------------------------------
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# JetBrains (PyCharm)
+.idea/
+
+# -------------------------------
+# FASTAPI / BACKEND
+# -------------------------------
+# Alembic
+alembic/versions/*.pyc
+alembic/__pycache__/
+alembic/versions/__pycache__/
+
+# uvicorn temporary hot reload files
+*.reload
+
+# -------------------------------
+# DATA / MODELS / EMBEDDINGS
+# -------------------------------
+# RAG Input & Embeddings Cache
+app/brand_memory/embeddings/
+app/brand_memory/chunks/
+*.npy
+*.npz
+
+# Model weights (optional)
+models/
+*.bin
+*.pt
+*.safetensors
+
+# Local vector DB
+pgvector_data/
+vector_store/
+
+# -------------------------------
+# ENVIRONMENT VARIABLES
+# -------------------------------
+*.env
+*.env.*
+.envrc
+
+# -------------------------------
+# OS-SPECIFIC
+# -------------------------------
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# -------------------------------
+# NODE / FRONTEND (if using)
+# -------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+
+# -------------------------------
+# OTHER
+# -------------------------------
+# Jupyter & IPython
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# Logs
+logs/
+*.log
+
+# Upload folders (if any)
+uploads/
+temp/
