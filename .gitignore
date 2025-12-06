@@ -119,3 +119,49 @@ logs/
 # Upload folders (if any)
 uploads/
 temp/
+.gitignore
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.pkl
+
+# ---- Virtual Environments ----
+venv/
+env/
+.venv/
+insta_venv/
+
+# ---- FastAPI / Uvicorn ----
+*.log
+
+# ---- Environment Variables ----
+.env
+*.env
+
+# ---- VSCode ----
+.vscode/
+*.code-workspace
+
+# ---- OS junk ----
+.DS_Store
+Thumbs.db
+
+# ---- Pip / Build ----
+pip-wheel-metadata/
+build/
+dist/
+*.egg-info/
+
+# ---- Cache ----
+.cache/
+.mypy_cache/
+.pytest_cache/
+
+# ---- Node (if frontend accidentally mixed) ----
+node_modules/
+
+# ---- IDE ----
+.idea/
