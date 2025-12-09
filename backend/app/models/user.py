@@ -2,19 +2,24 @@ from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime
 from app.db.database import Base
 from passlib.context import CryptContext
-
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 
 class User(Base):
     __tablename__ = "users"
 
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String(255), nullable=False, unique=True)
+    email = Column(String(255), nullable=False, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-id = Column(Integer, primary_key=True, index=True)
-email = Column(String, unique=True, nullable=False)
-hashed_password = Column(String, nullable=False)
-created_at = Column(DateTime, default=datetime.utcnow)
+    def __repr__(self):
+        return f"<User(id={self.id}, username={self.username})>"
 
 
 # ---------- USER ACCOUNT OPERATIONS ----------

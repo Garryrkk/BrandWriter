@@ -37,7 +37,7 @@ class Draft(Base):
     __tablename__ = "drafts"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    brand_id = Column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False)
+    brand_id = Column(UUID(as_uuid=True), ForeignKey("brands.id"))
     
     # Content Identification
     category = Column(SQLEnum(ContentCategory), nullable=False, index=True)
