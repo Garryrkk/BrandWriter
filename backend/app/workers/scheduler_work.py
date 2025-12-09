@@ -2,9 +2,13 @@
 from datetime import datetime
 import asyncio
 from app.core.config import settings
-from app.db.database import AsyncSessionLocal
+from app.db.database import SessionLocal
 from app.schedule.ScheduleServices import ScheduleService
 from app.generation.GenerationServices import GenerationService
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 from app.brand.BrandServices import BrandService
 from app.services.ai_service import AIService
 from app.services.rag_service import RAGService
@@ -15,7 +19,7 @@ rag_service = RAGService()
 
 async def process_pending_posts():
     """Process pending scheduled posts and attempt to publish them"""
-    async with AsyncSessionLocal() as db:
+    async with SessionLocal() as db:
         try:
             # Get pending schedules
             pending = await ScheduleService.get_pending_schedules(db)
@@ -61,7 +65,7 @@ async def process_pending_posts():
 
 async def daily_content_generation():
     """Generate daily content for all active brands"""
-    async with AsyncSessionLocal() as db:
+    async with SessionLocal() as db:
         try:
             print("Starting daily content generation...")
             

@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting Content OS...")
     
     # Initialize database
-    await init_db()
+    init_db()
     print("✓ Database initialized")
     
     # Start background scheduler
@@ -51,11 +51,12 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(brand_routes.router, prefix="/api/v1")
-app.include_router(draft_routes.router, prefix="/api/v1")
-app.include_router(basket_routes.router, prefix="/api/v1")
-app.include_router(schedule_routes.router, prefix="/api/v1")
-app.include_router(generation_routes.router, prefix="/api/v1")
+app.include_router(brand_routes, prefix="/api/v1")
+app.include_router(draft_routes, prefix="/api/v1")
+app.include_router(basket_routes, prefix="/api/v1")
+app.include_router(schedule_routes, prefix="/api/v1")
+app.include_router(generation_routes, prefix="/api/v1")
+
 
 # Health check
 @app.get("/health")
@@ -82,12 +83,12 @@ async def root():
 @app.get("/api/v1/dashboard/stats")
 async def get_dashboard_stats():
     """Get overall dashboard statistics"""
-    from app.database import get_db
-    from app.services.brand_service import BrandService
-    from app.services.draft_service import DraftService
-    from app.services.basket_service import BasketService
-    from app.services.schedule_service import ScheduleService
-    from app.services.generation_service import GenerationService
+    from app.db.database import get_db
+    from app.brand.BrandServices import BrandService
+    from app.draft.DraftServices import DraftService
+    from app.basket.BasketServices import BasketService
+    from app.schedule.ScheduleServices import ScheduleService
+    from app.generation.GenerationServices import GenerationService
     
     async with get_db() as db:
         # Get active brand
