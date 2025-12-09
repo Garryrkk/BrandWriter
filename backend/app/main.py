@@ -3,11 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.db.database import init_db
-from app.basket.BasketRoutes import basket_routes
-from app.brand.BrandRoutes import brand_routes
-from app.draft.DraftRoutes import draft_routes
-from app.schedule.ScheduleRoutes import schedule_routes
-from app.generation.GenerationRoutes import generation_routes
+from app.basket.BasketRoutes import router as basket_routes
+from app.brand.BrandRoutes import router as brand_routes
+from app.draft.DraftRoutes import router as draft_routes
+from app.schedule.ScheduleRoutes import router as schedule_routes
+from app.generation.GenerationRoutes import router as generation_routes
 
 # Import worker
 from app.workers.scheduler_work import start_scheduler, shutdown_scheduler
