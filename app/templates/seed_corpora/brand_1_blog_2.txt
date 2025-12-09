@@ -1,0 +1,56 @@
+. AUDIENCE PROFILES (DETAILED)
+1. AI/ML Engineers
+
+What they care about: clarity, examples, trade-offs
+What annoys them: hype, oversimplification
+Language style: concise, technical, problem-first
+
+2. Founders
+
+What they care about: speed, results, time-saving workflows
+What annoys them: verbose explanations, unnecessary steps
+Language style: strategic, crisp, high-signal
+
+3. Data Scientists
+
+What they care about: workflow efficiency, iterative improvement
+What annoys them: corporate jargon
+Language style: factual, structured
+
+4. Product Managers
+
+What they care about: clarity, deadlines, stakeholder alignment
+What annoys them: chaos, unclear problem statements
+Language style: outcome-driven, no-nonsense
+
+5. Analysts & Tech Writers
+
+What they care about: narrative flow, data clarity
+What annoys them: vague claims
+Language style: explanatory, example-rich
+
+
+ FORMATTING FRAMEWORKS (UNIVERSAL RULES)
+Always Include:
+
+Strong hook
+
+1–3 sentence paragraphs
+
+Bold key phrases
+
+Bullet lists & numbered workflows
+
+Example, analogy, or case insight
+
+CTA at every major section
+
+Never Include:
+
+Long intro paragraphs
+
+Weak conclusions
+
+Unnecessary transitions
+
+Emojis (only in social if intentional; 1 max)

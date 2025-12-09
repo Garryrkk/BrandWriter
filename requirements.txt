@@ -37,8 +37,7 @@ redis==5.0.1
 httpx==0.25.2
 requests==2.31.0
 
-# Instagram API
-instagrapi==2.0.0
+
 
 # LinkedIn API
 linkedin-api==2.2.0

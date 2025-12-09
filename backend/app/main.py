@@ -1,18 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from app.config import settings
-from app.database import init_db
-from app.routes import (
-    brand_routes,
-    draft_routes,
-    basket_routes,
-    schedule_routes,
-    generation_routes
-)
+from app.core.config import settings
+from app.db.database import init_db
+from app.basket.BasketRoutes import basket_routes
+from app.brand.BrandRoutes import brand_routes
+from app.draft.DraftRoutes import draft_routes
+from app.schedule.ScheduleRoutes import schedule_routes
+from app.generation.GenerationRoutes import generation_routes
 
 # Import worker
-from app.workers.scheduler_worker import start_scheduler, shutdown_scheduler
+from app.workers.scheduler_work import start_scheduler, shutdown_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

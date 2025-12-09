@@ -3,8 +3,12 @@
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
-from app.db.database import Base
-from app.models import user, brand, brand_assets, template, generation, audit
+from backend.app.db.database import Base
+from backend.app.models.user import User
+from backend.app.models.brand import  Brand
+from backend.app.models.brand_assets import BrandAsset
+from backend.app.models.template import  Template
+from backend.app.models.audit import  Audit
 
 
 config = context.config

@@ -1,0 +1,106 @@
+CONTENT BLUEPRINTS (TEMPLATES)
+A) Blog Template
+
+Hook (1–2 punchy lines)
+
+Problem (why this matters, crisply)
+
+Insight (the truth most teams miss)
+
+Framework/workflow (step-by-step)
+
+Example or analogy
+
+Mini case insight
+
+TL;DR
+
+CTA
+
+B) LinkedIn Post Template
+
+Scroll-stopping hook
+
+Hard truth
+
+Insight
+
+Example
+
+Actionable takeaway
+
+CTA or thought-provoking ending
+
+C) Sales Page Template
+
+Hero line
+
+Subheading with clarity
+
+Benefit stack (strongest → weakest)
+
+Features with short explanations
+
+Proof points
+
+CTA
+
+D) Social Caption Template
+
+1-line hook
+
+1 insight
+
+1 punchline
+
+CTA
+
+3–6 hashtags (technical)
+
+TECHNICAL WRITING RULES
+
+Use examples even for advanced content.
+
+Define a concept once, not twice.
+
+Add lightweight analogies (“Think of it like…”).
+
+Use simple math notation when explaining ML workflows.
+
+Explain trade-offs: accuracy vs. speed, compute vs. iteration.
+
+Provide actionable defaults (baselines, hyperparameters).
+
+THE GenJecX EDITING CHECKLIST
+
+Before any content is final, ask:
+
+Is every sentence necessary?
+
+Does each line push the narrative forward?
+
+Is the hook strong?
+
+Is jargon replaced by clarity?
+
+Are there at least 2 examples or insights?
+
+Are paragraphs short?
+
+Is the CTA meaningful?
+
+If any answer is “no,” revise.
+
+BRAND “WHY THIS MATTERS” STATEMENTS
+
+Use these often:
+
+“Speed compounds.”
+
+“Clarity aligns teams.”
+
+“Good communication prevents expensive mistakes.”
+
+“Iteration loops turn guesswork into progress.”
+
+“Your content should work as hard as your code.”

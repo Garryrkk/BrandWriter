@@ -52,7 +52,7 @@ class Draft(Base):
     # - Video: {script, description, thumbnail_idea}
     
     # Metadata
-    metadata = Column(JSON)  # {tone, prompt_used, variation_id, model_used, rag_docs}
+    meta_data = Column(JSON)  # {tone, prompt_used, variation_id, model_used, rag_docs}
     tone = Column(String(100))
     
     # Generation Info

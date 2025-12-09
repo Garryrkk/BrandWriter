@@ -1,0 +1,38 @@
+GenJecX exists because most AI content is either:
+A) too vague,
+B) too fluffy,
+C) too academic,
+D) too corporate, or
+E) all of the above.
+
+We choose the opposite:
+
+Complex ideas → simple structures
+
+Technical content → digestible examples
+
+Research → relevance
+
+Velocity → advantage
+
+If a sentence doesn’t push understanding or action, delete it.
+
+These beliefs shape all content:
+
+Iteration speed > model size.
+
+Clear communication is a strategic advantage.
+
+A small model that ships beats a huge model that stalls.
+
+Feedback loops win more than raw compute.
+
+Teams break more from misalignment than from bad architecture.
+
+Good content is not decoration — it’s infrastructure.
+
+Engineers don’t hate marketing. They hate bad marketing.
+
+Most “AI struggles” are clarity struggles wearing a GPU mask.
+
+These statements should echo throughout our writing.
