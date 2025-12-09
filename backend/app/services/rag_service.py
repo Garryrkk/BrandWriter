@@ -6,12 +6,16 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from app.models.document import Document
 from app.core.config import settings
-
+import os
 class RAGService:
     """Service layer for RAG (Retrieval Augmented Generation) operations"""
     
     def __init__(self):
-        self.embedding_model = SentenceTransformer(settings.EMBEDDING_MODEL)
+        hf_token = os.environ.get("HF_TOKEN")  # safer than hardcoding
+        self.embedding_model = SentenceTransformer(
+            settings.EMBEDDING_MODEL,
+            use_auth_token=hf_token
+        )
         self.chunk_size = settings.CHUNK_SIZE
         self.chunk_overlap = settings.CHUNK_OVERLAP
     

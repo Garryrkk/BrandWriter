@@ -32,8 +32,8 @@ class Generation(Base):
     variations = Column(JSON)  # List of variations if generated
     selected_variation = Column(Integer)  # Index of selected variation
     
-    # Metadata
-    metadata = Column(JSON)
+    # meta_data
+    meta_data = Column(JSON)
     tone = Column(String(100))
     style_attributes = Column(JSON)
     

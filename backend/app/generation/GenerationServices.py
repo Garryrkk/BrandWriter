@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 from datetime import datetime
 import time
 from app.generation.GenerationModels import Generation
-from app.generation.GenerationSchemas import GenerationCreate, GenerationUpdate, GenerationFeedback, GenerationFilter
+from app.generation.GenerationSchemas import GenerationCreate, GenerationFeedback, GenerationFilter
 
 class GenerationService:
     """Service layer for Generation operations"""

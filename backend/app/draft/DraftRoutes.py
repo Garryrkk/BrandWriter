@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
 from app.db.database import get_db
-from app.draft.DraftRoutes import (
+from app.draft.DraftSchemas import (
     DraftCreate, DraftUpdate, DraftResponse, DraftListResponse,
     DraftFilter, ContentCategory, Platform, DraftStatus
 )

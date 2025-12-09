@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 import time
 from app.db.database import get_db
-from app.schemas.generation import (
+from app.generation.GenerationSchemas import (
     GenerationCreate, GenerationResponse, GenerationListResponse,
     QuickGenerateRequest, BatchGenerateRequest, GenerationFeedback,
     GenerationFilter, BatchGenerationResponse

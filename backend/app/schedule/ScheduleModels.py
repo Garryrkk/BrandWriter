@@ -58,8 +58,8 @@ class Schedule(Base):
     published_url = Column(String(1000))
     platform_post_id = Column(String(255))  # ID from social platform
     
-    # Metadata
-    metadata = Column(JSON)
+    # meta_data 
+    meta_data  = Column(JSON)
     notes = Column(Text)
     
     # Timestamps
