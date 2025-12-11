@@ -8,6 +8,7 @@ from app.brand.BrandRoutes import router as brand_routes
 from app.draft.DraftRoutes import router as draft_routes
 from app.schedule.ScheduleRoutes import router as schedule_routes
 from app.generation.GenerationRoutes import router as generation_routes
+from app.auth.auth_routes import router as auth_router
 
 # Import worker
 from app.workers.scheduler_work import start_scheduler, shutdown_scheduler
@@ -19,7 +20,7 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting Content OS...")
     
     # Initialize database
-    init_db()
+    await init_db()
     print("✓ Database initialized")
     
     # Start background scheduler
@@ -56,6 +57,8 @@ app.include_router(draft_routes, prefix="/api/v1")
 app.include_router(basket_routes, prefix="/api/v1")
 app.include_router(schedule_routes, prefix="/api/v1")
 app.include_router(generation_routes, prefix="/api/v1")
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
+
 
 
 # Health check

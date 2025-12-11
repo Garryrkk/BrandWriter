@@ -1,223 +1,380 @@
-// GeneratorPage.jsx
 import React, { useState } from 'react';
-import { Sparkles, RefreshCw, Save, ShoppingBasket, X } from 'lucide-react';
+import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Plus, Linkedin, Instagram, Youtube, Mail, MessageSquare, Users, Lightbulb, Image, Layers } from 'lucide-react';
 
-const GeneratorPage = ({ contentType = 'LinkedIn Post' }) => {
-  const [settings, setSettings] = useState({
-    tone: 'professional',
-    template: 'default',
-    wordCount: 'medium',
-    cta: true,
-    emoji: true,
-    format: 'text'
-  });
+const QuickGenShortcutsPage = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('autogen');
 
-  const [variations, setVariations] = useState([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  // Floating icons data
+  const floatingIcons = [
+    { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
+    { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
+    { Icon: Network, top: '45%', left: '10%', size: 36, opacity: 0.12 },
+    { Icon: Bot, top: '60%', right: '15%', size: 30, opacity: 0.1 },
+    { Icon: Sparkles, top: '15%', right: '40%', size: 24, opacity: 0.09 },
+    { Icon: Rocket, top: '75%', left: '25%', size: 28, opacity: 0.11 },
+    { Icon: Code, top: '35%', left: '85%', size: 26, opacity: 0.08 },
+    { Icon: Database, top: '80%', right: '30%', size: 32, opacity: 0.1 },
+    { Icon: Globe, top: '20%', left: '70%', size: 30, opacity: 0.09 },
+    { Icon: Server, top: '90%', left: '50%', size: 28, opacity: 0.12 },
+    { Icon: Terminal, top: '50%', right: '45%', size: 24, opacity: 0.08 },
+    { Icon: Brain, top: '70%', left: '60%', size: 34, opacity: 0.1 },
+    { Icon: Cpu, top: '5%', left: '45%', size: 26, opacity: 0.09 },
+    { Icon: Network, top: '85%', right: '10%', size: 30, opacity: 0.11 },
+    { Icon: Bot, top: '40%', left: '30%', size: 28, opacity: 0.08 },
+  ];
 
-  const tones = ['Professional', 'Casual', 'Inspiring', 'Educational', 'Humorous', 'Storytelling'];
-  const templates = ['Default', 'Problem-Solution', 'Listicle', 'Case Study', 'Question Hook', 'Stats Driven'];
-  const wordCounts = ['Short (50-100)', 'Medium (100-250)', 'Long (250-500)'];
-  const formats = ['Text Only', 'Text + Image', 'Carousel', 'Video Script', 'Story Format'];
+  const menuItems = [
+    { icon: Home, label: 'Dashboard', id: 'dashboard' },
+    { icon: FileText, label: 'Drafts', id: 'drafts' },
+    { icon: ShoppingCart, label: 'Basket', id: 'basket' },
+    { icon: History, label: 'History', id: 'history' },
+    { icon: Calendar, label: 'Schedule', id: 'schedule' },
+    { icon: Zap, label: 'Auto-Gen', id: 'autogen' },
+    { icon: FileCode, label: 'Templates', id: 'templates' },
+    { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
+  ];
 
-  const handleGenerate = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      setVariations([
-        {
-          id: 1,
-          content: `🚀 Variation 1: The future of marketing is here...\n\n${contentType} content generated with ${settings.tone} tone.\n\nThis is where your AI-generated content would appear with proper formatting, hooks, and CTAs based on your settings.\n\n#Marketing #AI #ContentCreation`,
-          engagement: '★★★★☆',
-          wordCount: 156
-        },
-        {
-          id: 2,
-          content: `💡 Variation 2: Ever wondered how top brands...\n\nAlternative ${contentType} approach using ${settings.template} template.\n\nComplete with storytelling elements, data points, and strategic call-to-action.\n\n#Business #Growth #Strategy`,
-          engagement: '★★★★★',
-          wordCount: 142
-        },
-        {
-          id: 3,
-          content: `✨ Variation 3: Here's what nobody tells you about...\n\nFresh ${contentType} angle with ${settings.tone} voice.\n\nEngaging narrative, clear value proposition, and compelling hook to capture attention.\n\n#Innovation #Digital #Success`,
-          engagement: '★★★☆☆',
-          wordCount: 138
-        }
-      ]);
-      setIsGenerating(false);
-    }, 2000);
+  const generationShortcuts = [
+    {
+      id: 1,
+      title: 'LinkedIn Post',
+      icon: Linkedin,
+      description: 'Create professional thought leadership content',
+      color: 'from-blue-500 to-blue-600',
+      emoji: '💼',
+      category: 'Social Media'
+    },
+    {
+      id: 2,
+      title: 'Instagram Reel',
+      icon: Instagram,
+      description: 'Generate viral short-form video scripts',
+      color: 'from-pink-500 to-purple-600',
+      emoji: '🎥',
+      category: 'Social Media'
+    },
+    {
+      id: 3,
+      title: 'Instagram Carousel',
+      icon: Layers,
+      description: 'Design multi-slide educational posts',
+      color: 'from-purple-500 to-pink-500',
+      emoji: '📱',
+      category: 'Social Media'
+    },
+    {
+      id: 4,
+      title: 'YouTube Short',
+      icon: Youtube,
+      description: 'Script attention-grabbing 60s videos',
+      color: 'from-red-500 to-red-600',
+      emoji: '📹',
+      category: 'Video Content'
+    },
+    {
+      id: 5,
+      title: 'Newsletter',
+      icon: Mail,
+      description: 'Craft engaging email newsletters',
+      color: 'from-teal-500 to-cyan-600',
+      emoji: '📬',
+      category: 'Email Marketing'
+    },
+    {
+      id: 6,
+      title: 'Cold Email',
+      icon: Mail,
+      description: 'Write personalized outreach emails',
+      color: 'from-green-500 to-emerald-600',
+      emoji: '📧',
+      category: 'Email Marketing'
+    },
+    {
+      id: 7,
+      title: 'Cold DM',
+      icon: MessageSquare,
+      description: 'Generate Instagram/LinkedIn DMs',
+      color: 'from-violet-500 to-purple-600',
+      emoji: '💬',
+      category: 'Outreach'
+    },
+    {
+      id: 8,
+      title: 'Lead List (100/day)',
+      icon: Users,
+      description: 'Auto-generate targeted prospect lists',
+      color: 'from-orange-500 to-amber-600',
+      emoji: '👥',
+      category: 'Lead Generation'
+    },
+    {
+      id: 9,
+      title: 'Brand Idea Batch',
+      icon: Lightbulb,
+      description: 'Get 50+ content ideas instantly',
+      color: 'from-yellow-400 to-orange-500',
+      emoji: '💡',
+      category: 'Ideation'
+    }
+  ];
+
+  const recentGenerations = [
+    { type: 'LinkedIn Post', count: 12, time: 'Today' },
+    { type: 'Instagram Reel', count: 8, time: 'Today' },
+    { type: 'Cold Email', count: 100, time: 'Today' },
+    { type: 'Newsletter', count: 3, time: 'This Week' }
+  ];
+
+  const quickStats = {
+    totalGenerated: 247,
+    thisWeek: 89,
+    thisMonth: 247,
+    avgPerDay: 35
+  };
+
+  const handleGenerateContent = (title) => {
+    console.log('Opening generator for:', title);
+    // This would navigate to the specific generation page
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Generate {contentType}</h1>
-          <p className="text-gray-400">Configure your settings and generate AI-powered content variations</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
+      {/* Floating Background Icons */}
+      {floatingIcons.map((item, idx) => {
+        const IconComponent = item.Icon;
+        return (
+          <div
+            key={idx}
+            className="absolute pointer-events-none"
+            style={{
+              top: item.top,
+              left: item.left,
+              right: item.right,
+              opacity: item.opacity,
+            }}
+          >
+            <IconComponent size={item.size} className="text-yellow-200" />
+          </div>
+        );
+      })}
+
+      {/* Header */}
+      <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="lg:hidden p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+            >
+              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+            <div className="flex items-center gap-2">
+              <Brain className="text-yellow-300" size={32} />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
+                Brand Writer
+              </h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button className="px-4 py-2 bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 rounded-lg font-semibold hover:shadow-lg hover:shadow-yellow-500/50 transition-all">
+              Products
+            </button>
+            <button className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors">
+              Contact
+            </button>
+            <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold">
+              8
+            </div>
+            <button className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors">
+              <ShoppingCart size={20} />
+            </button>
+          </div>
         </div>
+      </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* LEFT PANEL: Settings */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 h-fit">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <Sparkles className="text-yellow-300" size={20} />
-              Settings
-            </h2>
-
-            <div className="space-y-6">
-              {/* Tone Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Tone</label>
-                <select 
-                  value={settings.tone}
-                  onChange={(e) => setSettings({...settings, tone: e.target.value})}
-                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-yellow-300 focus:outline-none"
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-64 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
+          <nav className="p-4 space-y-2">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                    activeTab === item.id
+                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border border-yellow-300/30'
+                      : 'hover:bg-slate-700/30'
+                  }`}
                 >
-                  {tones.map(tone => (
-                    <option key={tone} value={tone.toLowerCase()}>{tone}</option>
-                  ))}
-                </select>
-              </div>
+                  <Icon size={20} className={activeTab === item.id ? 'text-yellow-300' : ''} />
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
 
-              {/* Template Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Template</label>
-                <select 
-                  value={settings.template}
-                  onChange={(e) => setSettings({...settings, template: e.target.value})}
-                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-yellow-300 focus:outline-none"
-                >
-                  {templates.map(template => (
-                    <option key={template} value={template.toLowerCase().replace(' ', '-')}>{template}</option>
-                  ))}
-                </select>
-              </div>
+        {/* Main Content */}
+        <main className="flex-1 p-6 lg:p-8 relative z-10">
+          {/* Page Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+              <Zap className="text-yellow-300" size={36} />
+              Quick Generation Shortcuts
+            </h1>
+            <p className="text-slate-400 mb-6">Create content instantly with one click — choose your format and let AI do the work</p>
 
-              {/* Format Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Format</label>
-                <select 
-                  value={settings.format}
-                  onChange={(e) => setSettings({...settings, format: e.target.value})}
-                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-yellow-300 focus:outline-none"
-                >
-                  {formats.map(format => (
-                    <option key={format} value={format.toLowerCase()}>{format}</option>
-                  ))}
-                </select>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+                <p className="text-slate-400 text-sm mb-1">Total Generated</p>
+                <p className="text-2xl font-bold text-yellow-300">{quickStats.totalGenerated}</p>
               </div>
-
-              {/* Word Count */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Word Count</label>
-                <select 
-                  value={settings.wordCount}
-                  onChange={(e) => setSettings({...settings, wordCount: e.target.value})}
-                  className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-yellow-300 focus:outline-none"
-                >
-                  {wordCounts.map(count => (
-                    <option key={count} value={count.split(' ')[0].toLowerCase()}>{count}</option>
-                  ))}
-                </select>
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+                <p className="text-slate-400 text-sm mb-1">This Week</p>
+                <p className="text-2xl font-bold text-blue-400">{quickStats.thisWeek}</p>
               </div>
-
-              {/* Toggles */}
-              <div className="space-y-3">
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm text-gray-300">Include CTA</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.cta}
-                    onChange={(e) => setSettings({...settings, cta: e.target.checked})}
-                    className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-yellow-300 focus:ring-2 focus:ring-yellow-300"
-                  />
-                </label>
-                
-                <label className="flex items-center justify-between cursor-pointer">
-                  <span className="text-sm text-gray-300">Include Emojis</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.emoji}
-                    onChange={(e) => setSettings({...settings, emoji: e.target.checked})}
-                    className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-pink-300 focus:ring-2 focus:ring-pink-300"
-                  />
-                </label>
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+                <p className="text-slate-400 text-sm mb-1">This Month</p>
+                <p className="text-2xl font-bold text-purple-400">{quickStats.thisMonth}</p>
               </div>
-
-              {/* Generate Button */}
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                className="w-full bg-gradient-to-r from-yellow-300 to-pink-300 text-gray-900 font-bold py-3 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="animate-spin" size={20} />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={20} />
-                    Generate Content
-                  </>
-                )}
-              </button>
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+                <p className="text-slate-400 text-sm mb-1">Avg Per Day</p>
+                <p className="text-2xl font-bold text-green-400">{quickStats.avgPerDay}</p>
+              </div>
             </div>
           </div>
 
-          {/* RIGHT PANEL: Output Area */}
-          <div className="lg:col-span-2 space-y-4">
-            {variations.length === 0 ? (
-              <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-12 border border-gray-700 border-dashed flex flex-col items-center justify-center min-h-[500px]">
-                <Sparkles size={64} className="text-gray-600 mb-4" />
-                <p className="text-gray-400 text-lg text-center">
-                  Configure your settings and click "Generate Content" to see AI-powered variations
-                </p>
+          {/* Generation Shortcuts Grid */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Sparkles className="text-yellow-300" />
+              Content Generators
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {generationShortcuts.map((shortcut) => {
+                const IconComponent = shortcut.icon;
+                return (
+                  <button
+                    key={shortcut.id}
+                    onClick={() => handleGenerateContent(shortcut.title)}
+                    className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-yellow-300/30 transition-all hover:shadow-xl hover:shadow-yellow-500/10 group text-left relative overflow-hidden"
+                  >
+                    {/* Background Gradient */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${shortcut.color} opacity-0 group-hover:opacity-10 transition-opacity`}></div>
+                    
+                    {/* Content */}
+                    <div className="relative z-10">
+                      {/* Icon and Badge */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className={`w-16 h-16 bg-gradient-to-br ${shortcut.color} rounded-xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform`}>
+                          {shortcut.emoji}
+                        </div>
+                        <span className="px-3 py-1 bg-slate-700/50 text-slate-300 rounded-full text-xs font-medium">
+                          {shortcut.category}
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                        <Plus size={20} className="text-yellow-300" />
+                        {shortcut.title}
+                      </h3>
+
+                      {/* Description */}
+                      <p className="text-slate-400 text-sm mb-4">{shortcut.description}</p>
+
+                      {/* Action Indicator */}
+                      <div className="flex items-center gap-2 text-yellow-300 font-semibold text-sm group-hover:gap-3 transition-all">
+                        <span>Generate Now</span>
+                        <Zap size={16} className="group-hover:rotate-12 transition-transform" />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Recent Activity */}
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Recent Generations */}
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <History className="text-yellow-300" />
+                Recent Generations
+              </h2>
+              <div className="space-y-4">
+                {recentGenerations.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:border-yellow-300/30 transition-all"
+                  >
+                    <div>
+                      <p className="font-semibold">{item.type}</p>
+                      <p className="text-sm text-slate-400">{item.time}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-yellow-300">{item.count}</p>
+                      <p className="text-xs text-slate-400">generated</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : (
-              variations.map((variation) => (
-                <VariationCard key={variation.id} variation={variation} />
-              ))
-            )}
-          </div>
-        </div>
+            </div>
+
+            {/* Quick Tips */}
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Lightbulb className="text-yellow-300" />
+                Pro Tips
+              </h2>
+              <div className="space-y-4">
+                <div className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-blue-500/20">
+                  <p className="font-semibold mb-2 flex items-center gap-2">
+                    <span className="text-blue-400">💡</span>
+                    Batch Generate Content
+                  </p>
+                  <p className="text-sm text-slate-400">Generate multiple posts at once and save them to drafts for the week ahead.</p>
+                </div>
+                <div className="p-4 bg-gradient-to-r from-pink-500/10 to-orange-500/10 rounded-lg border border-pink-500/20">
+                  <p className="font-semibold mb-2 flex items-center gap-2">
+                    <span className="text-pink-400">✨</span>
+                    Use Brand Voice
+                  </p>
+                  <p className="text-sm text-slate-400">Set up your brand voice once and all content will match your unique style automatically.</p>
+                </div>
+                <div className="p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg border border-green-500/20">
+                  <p className="font-semibold mb-2 flex items-center gap-2">
+                    <span className="text-green-400">🚀</span>
+                    Schedule Instantly
+                  </p>
+                  <p className="text-sm text-slate-400">After generating, schedule directly to your calendar with one click.</p>
+                </div>
+                <div className="p-4 bg-gradient-to-r from-yellow-500/10 to-amber-500/10 rounded-lg border border-yellow-500/20">
+                  <p className="font-semibold mb-2 flex items-center gap-2">
+                    <span className="text-yellow-400">⚡</span>
+                    Use Templates
+                  </p>
+                  <p className="text-sm text-slate-400">Save time by creating templates for your most frequent content types.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer className="mt-12 pt-8 border-t border-slate-700/50">
+            <p className="text-sm text-slate-400">
+              We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
+            </p>
+          </footer>
+        </main>
       </div>
     </div>
   );
 };
 
-const VariationCard = ({ variation }) => {
-  return (
-    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 hover:border-yellow-300 transition-all">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-white font-bold text-lg mb-1">Variation {variation.id}</h3>
-          <div className="flex gap-4 text-sm text-gray-400">
-            <span>Words: {variation.wordCount}</span>
-            <span>Engagement: {variation.engagement}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-gray-900/50 rounded-lg p-4 mb-4 border border-gray-700">
-        <p className="text-white whitespace-pre-line">{variation.content}</p>
-      </div>
-
-      <div className="flex gap-2">
-        <button className="flex-1 bg-yellow-300 hover:bg-yellow-400 text-gray-900 font-semibold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2">
-          <Save size={16} />
-          Save to Draft
-        </button>
-        <button className="flex-1 bg-pink-300 hover:bg-pink-400 text-gray-900 font-semibold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2">
-          <ShoppingBasket size={16} />
-          Add to Basket
-        </button>
-        <button className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition-all">
-          <RefreshCw size={16} />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-export default GeneratorPage;
+export default QuickGenShortcutsPage;

@@ -202,7 +202,7 @@ async def seed_demo_brand():
 async def seed_sample_documents():
     """Seed sample RAG documents"""
     from app.services.rag_service import RAGService
-    from app.services.brand_service import BrandService
+    from app.brand.BrandServices import BrandService
     
     async with AsyncSessionLocal() as db:
         # Get the demo brand

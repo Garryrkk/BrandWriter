@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
@@ -6,55 +6,47 @@ import os
 
 load_dotenv()
 
-# ─────────────────────────────────────
-# SQLAlchemy Base
-# ─────────────────────────────────────
+# Base
 Base = declarative_base()
 
-# ─────────────────────────────────────
-# PostgreSQL (SQLAlchemy)
-# ─────────────────────────────────────
-DATABASE_URL = os.getenv("DATABASE_URL")
+# =============== PostgreSQL (Async SQLAlchemy) ===============
 
-engine = create_engine(
+DATABASE_URL = os.getenv("DATABASE_URL").replace("postgres://", "postgresql+asyncpg://")
+
+engine = create_async_engine(
     DATABASE_URL,
-    pool_pre_ping=True
+    echo=False,
 )
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
+AsyncSessionLocal = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
 )
 
-# ─────────────────────────────────────
-# FastAPI Dependency
-# ─────────────────────────────────────
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# 👉 alias for backward compatibility
+SessionLocal = AsyncSessionLocal
 
-# ─────────────────────────────────────
-# MongoDB (Motor async client)
-# ─────────────────────────────────────
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
+
+# =============== MongoDB (Motor) ===============
+
 MONGO_URL = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
 
 mongo_client = AsyncIOMotorClient(MONGO_URL)
 mongo_db = mongo_client[MONGO_DB_NAME]
 
-# ─────────────────────────────────────
-# Init DB
-# ─────────────────────────────────────
-def init_db():
+# =============== Init DB ===============
+async def init_db():
     try:
-        engine.connect()
-        print("PostgreSQL connected successfully.")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("PostgreSQL connected.")
 
-        mongo_client.admin.command("ping")
-        print("MongoDB connected successfully.")
+        await mongo_client.admin.command("ping")
+        print("MongoDB connected.")
     except Exception as e:
         print("Database initialization error:", e)
