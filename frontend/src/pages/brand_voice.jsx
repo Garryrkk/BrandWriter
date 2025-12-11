@@ -1,427 +1,729 @@
-import React, { useState } from 'react';
-import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Save, Plus, Trash2, AlertCircle, Check, Settings, Target, Lightbulb, Key, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Home, Megaphone, FileText, Settings, Users, TrendingUp, Save, Plus, X, Eye, Calendar, BarChart3, Clock, Zap, Menu, ChevronLeft, Loader2, RefreshCw, Trash2, Edit } from 'lucide-react';
 
-const BrandVoicePage = () => {
+const API_BASE_URL = 'http://localhost:8000/api/brands';
+
+const BrandVoiceDashboard = () => {
+  const [currentPage, setCurrentPage] = useState('brand-voice');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('brandvoice');
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
-  // Floating icons data
-  const floatingIcons = [
-    { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
-    { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
-    { Icon: Network, top: '45%', left: '10%', size: 36, opacity: 0.12 },
-    { Icon: Bot, top: '60%', right: '15%', size: 30, opacity: 0.1 },
-    { Icon: Sparkles, top: '15%', right: '40%', size: 24, opacity: 0.09 },
-    { Icon: Rocket, top: '75%', left: '25%', size: 28, opacity: 0.11 },
-    { Icon: Code, top: '35%', left: '85%', size: 26, opacity: 0.08 },
-    { Icon: Database, top: '80%', right: '30%', size: 32, opacity: 0.1 },
-    { Icon: Globe, top: '20%', left: '70%', size: 30, opacity: 0.09 },
-    { Icon: Server, top: '90%', left: '50%', size: 28, opacity: 0.12 },
-    { Icon: Terminal, top: '50%', right: '45%', size: 24, opacity: 0.08 },
-    { Icon: Brain, top: '70%', left: '60%', size: 34, opacity: 0.1 },
-    { Icon: Cpu, top: '5%', left: '45%', size: 26, opacity: 0.09 },
-    { Icon: Network, top: '85%', right: '10%', size: 30, opacity: 0.11 },
-    { Icon: Bot, top: '40%', left: '30%', size: 28, opacity: 0.08 },
-  ];
-
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', id: 'dashboard' },
-    { icon: FileText, label: 'Drafts', id: 'drafts' },
-    { icon: ShoppingCart, label: 'Basket', id: 'basket' },
-    { icon: History, label: 'History', id: 'history' },
-    { icon: Calendar, label: 'Schedule', id: 'schedule' },
-    { icon: Zap, label: 'Auto-Gen', id: 'autogen' },
-    { icon: FileCode, label: 'Templates', id: 'templates' },
-    { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
-  ];
-
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [brands, setBrands] = useState([]);
+  const [currentBrand, setCurrentBrand] = useState(null);
+  const [totalBrands, setTotalBrands] = useState(0);
+  const [currentBrandPage, setCurrentBrandPage] = useState(1);
   const [brandVoice, setBrandVoice] = useState({
-    brandName: 'Brand X',
-    tone: ['Professional', 'Friendly', 'Authoritative'],
-    personality: 'Innovative thought leader with a human touch',
-    writingStyle: {
-      sentenceLength: 'Mixed',
-      formality: 'Semi-formal',
-      vocabulary: 'Industry-specific with accessible explanations',
-      formatting: 'Short paragraphs, bullet points, emojis sparingly'
-    },
-    messagingPillars: [
-      'Innovation drives success',
-      'Simplicity is powerful',
-      'Community-first approach',
-      'Data-informed decisions'
-    ],
-    keywordsToUse: ['innovation', 'growth', 'scalable', 'data-driven', 'community', 'transform'],
-    keywordsToAvoid: ['revolutionary', 'game-changer', 'disruptive', 'synergy', 'leverage'],
-    targetAudience: {
-      primary: 'B2B SaaS founders and executives',
-      secondary: 'Marketing professionals and content creators',
-      demographics: 'Ages 28-45, tech-savvy, growth-focused',
-      painPoints: 'Time management, content consistency, scaling content'
-    },
-    seedCorpus: [
-      { title: 'Top Performing Post', content: 'The biggest mistake I see founders make is trying to do everything...', engagement: '2.4K likes' },
-      { title: 'Newsletter #12', content: 'This week we\'re diving into why most content strategies fail...', engagement: '18% open rate' },
-      { title: 'LinkedIn Article', content: 'Data shows that 73% of B2B buyers prefer educational content...', engagement: '156 comments' }
-    ],
-    aiBehavior: {
-      creativity: 75,
-      formality: 60,
-      emojiUsage: 30,
-      hashtagCount: 3,
-      ctaStyle: 'Soft ask with value proposition',
-      contentLength: 'Medium (150-250 words)'
-    }
+    name: '',
+    tone: '',
+    personality: [],
+    writingStyle: '',
+    messagingPillars: ['', '', ''],
+    keywordsUse: [],
+    keywordsAvoid: [],
+    targetAudience: '',
+    brandGoals: '',
+    seedCorpus: '',
+    is_active: true
   });
+  
+  const [contentFeed] = useState([
+    {
+      id: 1,
+      type: 'Blog Post',
+      title: 'Top 10 Marketing Trends for 2025',
+      status: 'Published',
+      date: '2025-12-10',
+      engagement: '2.3K views',
+      platform: 'Website'
+    },
+    {
+      id: 2,
+      type: 'Social Media',
+      title: 'New Product Launch Announcement',
+      status: 'Scheduled',
+      date: '2025-12-12',
+      engagement: 'N/A',
+      platform: 'LinkedIn'
+    },
+    {
+      id: 3,
+      type: 'Email',
+      title: 'Weekly Newsletter - December Edition',
+      status: 'Draft',
+      date: '2025-12-11',
+      engagement: 'N/A',
+      platform: 'Email'
+    },
+    {
+      id: 4,
+      type: 'Blog Post',
+      title: 'Customer Success Story: Brand X',
+      status: 'Published',
+      date: '2025-12-09',
+      engagement: '1.8K views',
+      platform: 'Website'
+    }
+  ]);
 
-  const [newPillar, setNewPillar] = useState('');
-  const [newKeywordUse, setNewKeywordUse] = useState('');
-  const [newKeywordAvoid, setNewKeywordAvoid] = useState('');
+  const personalityOptions = ['Professional', 'Casual', 'Friendly', 'Bold', 'Humorous', 'Empathetic'];
 
-  const toneOptions = ['Professional', 'Friendly', 'Authoritative', 'Casual', 'Humorous', 'Inspirational', 'Educational', 'Conversational'];
-
-  const handleSave = () => {
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
-    console.log('Brand voice saved:', brandVoice);
-  };
-
-  const toggleTone = (tone) => {
-    setBrandVoice(prev => ({
-      ...prev,
-      tone: prev.tone.includes(tone) 
-        ? prev.tone.filter(t => t !== tone)
-        : [...prev.tone, tone]
-    }));
-  };
-
-  const addPillar = () => {
-    if (newPillar.trim()) {
-      setBrandVoice(prev => ({
-        ...prev,
-        messagingPillars: [...prev.messagingPillars, newPillar.trim()]
-      }));
-      setNewPillar('');
+  const showMessage = (message, isError = false) => {
+    if (isError) {
+      setError(message);
+      setTimeout(() => setError(null), 5000);
+    } else {
+      setSuccessMessage(message);
+      setTimeout(() => setSuccessMessage(null), 3000);
     }
   };
 
-  const removePillar = (index) => {
-    setBrandVoice(prev => ({
-      ...prev,
-      messagingPillars: prev.messagingPillars.filter((_, i) => i !== index)
-    }));
-  };
-
-  const addKeywordUse = () => {
-    if (newKeywordUse.trim()) {
-      setBrandVoice(prev => ({
-        ...prev,
-        keywordsToUse: [...prev.keywordsToUse, newKeywordUse.trim()]
-      }));
-      setNewKeywordUse('');
+  const fetchActiveBrand = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/active`);
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentBrand(data);
+        mapBrandToState(data);
+      }
+    } catch (err) {
+      console.error('Error fetching active brand:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const removeKeywordUse = (index) => {
-    setBrandVoice(prev => ({
-      ...prev,
-      keywordsToUse: prev.keywordsToUse.filter((_, i) => i !== index)
-    }));
-  };
-
-  const addKeywordAvoid = () => {
-    if (newKeywordAvoid.trim()) {
-      setBrandVoice(prev => ({
-        ...prev,
-        keywordsToAvoid: [...prev.keywordsToAvoid, newKeywordAvoid.trim()]
-      }));
-      setNewKeywordAvoid('');
+  const fetchBrands = async (page = 1, isActive = null) => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: '10'
+      });
+      if (isActive !== null) params.append('is_active', isActive.toString());
+      
+      const response = await fetch(`${API_BASE_URL}?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch brands');
+      
+      const data = await response.json();
+      setBrands(data.brands);
+      setTotalBrands(data.total);
+      setCurrentBrandPage(data.page);
+      
+      if (data.brands.length > 0 && !currentBrand) {
+        setCurrentBrand(data.brands[0]);
+        mapBrandToState(data.brands[0]);
+      }
+    } catch (err) {
+      showMessage(err.message, true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const removeKeywordAvoid = (index) => {
+  const createBrand = async () => {
+    try {
+      setLoading(true);
+      const brandData = {
+        name: brandVoice.name,
+        tone: brandVoice.tone,
+        personality: brandVoice.personality,
+        writing_style: brandVoice.writingStyle,
+        messaging_pillars: brandVoice.messagingPillars.filter(p => p.trim() !== ''),
+        keywords_use: brandVoice.keywordsUse,
+        keywords_avoid: brandVoice.keywordsAvoid,
+        target_audience: brandVoice.targetAudience,
+        brand_goals: brandVoice.brandGoals,
+        seed_corpus: brandVoice.seedCorpus,
+        is_active: brandVoice.is_active
+      };
+
+      const response = await fetch(`${API_BASE_URL}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brandData)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to create brand');
+      }
+
+      const data = await response.json();
+      setCurrentBrand(data);
+      showMessage('Brand created successfully!');
+      await fetchBrands();
+    } catch (err) {
+      showMessage(err.message, true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateBrand = async (brandId) => {
+    try {
+      setLoading(true);
+      const brandData = {
+        name: brandVoice.name,
+        tone: brandVoice.tone,
+        personality: brandVoice.personality,
+        writing_style: brandVoice.writingStyle,
+        messaging_pillars: brandVoice.messagingPillars.filter(p => p.trim() !== ''),
+        keywords_use: brandVoice.keywordsUse,
+        keywords_avoid: brandVoice.keywordsAvoid,
+        target_audience: brandVoice.targetAudience,
+        brand_goals: brandVoice.brandGoals,
+        seed_corpus: brandVoice.seedCorpus,
+        is_active: brandVoice.is_active
+      };
+
+      const response = await fetch(`${API_BASE_URL}/${brandId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brandData)
+      });
+
+      if (!response.ok) throw new Error('Failed to update brand');
+
+      const data = await response.json();
+      setCurrentBrand(data);
+      showMessage('Brand updated successfully!');
+      await fetchBrands();
+    } catch (err) {
+      showMessage(err.message, true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteBrand = async (brandId, hardDelete = false) => {
+    if (!confirm(`Are you sure you want to ${hardDelete ? 'permanently delete' : 'deactivate'} this brand?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/${brandId}?hard_delete=${hardDelete}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error('Failed to delete brand');
+
+      showMessage(`Brand ${hardDelete ? 'deleted' : 'deactivated'} successfully!`);
+      setCurrentBrand(null);
+      setBrandVoice({
+        name: '',
+        tone: '',
+        personality: [],
+        writingStyle: '',
+        messagingPillars: ['', '', ''],
+        keywordsUse: [],
+        keywordsAvoid: [],
+        targetAudience: '',
+        brandGoals: '',
+        seedCorpus: '',
+        is_active: true
+      });
+      await fetchBrands();
+    } catch (err) {
+      showMessage(err.message, true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const mapBrandToState = (brand) => {
+    setBrandVoice({
+      name: brand.name || '',
+      tone: brand.tone || '',
+      personality: brand.personality || [],
+      writingStyle: brand.writing_style || '',
+      messagingPillars: brand.messaging_pillars?.length > 0 ? brand.messaging_pillars : ['', '', ''],
+      keywordsUse: brand.keywords_use || [],
+      keywordsAvoid: brand.keywords_avoid || [],
+      targetAudience: brand.target_audience || '',
+      brandGoals: brand.brand_goals || '',
+      seedCorpus: brand.seed_corpus || '',
+      is_active: brand.is_active !== undefined ? brand.is_active : true
+    });
+  };
+
+  useEffect(() => {
+    fetchActiveBrand();
+    fetchBrands();
+  }, []);
+
+  const addKeyword = (type) => {
+    const input = prompt(`Enter keyword to ${type === 'use' ? 'use' : 'avoid'}:`);
+    if (input) {
+      setBrandVoice(prev => ({
+        ...prev,
+        [type === 'use' ? 'keywordsUse' : 'keywordsAvoid']: [...prev[type === 'use' ? 'keywordsUse' : 'keywordsAvoid'], input]
+      }));
+    }
+  };
+
+  const removeKeyword = (type, index) => {
     setBrandVoice(prev => ({
       ...prev,
-      keywordsToAvoid: prev.keywordsToAvoid.filter((_, i) => i !== index)
+      [type]: prev[type].filter((_, i) => i !== index)
     }));
+  };
+
+  const togglePersonality = (trait) => {
+    setBrandVoice(prev => ({
+      ...prev,
+      personality: prev.personality.includes(trait)
+        ? prev.personality.filter(p => p !== trait)
+        : [...prev.personality, trait]
+    }));
+  };
+
+  const updatePillar = (index, value) => {
+    setBrandVoice(prev => ({
+      ...prev,
+      messagingPillars: prev.messagingPillars.map((p, i) => i === index ? value : p)
+    }));
+  };
+
+  const saveBrandVoice = async () => {
+    if (!brandVoice.name.trim()) {
+      showMessage('Please enter a brand name', true);
+      return;
+    }
+
+    if (currentBrand?.id) {
+      await updateBrand(currentBrand.id);
+    } else {
+      await createBrand();
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Published': return 'bg-emerald-500';
+      case 'Scheduled': return 'bg-sky-500';
+      case 'Draft': return 'bg-yellow-500';
+      default: return 'bg-gray-500';
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
-      {/* Floating Background Icons */}
-      {floatingIcons.map((item, idx) => {
-        const IconComponent = item.Icon;
-        return (
-          <div
-            key={idx}
-            className="absolute pointer-events-none"
-            style={{
-              top: item.top,
-              left: item.left,
-              right: item.right,
-              opacity: item.opacity,
-            }}
-          >
-            <IconComponent size={item.size} className="text-yellow-200" />
-          </div>
-        );
-      })}
+    <div className="flex h-screen bg-gray-900 text-gray-100">
+      {(successMessage || error) && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
+          error ? 'bg-red-500' : 'bg-emerald-500'
+        } text-white font-semibold`}>
+          {error || successMessage}
+        </div>
+      )}
 
-      {/* Header */}
-      <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-            >
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-            <div className="flex items-center gap-2">
-              <Brain className="text-yellow-300" size={32} />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
-                Brand Writer
-              </h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="px-4 py-2 bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 rounded-lg font-semibold hover:shadow-lg hover:shadow-yellow-500/50 transition-all">
-              Products
-            </button>
-            <button className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors">
-              Contact
-            </button>
-            <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold">
-              8
-            </div>
-            <button className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors">
-              <ShoppingCart size={20} />
-            </button>
+      {loading && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg flex items-center space-x-3">
+            <Loader2 className="animate-spin" size={24} />
+            <span>Processing...</span>
           </div>
         </div>
-      </header>
+      )}
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-64 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
-          <nav className="p-4 space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    activeTab === item.id
-                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border border-yellow-300/30'
-                      : 'hover:bg-slate-700/30'
-                  }`}
-                >
-                  <Icon size={20} className={activeTab === item.id ? 'text-yellow-300' : ''} />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-6 lg:p-8 relative z-10">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-                  <Mic className="text-yellow-300" size={36} />
-                  Brand Voice Settings
-                </h1>
-                <p className="text-slate-400 mb-6">Define how AI speaks for <span className="text-yellow-300 font-semibold">{brandVoice.brandName}</span></p>
-              </div>
-              <button
-                onClick={handleSave}
-                className="px-6 py-3 bg-gradient-to-r from-yellow-200 to-pink-200 text-slate-900 rounded-lg font-semibold hover:shadow-xl hover:shadow-yellow-500/30 transition-all flex items-center gap-2"
-              >
-                <Save size={20} />
-                Save Brand Voice
-              </button>
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gray-800 border-r border-gray-700 flex flex-col transition-all duration-300`}>
+        <div className="p-6 border-b border-gray-700 flex items-center justify-between">
+          {sidebarOpen && (
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 to-pink-300 bg-clip-text text-transparent">
+              Brand Hub
+            </h1>
+          )}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-gray-700 rounded-lg transition-colors ml-auto">
+            {sidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+        
+        <nav className="flex-1 p-4 space-y-2">
+          <button onClick={() => setCurrentPage('dashboard')} className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg transition-colors ${currentPage === 'dashboard' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`} title={!sidebarOpen ? 'Dashboard' : ''}>
+            <Home size={20} />
+            {sidebarOpen && <span>Dashboard</span>}
+          </button>
+          
+          <button onClick={() => setCurrentPage('brand-voice')} className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg transition-colors ${currentPage === 'brand-voice' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`} title={!sidebarOpen ? 'Brand Voice' : ''}>
+            <Megaphone size={20} />
+            {sidebarOpen && <span>Brand Voice</span>}
+          </button>
+          
+          <button onClick={() => setCurrentPage('content-feed')} className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg transition-colors ${currentPage === 'content-feed' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`} title={!sidebarOpen ? 'Content Feed' : ''}>
+            <FileText size={20} />
+            {sidebarOpen && <span>Content Feed</span>}
+          </button>
+          
+          <button className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors`} title={!sidebarOpen ? 'Analytics' : ''}>
+            <TrendingUp size={20} />
+            {sidebarOpen && <span>Analytics</span>}
+          </button>
+          
+          <button className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors`} title={!sidebarOpen ? 'Team' : ''}>
+            <Users size={20} />
+            {sidebarOpen && <span>Team</span>}
+          </button>
+          
+          <button className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors`} title={!sidebarOpen ? 'Settings' : ''}>
+            <Settings size={20} />
+            {sidebarOpen && <span>Settings</span>}
+          </button>
+        </nav>
+        
+        <div className="p-4 border-t border-gray-700">
+          <div className={`flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3`}>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-200 to-pink-300 flex items-center justify-center text-gray-900 font-bold flex-shrink-0">
+              A
             </div>
-
-            {/* Success Message */}
-            {savedSuccess && (
-              <div className="mb-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg flex items-center gap-3">
-                <Check className="text-green-400" size={20} />
-                <span className="text-green-400 font-semibold">Brand voice saved successfully!</span>
+            {sidebarOpen && (
+              <div>
+                <p className="font-semibold">Admin User</p>
+                <p className="text-xs text-gray-400">admin@brand.com</p>
               </div>
             )}
-
-            {/* Info Alert */}
-            <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-start gap-3">
-              <AlertCircle className="text-blue-400 flex-shrink-0 mt-0.5" size={20} />
-              <div>
-                <p className="text-blue-400 font-semibold mb-1">Admin-Only Feature</p>
-                <p className="text-slate-400 text-sm">These settings control how AI generates content for your brand. Changes affect all future auto-generated content.</p>
-              </div>
-            </div>
           </div>
+        </div>
+      </aside>
 
-          {/* AI Behavior Settings */}
-          <section className="mb-8">
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Settings className="text-yellow-300" />
-                ⚙️ AI Behavior Settings
+      <main className="flex-1 overflow-y-auto">
+        <header className="bg-gray-800 border-b border-gray-700 p-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-3xl font-bold">
+                {currentPage === 'brand-voice' ? 'Brand Voice Settings' : currentPage === 'dashboard' ? 'Brand Management' : 'Auto-Generated Content Feed'}
               </h2>
-              
-              <div className="space-y-6">
-                {/* Creativity Slider */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-semibold text-slate-300">Creativity Level</label>
-                    <span className="text-yellow-300 font-bold">{brandVoice.aiBehavior.creativity}%</span>
+              <p className="text-gray-400 mt-1">
+                {currentPage === 'brand-voice' ? `${currentBrand ? `Editing: ${currentBrand.name}` : 'Create a new brand voice'}` : currentPage === 'dashboard' ? 'Manage all your brands' : 'Live-updating content across all channels'}
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              {currentPage === 'brand-voice' && (
+                <>
+                  {currentBrand && (
+                    <>
+                      <button onClick={() => { setCurrentBrand(null); setBrandVoice({ name: '', tone: '', personality: [], writingStyle: '', messagingPillars: ['', '', ''], keywordsUse: [], keywordsAvoid: [], targetAudience: '', brandGoals: '', seedCorpus: '', is_active: true }); }} className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-gray-100 px-4 py-3 rounded-lg font-semibold transition-colors">
+                        <Plus size={20} />
+                        <span>New Brand</span>
+                      </button>
+                      <button onClick={() => deleteBrand(currentBrand.id, false)} className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition-colors">
+                        <Trash2 size={20} />
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  )}
+                  <button onClick={saveBrandVoice} disabled={loading} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-200 to-pink-300 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+                    <Save size={20} />
+                    <span>{currentBrand ? 'Update' : 'Create'} Brand</span>
+                  </button>
+                </>
+              )}
+              {currentPage === 'dashboard' && (
+                <button onClick={() => fetchBrands(currentBrandPage)} className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-gray-100 px-4 py-3 rounded-lg font-semibold transition-colors">
+                  <RefreshCw size={20} />
+                  <span>Refresh</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <div className="p-6">
+          {currentPage === 'dashboard' ? (
+            <div className="space-y-6">
+              <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                <div className="p-6 border-b border-gray-700">
+                  <h3 className="text-xl font-semibold">All Brands</h3>
+                  <p className="text-gray-400 text-sm mt-1">Total: {totalBrands} brands</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-700/50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Name</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Tone</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Created</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {brands.map(brand => (
+                        <tr key={brand.id} className="hover:bg-gray-700/30 transition-colors">
+                          <td className="px-6 py-4 font-medium">{brand.name}</td>
+                          <td className="px-6 py-4 text-gray-400">{brand.tone || 'Not set'}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${brand.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-600 text-gray-400'}`}>
+                              {brand.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-gray-400">
+                            {new Date(brand.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center space-x-2">
+                              <button onClick={() => { setCurrentBrand(brand); mapBrandToState(brand); setCurrentPage('brand-voice'); }} className="text-yellow-200 hover:text-yellow-100 transition-colors p-2" title="Edit brand">
+                                <Edit size={18} />
+                              </button>
+                              <button onClick={() => deleteBrand(brand.id, false)} className="text-red-400 hover:text-red-300 transition-colors p-2" title="Delete brand">
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {brands.length === 0 && (
+                    <div className="text-center py-12 text-gray-400">
+                      <p>No brands found. Create your first brand!</p>
+                    </div>
+                  )}
+                </div>
+                {totalBrands > 10 && (
+                  <div className="p-4 border-t border-gray-700 flex justify-between items-center">
+                    <button onClick={() => fetchBrands(currentBrandPage - 1)} disabled={currentBrandPage === 1} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg disabled:opacity-50">
+                      Previous
+                    </button>
+                    <span className="text-gray-400">Page {currentBrandPage}</span>
+                    <button onClick={() => fetchBrands(currentBrandPage + 1)} disabled={currentBrandPage * 10 >= totalBrands} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg disabled:opacity-50">
+                      Next
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={brandVoice.aiBehavior.creativity}
-                    onChange={(e) => setBrandVoice(prev => ({
-                      ...prev,
-                      aiBehavior: { ...prev.aiBehavior, creativity: parseInt(e.target.value) }
-                    }))}
-                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <div className="flex justify-between text-xs text-slate-400 mt-1">
-                    <span>Conservative</span>
-                    <span>Balanced</span>
-                    <span>Creative</span>
+                )}
+              </div>
+            </div>
+          ) : currentPage === 'brand-voice' ? (
+            <div className="space-y-6">
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-semibold mb-4 flex items-center">
+                  <span className="text-2xl mr-3">🏢</span>
+                  Brand Name
+                </h3>
+                <input type="text" value={brandVoice.name} onChange={(e) => setBrandVoice({...brandVoice, name: e.target.value})} placeholder="Enter your brand name" className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-200" />
+              </div>
+
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-semibold mb-4 flex items-center">
+                  <span className="text-2xl mr-3">🎤</span>
+                  Tone & Personality
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Brand Tone</label>
+                    <input type="text" value={brandVoice.tone} onChange={(e) => setBrandVoice({...brandVoice, tone: e.target.value})} placeholder="e.g., Professional yet approachable, warm and friendly" className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-200" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Personality Traits</label>
+                    <div className="flex flex-wrap gap-2">
+                      {personalityOptions.map(trait => (
+                        <button key={trait} onClick={() => togglePersonality(trait)} className={`px-4 py-2 rounded-full transition-colors ${brandVoice.personality.includes(trait) ? 'bg-gradient-to-r from-yellow-200 to-pink-300 text-gray-900' : 'bg-gray-700 hover:bg-gray-600'}`}>
+                          {trait}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Formality Slider */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-semibold text-slate-300">Formality Level</label>
-                    <span className="text-blue-300 font-bold">{brandVoice.aiBehavior.formality}%</span>
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-semibold mb-4 flex items-center">
+                  <span className="text-2xl mr-3">✍</span>
+                  Writing Style
+                </h3>
+                <textarea value={brandVoice.writingStyle} onChange={(e) => setBrandVoice({...brandVoice, writingStyle: e.target.value})} placeholder="Describe your preferred writing style: sentence length, paragraph structure, use of metaphors, technical vs. simple language, etc." rows={5} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-200" />
+              </div>
+
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-semibold mb-4 flex items-center">
+                  <span className="text-2xl mr-3">🧩</span>
+                  Messaging Pillars
+                </h3>
+                <div className="space-y-3">
+                  {brandVoice.messagingPillars.map((pillar, index) => (
+                    <input key={index} type="text" value={pillar} onChange={(e) => updatePillar(index, e.target.value)} placeholder={`Pillar ${index + 1}: e.g., Innovation, Customer-First, Sustainability`} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-200" />
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-semibold mb-4 flex items-center">
+                  <span className="text-2xl mr-3">🔑</span>
+                  Keywords to Use / Avoid
+                </h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-sm font-medium text-emerald-400">Keywords to Use</label>
+                      <button onClick={() => addKeyword('use')} className="text-emerald-400 hover:text-emerald-300">
+                        <Plus size={20} />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 min-h-[80px] bg-gray-700 rounded-lg p-3">
+                      {brandVoice.keywordsUse.map((keyword, index) => (
+                        <span key={index} className="bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full text-sm flex items-center space-x-2">
+                          <span>{keyword}</span>
+                          <button onClick={() => removeKeyword('keywordsUse', index)}>
+                            <X size={14} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={brandVoice.aiBehavior.formality}
-                    onChange={(e) => setBrandVoice(prev => ({
-                      ...prev,
-                      aiBehavior: { ...prev.aiBehavior, formality: parseInt(e.target.value) }
-                    }))}
-                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <div className="flex justify-between text-xs text-slate-400 mt-1">
-                    <span>Casual</span>
-                    <span>Professional</span>
-                    <span>Formal</span>
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-sm font-medium text-red-400">Keywords to Avoid</label>
+                      <button onClick={() => addKeyword('avoid')} className="text-red-400 hover:text-red-300">
+                        <Plus size={20} />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 min-h-[80px] bg-gray-700 rounded-lg p-3">
+                      {brandVoice.keywordsAvoid.map((keyword, index) => (
+                        <span key={index} className="bg-red-500/20 text-red-300 px-3 py-1 rounded-full text-sm flex items-center space-x-2">
+                          <span>{keyword}</span>
+                          <button onClick={() => removeKeyword('keywordsAvoid', index)}>
+                            <X size={14} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Emoji Usage Slider */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-semibold text-slate-300">Emoji Usage</label>
-                    <span className="text-pink-300 font-bold">{brandVoice.aiBehavior.emojiUsage}%</span>
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-semibold mb-4 flex items-center">
+                  <span className="text-2xl mr-3">🎯</span>
+                  Target Audience
+                </h3>
+                <textarea value={brandVoice.targetAudience} onChange={(e) => setBrandVoice({...brandVoice, targetAudience: e.target.value})} placeholder="Describe your target audience: demographics, psychographics, pain points, goals, etc." rows={4} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-200" />
+              </div>
+
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-semibold mb-4 flex items-center">
+                  <span className="text-2xl mr-3">📚</span>
+                  Seed Corpus Preview
+                </h3>
+                <textarea value={brandVoice.seedCorpus} onChange={(e) => setBrandVoice({...brandVoice, seedCorpus: e.target.value})} placeholder="Paste sample content that represents your brand voice (blog posts, social media, emails, etc.)" rows={6} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-200 font-mono text-sm" />
+              </div>
+
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-semibold mb-4 flex items-center">
+                  <span className="text-2xl mr-3">⚙️</span>
+                  AI Behavior Settings
+                </h3>
+                <textarea value={brandVoice.brandGoals} onChange={(e) => setBrandVoice({...brandVoice, brandGoals: e.target.value})} placeholder="Define brand goals and AI generation preferences: content length, formatting rules, CTA style, etc." rows={4} className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-200" />
+              </div>
+
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input type="checkbox" checked={brandVoice.is_active} onChange={(e) => setBrandVoice({...brandVoice, is_active: e.target.checked})} className="w-5 h-5 rounded border-gray-600 text-yellow-200 focus:ring-2 focus:ring-yellow-200" />
+                  <span className="text-lg font-medium">Set as Active Brand</span>
+                </label>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid md:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-yellow-200/10 to-yellow-200/5 border border-yellow-200/20 rounded-lg p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Total Content</p>
+                      <p className="text-3xl font-bold text-yellow-200 mt-1">24</p>
+                    </div>
+                    <FileText className="text-yellow-200" size={32} />
                   </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={brandVoice.aiBehavior.emojiUsage}
-                    onChange={(e) => setBrandVoice(prev => ({
-                      ...prev,
-                      aiBehavior: { ...prev.aiBehavior, emojiUsage: parseInt(e.target.value) }
-                    }))}
-                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <div className="flex justify-between text-xs text-slate-400 mt-1">
-                    <span>None</span>
-                    <span>Moderate</span>
-                    <span>Frequent</span>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-lg p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Published</p>
+                      <p className="text-3xl font-bold text-emerald-400 mt-1">18</p>
+                    </div>
+                    <Zap className="text-emerald-400" size={32} />
                   </div>
                 </div>
-
-                {/* Hashtag Count */}
-                <div>
-                  <label className="block text-sm font-semibold mb-3 text-slate-300">Average Hashtag Count</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="30"
-                    value={brandVoice.aiBehavior.hashtagCount}
-                    onChange={(e) => setBrandVoice(prev => ({
-                      ...prev,
-                      aiBehavior: { ...prev.aiBehavior, hashtagCount: parseInt(e.target.value) }
-                    }))}
-                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:border-yellow-300/50 transition-all"
-                  />
+                <div className="bg-gradient-to-br from-sky-500/10 to-sky-500/5 border border-sky-500/20 rounded-lg p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Scheduled</p>
+                      <p className="text-3xl font-bold text-sky-400 mt-1">4</p>
+                    </div>
+                    <Calendar className="text-sky-400" size={32} />
+                  </div>
                 </div>
-
-                {/* CTA Style */}
-                <div>
-                  <label className="block text-sm font-semibold mb-3 text-slate-300">Call-to-Action Style</label>
-                  <select
-                    value={brandVoice.aiBehavior.ctaStyle}
-                    onChange={(e) => setBrandVoice(prev => ({
-                      ...prev,
-                      aiBehavior: { ...prev.aiBehavior, ctaStyle: e.target.value }
-                    }))}
-                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:border-yellow-300/50 transition-all"
-                  >
-                    <option>Soft ask with value proposition</option>
-                    <option>Direct call to action</option>
-                    <option>Question-based engagement</option>
-                    <option>No CTA (informational only)</option>
-                  </select>
+                <div className="bg-gradient-to-br from-pink-300/10 to-pink-300/5 border border-pink-300/20 rounded-lg p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Total Views</p>
+                      <p className="text-3xl font-bold text-pink-300 mt-1">12.4K</p>
+                    </div>
+                    <BarChart3 className="text-pink-300" size={32} />
+                  </div>
                 </div>
+              </div>
 
-                {/* Content Length */}
-                <div>
-                  <label className="block text-sm font-semibold mb-3 text-slate-300">Preferred Content Length</label>
-                  <select
-                    value={brandVoice.aiBehavior.contentLength}
-                    onChange={(e) => setBrandVoice(prev => ({
-                      ...prev,
-                      aiBehavior: { ...prev.aiBehavior, contentLength: e.target.value }
-                    }))}
-                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white focus:outline-none focus:border-yellow-300/50 transition-all"
-                  >
-                    <option>Short (50-100 words)</option>
-                    <option>Medium (150-250 words)</option>
-                    <option>Long (300-500 words)</option>
-                    <option>Very Long (500+ words)</option>
-                  </select>
+              <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+                <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+                  <h3 className="text-xl font-semibold">Recent Content</h3>
+                  <button className="bg-gradient-to-r from-yellow-200 to-pink-300 text-gray-900 px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center space-x-2">
+                    <Plus size={18} />
+                    <span>New Content</span>
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-700/50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Type</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Title</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Platform</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Date</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Engagement</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {contentFeed.map(item => (
+                        <tr key={item.id} className="hover:bg-gray-700/30 transition-colors">
+                          <td className="px-6 py-4">
+                            <span className="bg-gray-700 px-3 py-1 rounded-full text-xs">
+                              {item.type}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-medium">{item.title}</td>
+                          <td className="px-6 py-4 text-gray-400">{item.platform}</td>
+                          <td className="px-6 py-4">
+                            <span className={`${getStatusColor(item.status)} px-3 py-1 rounded-full text-xs font-semibold`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-gray-400">
+                            <div className="flex items-center space-x-2">
+                              <Clock size={14} />
+                              <span>{item.date}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-400">{item.engagement}</td>
+                          <td className="px-6 py-4">
+                            <button className="text-yellow-200 hover:text-yellow-100 transition-colors">
+                              <Eye size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
-          </section>
-
-          {/* Save Button (Bottom) */}
-          <div className="sticky bottom-6 z-20">
-            <button
-              onClick={handleSave}
-              className="w-full py-4 bg-gradient-to-r from-yellow-200 to-pink-200 text-slate-900 rounded-xl font-bold text-lg hover:shadow-2xl hover:shadow-yellow-500/30 transition-all flex items-center justify-center gap-3"
-            >
-              <Save size={24} />
-              Save Brand Voice Settings
-            </button>
-          </div>
-
-          {/* Footer */}
-          <footer className="mt-12 pt-8 border-t border-slate-700/50">
-            <p className="text-sm text-slate-400">
-              We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
-            </p>
-          </footer>
-        </main>
-      </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 };
 
-export default BrandVoicePage;
+export default BrandVoiceDashboard;
