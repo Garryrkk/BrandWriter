@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
-import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Plus, Linkedin, Instagram, Youtube, Mail, MessageSquare, Users, Lightbulb, Image, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Plus, Linkedin, Instagram, Youtube, Mail, MessageSquare, Users, Lightbulb, Image, Layers, Loader, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 
 const QuickGenShortcutsPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('autogen');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [generationStats, setGenerationStats] = useState(null);
+  const [recentGenerationsData, setRecentGenerationsData] = useState([]);
+  
+  const API_BASE_URL = 'http://localhost:8000';
+  const BRAND_ID = 'your-brand-id-here';
 
-  // Floating icons data
   const floatingIcons = [
     { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
     { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
@@ -35,6 +42,150 @@ const QuickGenShortcutsPage = () => {
     { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
   ];
 
+  const apiCall = async (endpoint, method = 'GET', body = null) => {
+    const options = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+    
+    if (body) {
+      options.body = JSON.stringify(body);
+    }
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Request failed' }));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.status === 204 ? null : response.json();
+  };
+
+  useEffect(() => {
+    loadGenerationStats();
+    loadRecentGenerations();
+  }, []);
+
+  const loadGenerationStats = async () => {
+    try {
+      const stats = await apiCall(`/generations/stats?brand_id=${BRAND_ID}`);
+      setGenerationStats(stats);
+    } catch (err) {
+      console.error('Failed to load stats:', err);
+    }
+  };
+
+  const loadRecentGenerations = async () => {
+    try {
+      const data = await apiCall(`/generations/?brand_id=${BRAND_ID}&page=1&page_size=10`);
+      setRecentGenerationsData(data.generations || []);
+    } catch (err) {
+      console.error('Failed to load recent generations:', err);
+    }
+  };
+
+  const quickGenerate = async (category, platform = null, customPrompt = null) => {
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    
+    try {
+      const requestBody = {
+        brand_id: BRAND_ID,
+        category: category,
+        platform: platform,
+        custom_prompt: customPrompt,
+        rag_enabled: true,
+        variations_count: 3
+      };
+      
+      const result = await apiCall('/generations/generate', 'POST', requestBody);
+      setSuccessMessage(`Successfully generated ${category}!`);
+      
+      await loadGenerationStats();
+      await loadRecentGenerations();
+      
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const batchGenerate = async (categories, countPerCategory = 5) => {
+    setLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    
+    try {
+      const requestBody = {
+        brand_id: BRAND_ID,
+        categories: categories,
+        count_per_category: countPerCategory,
+        rag_enabled: true,
+        auto_save_to_drafts: false
+      };
+      
+      const result = await apiCall('/generations/batch', 'POST', requestBody);
+      setSuccessMessage(`Successfully generated ${result.total_generated} pieces of content!`);
+      
+      await loadGenerationStats();
+      await loadRecentGenerations();
+      
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addFeedback = async (generationId, rating, comments = null) => {
+    try {
+      const requestBody = {
+        rating: rating,
+        comments: comments
+      };
+      
+      await apiCall(`/generations/${generationId}/feedback`, 'POST', requestBody);
+      setSuccessMessage('Feedback submitted successfully!');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const convertToDraft = async (generationId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await apiCall(`/generations/${generationId}/to-draft`, 'POST');
+      setSuccessMessage('Successfully converted to draft!');
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteGeneration = async (generationId) => {
+    try {
+      await apiCall(`/generations/${generationId}`, 'DELETE');
+      setSuccessMessage('Generation deleted successfully!');
+      await loadRecentGenerations();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const generationShortcuts = [
     {
       id: 1,
@@ -43,7 +194,8 @@ const QuickGenShortcutsPage = () => {
       description: 'Create professional thought leadership content',
       color: 'from-blue-500 to-blue-600',
       emoji: '💼',
-      category: 'Social Media'
+      category: 'linkedin_post',
+      platform: 'linkedin'
     },
     {
       id: 2,
@@ -52,7 +204,8 @@ const QuickGenShortcutsPage = () => {
       description: 'Generate viral short-form video scripts',
       color: 'from-pink-500 to-purple-600',
       emoji: '🎥',
-      category: 'Social Media'
+      category: 'instagram_reel',
+      platform: 'instagram'
     },
     {
       id: 3,
@@ -61,7 +214,8 @@ const QuickGenShortcutsPage = () => {
       description: 'Design multi-slide educational posts',
       color: 'from-purple-500 to-pink-500',
       emoji: '📱',
-      category: 'Social Media'
+      category: 'instagram_carousel',
+      platform: 'instagram'
     },
     {
       id: 4,
@@ -70,7 +224,8 @@ const QuickGenShortcutsPage = () => {
       description: 'Script attention-grabbing 60s videos',
       color: 'from-red-500 to-red-600',
       emoji: '📹',
-      category: 'Video Content'
+      category: 'youtube_short',
+      platform: 'youtube'
     },
     {
       id: 5,
@@ -79,7 +234,8 @@ const QuickGenShortcutsPage = () => {
       description: 'Craft engaging email newsletters',
       color: 'from-teal-500 to-cyan-600',
       emoji: '📬',
-      category: 'Email Marketing'
+      category: 'newsletter',
+      platform: 'email'
     },
     {
       id: 6,
@@ -88,7 +244,8 @@ const QuickGenShortcutsPage = () => {
       description: 'Write personalized outreach emails',
       color: 'from-green-500 to-emerald-600',
       emoji: '📧',
-      category: 'Email Marketing'
+      category: 'cold_email',
+      platform: 'email'
     },
     {
       id: 7,
@@ -97,7 +254,8 @@ const QuickGenShortcutsPage = () => {
       description: 'Generate Instagram/LinkedIn DMs',
       color: 'from-violet-500 to-purple-600',
       emoji: '💬',
-      category: 'Outreach'
+      category: 'cold_dm',
+      platform: 'social'
     },
     {
       id: 8,
@@ -106,7 +264,8 @@ const QuickGenShortcutsPage = () => {
       description: 'Auto-generate targeted prospect lists',
       color: 'from-orange-500 to-amber-600',
       emoji: '👥',
-      category: 'Lead Generation'
+      category: 'lead_list',
+      platform: null
     },
     {
       id: 9,
@@ -115,32 +274,32 @@ const QuickGenShortcutsPage = () => {
       description: 'Get 50+ content ideas instantly',
       color: 'from-yellow-400 to-orange-500',
       emoji: '💡',
-      category: 'Ideation'
+      category: 'brand_ideas',
+      platform: null
     }
   ];
 
-  const recentGenerations = [
-    { type: 'LinkedIn Post', count: 12, time: 'Today' },
-    { type: 'Instagram Reel', count: 8, time: 'Today' },
-    { type: 'Cold Email', count: 100, time: 'Today' },
-    { type: 'Newsletter', count: 3, time: 'This Week' }
-  ];
-
-  const quickStats = {
-    totalGenerated: 247,
-    thisWeek: 89,
-    thisMonth: 247,
-    avgPerDay: 35
+  const handleGenerateContent = async (shortcut) => {
+    try {
+      if (shortcut.category === 'brand_ideas') {
+        await batchGenerate(['blog_post', 'social_media', 'newsletter', 'video_script'], 10);
+      } else {
+        await quickGenerate(shortcut.category, shortcut.platform);
+      }
+    } catch (err) {
+      console.error('Generation failed:', err);
+    }
   };
 
-  const handleGenerateContent = (title) => {
-    console.log('Opening generator for:', title);
-    // This would navigate to the specific generation page
+  const quickStats = {
+    totalGenerated: generationStats?.total_generated || 247,
+    thisWeek: generationStats?.this_week || 89,
+    thisMonth: generationStats?.this_month || 247,
+    avgPerDay: generationStats?.avg_per_day || 35
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
-      {/* Floating Background Icons */}
       {floatingIcons.map((item, idx) => {
         const IconComponent = item.Icon;
         return (
@@ -159,7 +318,6 @@ const QuickGenShortcutsPage = () => {
         );
       })}
 
-      {/* Header */}
       <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
@@ -191,10 +349,34 @@ const QuickGenShortcutsPage = () => {
             </button>
           </div>
         </div>
+
+        {loading && (
+          <div className="bg-blue-500/20 border-b border-blue-500/30 px-6 py-2 flex items-center gap-2">
+            <Loader className="animate-spin" size={16} />
+            <span className="text-sm">Generating content...</span>
+          </div>
+        )}
+        {successMessage && (
+          <div className="bg-green-500/20 border-b border-green-500/30 px-6 py-2 flex items-center gap-2">
+            <CheckCircle size={16} />
+            <span className="text-sm">{successMessage}</span>
+            <button onClick={() => setSuccessMessage(null)} className="ml-auto">
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        {error && (
+          <div className="bg-red-500/20 border-b border-red-500/30 px-6 py-2 flex items-center gap-2">
+            <XCircle size={16} />
+            <span className="text-sm">{error}</span>
+            <button onClick={() => setError(null)} className="ml-auto">
+              <X size={16} />
+            </button>
+          </div>
+        )}
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
         <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-64 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
           <nav className="p-4 space-y-2">
             {menuItems.map((item) => {
@@ -217,9 +399,7 @@ const QuickGenShortcutsPage = () => {
           </nav>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-6 lg:p-8 relative z-10">
-          {/* Page Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
               <Zap className="text-yellow-300" size={36} />
@@ -227,7 +407,6 @@ const QuickGenShortcutsPage = () => {
             </h1>
             <p className="text-slate-400 mb-6">Create content instantly with one click — choose your format and let AI do the work</p>
 
-            {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
                 <p className="text-slate-400 text-sm mb-1">Total Generated</p>
@@ -248,7 +427,6 @@ const QuickGenShortcutsPage = () => {
             </div>
           </div>
 
-          {/* Generation Shortcuts Grid */}
           <section className="mb-8">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
               <Sparkles className="text-yellow-300" />
@@ -260,15 +438,13 @@ const QuickGenShortcutsPage = () => {
                 return (
                   <button
                     key={shortcut.id}
-                    onClick={() => handleGenerateContent(shortcut.title)}
-                    className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-yellow-300/30 transition-all hover:shadow-xl hover:shadow-yellow-500/10 group text-left relative overflow-hidden"
+                    onClick={() => handleGenerateContent(shortcut)}
+                    disabled={loading}
+                    className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-yellow-300/30 transition-all hover:shadow-xl hover:shadow-yellow-500/10 group text-left relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {/* Background Gradient */}
                     <div className={`absolute inset-0 bg-gradient-to-br ${shortcut.color} opacity-0 group-hover:opacity-10 transition-opacity`}></div>
                     
-                    {/* Content */}
                     <div className="relative z-10">
-                      {/* Icon and Badge */}
                       <div className="flex items-start justify-between mb-4">
                         <div className={`w-16 h-16 bg-gradient-to-br ${shortcut.color} rounded-xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform`}>
                           {shortcut.emoji}
@@ -278,16 +454,13 @@ const QuickGenShortcutsPage = () => {
                         </span>
                       </div>
 
-                      {/* Title */}
                       <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
                         <Plus size={20} className="text-yellow-300" />
                         {shortcut.title}
                       </h3>
 
-                      {/* Description */}
                       <p className="text-slate-400 text-sm mb-4">{shortcut.description}</p>
 
-                      {/* Action Indicator */}
                       <div className="flex items-center gap-2 text-yellow-300 font-semibold text-sm group-hover:gap-3 transition-all">
                         <span>Generate Now</span>
                         <Zap size={16} className="group-hover:rotate-12 transition-transform" />
@@ -299,34 +472,49 @@ const QuickGenShortcutsPage = () => {
             </div>
           </section>
 
-          {/* Recent Activity */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Recent Generations */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <History className="text-yellow-300" />
                 Recent Generations
               </h2>
-              <div className="space-y-4">
-                {recentGenerations.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:border-yellow-300/30 transition-all"
-                  >
-                    <div>
-                      <p className="font-semibold">{item.type}</p>
-                      <p className="text-sm text-slate-400">{item.time}</p>
+              {recentGenerationsData.length === 0 ? (
+                <p className="text-slate-400 text-center py-8">No generations yet. Start creating!</p>
+              ) : (
+                <div className="space-y-4">
+                  {recentGenerationsData.slice(0, 4).map((item, index) => (
+                    <div
+                      key={item.id || index}
+                      className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:border-yellow-300/30 transition-all group"
+                    >
+                      <div className="flex-1">
+                        <p className="font-semibold">{item.category?.replace('_', ' ').toUpperCase()}</p>
+                        <p className="text-sm text-slate-400">
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => convertToDraft(item.id)}
+                          className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded text-sm transition-all"
+                          disabled={loading}
+                        >
+                          To Draft
+                        </button>
+                        <button
+                          onClick={() => deleteGeneration(item.id)}
+                          className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-sm transition-all"
+                          disabled={loading}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-yellow-300">{item.count}</p>
-                      <p className="text-xs text-slate-400">generated</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Quick Tips */}
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <Lightbulb className="text-yellow-300" />
@@ -365,7 +553,6 @@ const QuickGenShortcutsPage = () => {
             </div>
           </section>
 
-          {/* Footer */}
           <footer className="mt-12 pt-8 border-t border-slate-700/50">
             <p className="text-sm text-slate-400">
               We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.

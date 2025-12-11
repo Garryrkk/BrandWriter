@@ -9,353 +9,345 @@ import TemplatesPage from './pages/templates';
 import SchedulePage from './pages/schedule';
 import BasketPage from './pages/basket';
 
-const WriterDashboard = () => {
+const App = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentPage, setCurrentPage] = useState('dashboard');
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  const [stats, setStats] = useState({
-    linkedin: { generated: 12, scheduled: 3, published: 1, quota: 88 },
-    instagram: { generated: 20, scheduled: 5, published: 3, quota: 80 },
-    youtube: { generated: 3, scheduled: 2, published: 1, quota: 97 },
-    emails: { generated: 100, dms: 100, status: 'Completed at 6:00 AM' }
-  });
+  // Floating icons data
+  const floatingIcons = [
+    { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
+    { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
+    { Icon: Network, top: '45%', left: '10%', size: 36, opacity: 0.12 },
+    { Icon: Bot, top: '60%', right: '15%', size: 30, opacity: 0.1 },
+    { Icon: Sparkles, top: '15%', right: '40%', size: 24, opacity: 0.09 },
+    { Icon: Rocket, top: '75%', left: '25%', size: 28, opacity: 0.11 },
+    { Icon: Code, top: '35%', left: '85%', size: 26, opacity: 0.08 },
+    { Icon: Database, top: '80%', right: '30%', size: 32, opacity: 0.1 },
+    { Icon: Globe, top: '20%', left: '70%', size: 30, opacity: 0.09 },
+    { Icon: Server, top: '90%', left: '50%', size: 28, opacity: 0.12 },
+    { Icon: Terminal, top: '50%', right: '45%', size: 24, opacity: 0.08 },
+    { Icon: Brain, top: '70%', left: '60%', size: 34, opacity: 0.1 },
+    { Icon: Cpu, top: '5%', left: '45%', size: 26, opacity: 0.09 },
+    { Icon: Network, top: '85%', right: '10%', size: 30, opacity: 0.11 },
+    { Icon: Bot, top: '40%', left: '30%', size: 28, opacity: 0.08 },
+  ];
 
-  // Update time every second
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const menuItems = [
+    { icon: Home, label: 'Dashboard', id: 'dashboard' },
+    { icon: FileText, label: 'Drafts', id: 'drafts' },
+    { icon: ShoppingCart, label: 'Basket', id: 'basket' },
+    { icon: History, label: 'History', id: 'history' },
+    { icon: Calendar, label: 'Schedule', id: 'schedule' },
+    { icon: Zap, label: 'Auto-Gen', id: 'autogen' },
+    { icon: FileCode, label: 'Templates', id: 'templates' },
+    { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
+  ];
 
-  // Animated icon background
-  const FloatingIcons = () => {
-    const icons = [
-      { Icon: Brain, top: '5%', left: '10%', delay: 0, size: 56 },
-      { Icon: Cpu, top: '8%', left: '25%', delay: 0.5, size: 64 },
-      { Icon: Workflow, top: '3%', left: '45%', delay: 1, size: 52 },
-      { Icon: Bot, top: '7%', left: '65%', delay: 1.5, size: 72 },
-      { Icon: Sparkles, top: '10%', left: '82%', delay: 2, size: 48 },
-      { Icon: Code, top: '22%', left: '5%', delay: 0.3, size: 60 },
-      { Icon: Database, top: '20%', left: '20%', delay: 0.8, size: 68 },
-      { Icon: CloudLightning, top: '25%', left: '38%', delay: 1.3, size: 76 },
-      { Icon: Atom, top: '18%', left: '58%', delay: 1.8, size: 52 },
-      { Icon: Binary, top: '23%', left: '75%', delay: 2.3, size: 64 },
-      { Icon: CircuitBoard, top: '19%', left: '90%', delay: 0.6, size: 58 },
-      { Icon: Workflow, top: '40%', left: '8%', delay: 1.2, size: 70 },
-      { Icon: GitBranch, top: '38%', left: '28%', delay: 1.7, size: 54 },
-      { Icon: Layers, top: '42%', left: '48%', delay: 2.2, size: 66 },
-      { Icon: Target, top: '37%', left: '68%', delay: 0.4, size: 62 },
-      { Icon: Activity, top: '43%', left: '85%', delay: 0.9, size: 58 },
-      { Icon: Brain, top: '58%', left: '12%', delay: 1.4, size: 64 },
-      { Icon: Cpu, top: '55%', left: '32%', delay: 1.9, size: 72 },
-      { Icon: Workflow, top: '60%', left: '52%', delay: 2.4, size: 56 },
-      { Icon: Bot, top: '57%', left: '72%', delay: 0.2, size: 68 },
-    ];
-
-    return (
-      <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-5">
-        {icons.map((item, i) => {
-          const Icon = item.Icon;
-          return (
-            <div
-              key={i}
-              className="absolute animate-pulse"
-              style={{
-                top: item.top,
-                left: item.left,
-                animation: `float ${5 + Math.random() * 3}s linear infinite`,
-                animationDelay: `${item.delay}s`
-              }}
-            >
-              <Icon size={item.size} className="text-yellow-300" />
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // Timer Component
-  const TimerBlock = () => {
-    const hours = String(currentTime.getHours()).padStart(2, '0');
-    const minutes = String(currentTime.getMinutes()).padStart(2, '0');
-    const seconds = String(currentTime.getSeconds()).padStart(2, '0');
-    const day = currentTime.toLocaleDateString('en-US', { weekday: 'short' });
-    const date = currentTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-    return (
-      <div className="flex items-center gap-4 px-6 py-3 bg-gradient-to-r from-yellow-400/10 to-pink-400/10 border border-yellow-400/30 rounded-lg">
-        <Clock size={20} className="text-yellow-400 animate-spin" style={{ animationDuration: '2s' }} />
-        <div className="flex flex-col">
-          <div className="text-sm font-bold text-yellow-400 font-mono tracking-wider">
-            {hours}:{minutes}:{seconds}
-          </div>
-          <div className="text-xs text-gray-400">
-            {day}, {date}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const StatCard = ({ platform, data, icon: Icon, color }) => (
-    <div className={`relative overflow-hidden rounded-2xl p-6 backdrop-blur-sm border-2 transition-all hover:scale-105 ${color}`}>
-      <div className="absolute top-0 right-0 -m-4 opacity-10">
-        <Icon size={100} />
-      </div>
-      <div className="relative z-10">
-        <div className="flex items-center gap-2 mb-4">
-          <Icon size={24} className="text-white" />
-          <h3 className="text-lg font-bold text-white">{platform}</h3>
-        </div>
-        <div className="space-y-2 text-sm">
-          {platform === 'Emails' ? (
-            <>
-              <p className="text-gray-100">Cold Emails: <span className="font-bold text-white">{data.generated}</span></p>
-              <p className="text-gray-100">Cold DMs: <span className="font-bold text-white">{data.dms}</span></p>
-              <p className="text-yellow-100 font-semibold">{data.status}</p>
-            </>
-          ) : (
-            <>
-              <p className="text-gray-100">Generated: <span className="font-bold text-white">{data.generated}</span></p>
-              <p className="text-gray-100">Scheduled: <span className="font-bold text-white">{data.scheduled}</span></p>
-              <p className="text-gray-100">Published: <span className="font-bold text-white">{data.published}</span></p>
-              <div className="mt-3 pt-3 border-t border-white/20">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-100">Quota Left:</span>
-                  <span className="text-lg font-bold text-white">{data.quota}%</span>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-        active
-          ? 'bg-gradient-to-r from-yellow-400 to-pink-400 text-gray-900 font-bold'
-          : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
-      }`}
-    >
-      <Icon size={20} />
-      <span className="text-sm">{label}</span>
-    </button>
-  );
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'drafts':
-        return <DraftsPage />;
-      case 'basket':
-        return <BasketPage />;
-      case 'history':
-        return <HistoryPage />;
-      case 'schedule':
-        return <SchedulePage />;
-      case 'autogen':
-        return <AutoGenSettingsPage />;
-      case 'templates':
-        return <TemplatesPage />;
-      default:
-        return (
-          <div className="space-y-8">
-            {/* Title */}
-            <div className="mb-8">
-              <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-                Welcome back! 🚀
-              </h1>
-              <p className="text-gray-400">Here's your content generation dashboard for today</p>
-            </div>
-
-            {/* Daily Performance Summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <StatCard
-                platform="LinkedIn"
-                data={stats.linkedin}
-                icon={BarChart3}
-                color="bg-gradient-to-br from-blue-600 to-blue-800 border-blue-500/50"
-              />
-              <StatCard
-                platform="Instagram"
-                data={stats.instagram}
-                icon={Grid3x3}
-                color="bg-gradient-to-br from-pink-600 to-purple-800 border-pink-500/50"
-              />
-              <StatCard
-                platform="YouTube"
-                data={stats.youtube}
-                icon={Workflow}
-                color="bg-gradient-to-br from-red-600 to-orange-800 border-red-500/50"
-              />
-              <StatCard
-                platform="Emails"
-                data={stats.emails}
-                icon={Zap}
-                color="bg-gradient-to-br from-yellow-600 to-orange-800 border-yellow-500/50"
-              />
-            </div>
-
-            {/* Auto-Gen Content Feed */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 p-6 backdrop-blur-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <Brain size={24} className="text-yellow-400" />
-                  <h2 className="text-2xl font-bold">Auto-Gen Content Feed</h2>
-                </div>
-                <div className="space-y-4">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="p-4 rounded-xl bg-gray-700/30 border border-gray-600 hover:border-yellow-400/50 transition-all">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-bold text-yellow-100">LinkedIn Post #{i}</h3>
-                        <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-300">Generated 2h ago</span>
-                      </div>
-                      <p className="text-gray-300 text-sm mb-3">Engaging content about AI and automation trends with industry insights...</p>
-                      <div className="flex gap-2">
-                        <button className="text-xs px-3 py-1 rounded-lg bg-yellow-400/20 text-yellow-300 hover:bg-yellow-400/30 transition-all">Edit</button>
-                        <button className="text-xs px-3 py-1 rounded-lg bg-blue-400/20 text-blue-300 hover:bg-blue-400/30 transition-all">Schedule</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 p-6 backdrop-blur-sm">
-                <div className="flex items-center gap-3 mb-6">
-                  <Cpu size={24} className="text-pink-400" />
-                  <h2 className="text-xl font-bold">Quick Actions</h2>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { icon: Wand2, label: 'Generate Content', color: 'from-yellow-500 to-yellow-600' },
-                    { icon: Brain, label: 'Refine Text', color: 'from-pink-500 to-pink-600' },
-                    { icon: Workflow, label: 'Schedule Post', color: 'from-purple-500 to-purple-600' },
-                    { icon: BarChart3, label: 'View Analytics', color: 'from-blue-500 to-blue-600' },
-                  ].map((action, i) => {
-                    const IconComp = action.icon;
-                    return (
-                      <button
-                        key={i}
-                        className={`w-full p-3 rounded-xl bg-gradient-to-r ${action.color} hover:shadow-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 font-semibold text-white`}
-                      >
-                        <IconComp size={18} />
-                        {action.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Content Pipeline Overview */}
-            <div className="rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 p-6 backdrop-blur-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <Workflow size={24} className="text-purple-400" />
-                <h2 className="text-2xl font-bold">Content Pipeline Overview</h2>
-              </div>
-              <div className="grid grid-cols-4 gap-4">
-                {[
-                  { stage: 'Drafts', count: 24, color: 'bg-blue-500/20 border-blue-500/50' },
-                  { stage: 'In Review', count: 12, color: 'bg-yellow-500/20 border-yellow-500/50' },
-                  { stage: 'Scheduled', count: 18, color: 'bg-purple-500/20 border-purple-500/50' },
-                  { stage: 'Published', count: 156, color: 'bg-green-500/20 border-green-500/50' },
-                ].map((stage, i) => (
-                  <div key={i} className={`p-4 rounded-xl border ${stage.color} text-center backdrop-blur-sm`}>
-                    <p className="text-gray-400 text-sm mb-2">{stage.stage}</p>
-                    <p className="text-3xl font-bold text-white">{stage.count}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
+  const platformStats = [
+    {
+      name: 'LinkedIn',
+      generated: 12,
+      scheduled: 3,
+      published: 1,
+      remaining: 88,
+      color: 'from-blue-400 to-blue-600'
+    },
+    {
+      name: 'Instagram',
+      generated: 20,
+      scheduled: 5,
+      published: 3,
+      remaining: 80,
+      color: 'from-pink-400 to-purple-600'
+    },
+    {
+      name: 'YouTube',
+      generated: 3,
+      scheduled: 2,
+      published: 1,
+      remaining: 97,
+      color: 'from-red-400 to-red-600'
+    },
+    {
+      name: 'Emails',
+      coldEmails: 100,
+      coldDMs: 100,
+      status: 'Completed at 6:00 AM',
+      color: 'from-green-400 to-emerald-600'
     }
-  };
+  ];
+
+  const recentContent = [
+    { title: '10 Tips for Better Sleep', platform: 'LinkedIn', status: 'Published', time: '2 hours ago' },
+    { title: 'Summer Collection Launch', platform: 'Instagram', status: 'Scheduled', time: '4 hours ago' },
+    { title: 'Product Review: Tech Gadgets', platform: 'YouTube', status: 'Draft', time: '1 day ago' },
+    { title: 'Newsletter: Weekly Updates', platform: 'Email', status: 'Sent', time: '2 days ago' },
+  ];
+
+  const quickActions = [
+    { title: 'Generate LinkedIn Post', icon: FileText, color: 'bg-blue-500' },
+    { title: 'Create Instagram Story', icon: Sparkles, color: 'bg-pink-500' },
+    { title: 'Write Email Campaign', icon: Zap, color: 'bg-green-500' },
+    { title: 'Draft YouTube Script', icon: Mic, color: 'bg-red-500' },
+  ];
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) translateX(0px); }
-          25% { transform: translateY(-30px) translateX(20px); }
-          50% { transform: translateY(-60px) translateX(-20px); }
-          75% { transform: translateY(-30px) translateX(30px); }
-        }
-      `}</style>
-
-      {/* Floating background icons */}
-      <FloatingIcons />
-
-      {/* Main container */}
-      <div className="flex h-screen relative z-10">
-        {/* Sidebar */}
-        <div
-          className={`fixed left-0 top-0 h-full bg-gradient-to-b from-gray-900 to-black border-r border-gray-700 transition-all duration-300 ${
-            sidebarOpen ? 'w-64' : 'w-20'
-          } overflow-y-auto`}
-        >
-          {/* Logo */}
-          <div className="p-6 border-b border-gray-700">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-400 to-pink-400 flex items-center justify-center">
-                <Wand2 size={24} className="text-gray-900" />
-              </div>
-              {sidebarOpen && <span className="font-bold text-lg bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">Writer</span>}
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
+      {/* Floating Background Icons */}
+      {floatingIcons.map((item, idx) => {
+        const IconComponent = item.Icon;
+        return (
+          <div
+            key={idx}
+            className="absolute pointer-events-none"
+            style={{
+              top: item.top,
+              left: item.left,
+              right: item.right,
+              opacity: item.opacity,
+            }}
+          >
+            <IconComponent size={item.size} className="text-yellow-200" />
           </div>
+        );
+      })}
 
-          {/* Menu items */}
-          <div className="p-4 space-y-2">
-            <SidebarItem icon={Home} label="Dashboard" active={currentPage === 'dashboard'} onClick={() => setCurrentPage('dashboard')} />
-            <SidebarItem icon={FileText} label="Drafts" active={currentPage === 'drafts'} onClick={() => setCurrentPage('drafts')} />
-            <SidebarItem icon={Trash2} label="Basket" active={currentPage === 'basket'} onClick={() => setCurrentPage('basket')} />
-            <SidebarItem icon={Clock} label="History" active={currentPage === 'history'} onClick={() => setCurrentPage('history')} />
-            <SidebarItem icon={Calendar} label="Schedule" active={currentPage === 'schedule'} onClick={() => setCurrentPage('schedule')} />
-            <SidebarItem icon={Zap} label="Auto-Gen" active={currentPage === 'autogen'} onClick={() => setCurrentPage('autogen')} />
-            <SidebarItem icon={BookOpen} label="Templates" active={currentPage === 'templates'} onClick={() => setCurrentPage('templates')} />
-            <SidebarItem icon={Brain} label="Brand Voice" active={currentPage === 'brand'} onClick={() => setCurrentPage('brand')} />
-          </div>
-
-          {/* Logout */}
-          <div className="absolute bottom-4 left-4 right-4">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:text-white hover:bg-red-500/20 transition-all">
-              <LogOut size={20} />
-              {sidebarOpen && <span className="text-sm">Logout</span>}
-            </button>
-          </div>
-        </div>
-
-        {/* Main content */}
-        <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
-          {/* Header */}
-          <div className="h-20 bg-gradient-to-r from-gray-900 to-black border-b border-gray-700 flex items-center justify-between px-8">
+      {/* Header */}
+      <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-gray-300 hover:text-white transition-colors"
+              className="lg:hidden p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
             >
               {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
-            <div className="flex items-center gap-4">
-              <Settings size={24} className="text-gray-300 hover:text-white cursor-pointer transition-colors" />
-              <TimerBlock />
+            <div className="flex items-center gap-2">
+              <Brain className="text-yellow-300" size={32} />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
+                Brand Writer
+              </h1>
             </div>
           </div>
-
-          {/* Content area */}
-          <div className="p-8 overflow-y-auto max-h-[calc(100vh-80px)]">
-            {renderPage()}
+          <div className="flex items-center gap-4">
+            <button className="px-4 py-2 bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 rounded-lg font-semibold hover:shadow-lg hover:shadow-yellow-500/50 transition-all">
+              Products
+            </button>
+            <button className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors">
+              Contact
+            </button>
+            <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold">
+              8
+            </div>
+            <button className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors">
+              <ShoppingCart size={20} />
+            </button>
           </div>
         </div>
+      </header>
+
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-64 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
+          <nav className="p-4 space-y-2">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                    activeTab === item.id
+                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border border-yellow-300/30'
+                      : 'hover:bg-slate-700/30'
+                  }`}
+                >
+                  <Icon size={20} className={activeTab === item.id ? 'text-yellow-300' : ''} />
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 p-6 lg:p-8 relative z-10">
+          {/* Daily Performance Summary */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Sparkles className="text-yellow-300" />
+              Daily Performance Summary
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              {platformStats.map((platform, idx) => (
+                <div
+                  key={idx}
+                  className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-yellow-300/30 transition-all hover:shadow-xl hover:shadow-yellow-500/10"
+                >
+                  <div className={`bg-gradient-to-r ${platform.color} w-12 h-12 rounded-lg flex items-center justify-center mb-4`}>
+                    <Bot size={24} className="text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-4">{platform.name}</h3>
+                  {platform.coldEmails ? (
+                    <>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Cold Emails:</span>
+                          <span className="font-semibold text-green-400">{platform.coldEmails}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Cold DMs:</span>
+                          <span className="font-semibold text-green-400">{platform.coldDMs}</span>
+                        </div>
+                        <div className="pt-2 border-t border-slate-700">
+                          <span className="text-xs text-emerald-400">✓ {platform.status}</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Generated today:</span>
+                          <span className="font-semibold">{platform.generated}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Scheduled today:</span>
+                          <span className="font-semibold">{platform.scheduled}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Published today:</span>
+                          <span className="font-semibold">{platform.published}</span>
+                        </div>
+                        <div className="flex justify-between pt-2 border-t border-slate-700">
+                          <span className="text-slate-400">Remaining quota:</span>
+                          <span className="font-semibold text-yellow-300">{platform.remaining}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Quick Actions */}
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <Zap className="text-yellow-300" />
+              Quick Actions
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {quickActions.map((action, idx) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={idx}
+                    className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 hover:border-pink-300/30 transition-all hover:shadow-xl hover:shadow-pink-500/10 group"
+                  >
+                    <div className={`${action.color} w-12 h-12 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                      <Icon size={24} className="text-white" />
+                    </div>
+                    <h3 className="font-semibold text-left">{action.title}</h3>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {/* Auto-Gen Content Feed */}
+            <section>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <Network className="text-yellow-300" />
+                Recent Content
+              </h2>
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden">
+                {recentContent.map((content, idx) => (
+                  <div
+                    key={idx}
+                    className="p-4 border-b border-slate-700/50 last:border-b-0 hover:bg-slate-700/30 transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">{content.title}</h3>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        content.status === 'Published' ? 'bg-green-500/20 text-green-400' :
+                        content.status === 'Scheduled' ? 'bg-blue-500/20 text-blue-400' :
+                        content.status === 'Sent' ? 'bg-emerald-500/20 text-emerald-400' :
+                        'bg-yellow-500/20 text-yellow-400'
+                      }`}>
+                        {content.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-400">
+                      <span>{content.platform}</span>
+                      <span>•</span>
+                      <span>{content.time}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Content Pipeline Overview */}
+            <section>
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <Cpu className="text-yellow-300" />
+                Content Pipeline
+              </h2>
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-slate-400">Drafts in Progress</span>
+                      <span className="font-semibold">24</span>
+                    </div>
+                    <div className="w-full bg-slate-700 rounded-full h-2">
+                      <div className="bg-gradient-to-r from-yellow-300 to-pink-300 h-2 rounded-full" style={{ width: '60%' }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-slate-400">Scheduled Posts</span>
+                      <span className="font-semibold">10</span>
+                    </div>
+                    <div className="w-full bg-slate-700 rounded-full h-2">
+                      <div className="bg-gradient-to-r from-blue-400 to-cyan-400 h-2 rounded-full" style={{ width: '25%' }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-slate-400">Published Today</span>
+                      <span className="font-semibold">8</span>
+                    </div>
+                    <div className="w-full bg-slate-700 rounded-full h-2">
+                      <div className="bg-gradient-to-r from-green-400 to-emerald-400 h-2 rounded-full" style={{ width: '20%' }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm text-slate-400">Templates Available</span>
+                      <span className="font-semibold">45</span>
+                    </div>
+                    <div className="w-full bg-slate-700 rounded-full h-2">
+                      <div className="bg-gradient-to-r from-purple-400 to-pink-400 h-2 rounded-full" style={{ width: '90%' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          {/* Footer */}
+          <footer className="mt-12 pt-8 border-t border-slate-700/50">
+            <p className="text-sm text-slate-400">
+              We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
+            </p>
+          </footer>
+        </main>
       </div>
     </div>
   );
 };
 
-export default WriterDashboard;
+export default App;
