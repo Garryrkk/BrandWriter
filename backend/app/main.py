@@ -9,6 +9,7 @@ from app.draft.DraftRoutes import router as draft_routes
 from app.schedule.ScheduleRoutes import router as schedule_routes
 from app.generation.GenerationRoutes import router as generation_routes
 from app.auth.auth_routes import router as auth_router
+from app.routes.seed_routes import router as seed_routes
 
 # Import worker
 from app.workers.scheduler_work import start_scheduler, shutdown_scheduler
@@ -57,6 +58,7 @@ app.include_router(draft_routes, prefix="/api/v1")
 app.include_router(basket_routes, prefix="/api/v1")
 app.include_router(schedule_routes, prefix="/api/v1")
 app.include_router(generation_routes, prefix="/api/v1")
+app.include_router(seed_routes)
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 
