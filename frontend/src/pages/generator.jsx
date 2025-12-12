@@ -9,9 +9,11 @@ const QuickGenShortcutsPage = () => {
   const [successMessage, setSuccessMessage] = useState(null);
   const [generationStats, setGenerationStats] = useState(null);
   const [recentGenerationsData, setRecentGenerationsData] = useState([]);
+  const [batchStatus, setBatchStatus] = useState(null);
+  const [selectedGeneration, setSelectedGeneration] = useState(null);
   
   const API_BASE_URL = 'http://localhost:8000';
-  const BRAND_ID = 'your-brand-id-here';
+  const BRAND_ID = 'your-brand-id-here'; // Replace with actual brand ID
 
   const floatingIcons = [
     { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
@@ -42,6 +44,7 @@ const QuickGenShortcutsPage = () => {
     { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
   ];
 
+  // ==================== API HELPER ====================
   const apiCall = async (endpoint, method = 'GET', body = null) => {
     const options = {
       method,
@@ -64,6 +67,7 @@ const QuickGenShortcutsPage = () => {
     return response.status === 204 ? null : response.json();
   };
 
+  // ==================== LOAD DATA ====================
   useEffect(() => {
     loadGenerationStats();
     loadRecentGenerations();
@@ -75,6 +79,12 @@ const QuickGenShortcutsPage = () => {
       setGenerationStats(stats);
     } catch (err) {
       console.error('Failed to load stats:', err);
+      setGenerationStats({
+        total_generated: 0,
+        this_week: 0,
+        this_month: 0,
+        avg_per_day: 0
+      });
     }
   };
 
@@ -84,9 +94,13 @@ const QuickGenShortcutsPage = () => {
       setRecentGenerationsData(data.generations || []);
     } catch (err) {
       console.error('Failed to load recent generations:', err);
+      setRecentGenerationsData([]);
     }
   };
 
+  // ==================== GENERATION ENDPOINTS ====================
+  
+  // POST /generations/generate - Quick content generation
   const quickGenerate = async (category, platform = null, customPrompt = null) => {
     setLoading(true);
     setError(null);
@@ -103,7 +117,7 @@ const QuickGenShortcutsPage = () => {
       };
       
       const result = await apiCall('/generations/generate', 'POST', requestBody);
-      setSuccessMessage(`Successfully generated ${category}!`);
+      setSuccessMessage(`✨ Successfully generated ${category.replace(/_/g, ' ')}!`);
       
       await loadGenerationStats();
       await loadRecentGenerations();
@@ -117,10 +131,12 @@ const QuickGenShortcutsPage = () => {
     }
   };
 
+  // POST /generations/batch - Batch generate content
   const batchGenerate = async (categories, countPerCategory = 5) => {
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
+    setBatchStatus('processing');
     
     try {
       const requestBody = {
@@ -132,7 +148,8 @@ const QuickGenShortcutsPage = () => {
       };
       
       const result = await apiCall('/generations/batch', 'POST', requestBody);
-      setSuccessMessage(`Successfully generated ${result.total_generated} pieces of content!`);
+      setSuccessMessage(`🎉 Successfully generated ${result.total_generated} pieces of content across ${Object.keys(result.generations_by_category).length} categories!`);
+      setBatchStatus('completed');
       
       await loadGenerationStats();
       await loadRecentGenerations();
@@ -140,12 +157,46 @@ const QuickGenShortcutsPage = () => {
       return result;
     } catch (err) {
       setError(err.message);
+      setBatchStatus('failed');
       throw err;
     } finally {
       setLoading(false);
     }
   };
 
+  // GET /generations/ - Get all generations with filters
+  const getGenerationsWithFilters = async (filters = {}) => {
+    try {
+      const params = new URLSearchParams({
+        brand_id: BRAND_ID,
+        page: filters.page || 1,
+        page_size: filters.page_size || 50,
+        ...(filters.category && { category: filters.category }),
+        ...(filters.platform && { platform: filters.platform }),
+        ...(filters.is_auto_generated !== undefined && { is_auto_generated: filters.is_auto_generated })
+      });
+      
+      const data = await apiCall(`/generations/?${params.toString()}`);
+      return data;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // GET /generations/{generation_id} - Get generation by ID
+  const getGenerationById = async (generationId) => {
+    try {
+      const generation = await apiCall(`/generations/${generationId}`);
+      setSelectedGeneration(generation);
+      return generation;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // POST /generations/{generation_id}/feedback - Add feedback
   const addFeedback = async (generationId, rating, comments = null) => {
     try {
       const requestBody = {
@@ -154,19 +205,22 @@ const QuickGenShortcutsPage = () => {
       };
       
       await apiCall(`/generations/${generationId}/feedback`, 'POST', requestBody);
-      setSuccessMessage('Feedback submitted successfully!');
+      setSuccessMessage('👍 Feedback submitted successfully!');
+      await loadRecentGenerations();
     } catch (err) {
       setError(err.message);
     }
   };
 
+  // POST /generations/{generation_id}/to-draft - Convert to draft
   const convertToDraft = async (generationId) => {
     setLoading(true);
     setError(null);
     
     try {
       const result = await apiCall(`/generations/${generationId}/to-draft`, 'POST');
-      setSuccessMessage('Successfully converted to draft!');
+      setSuccessMessage('📝 Successfully converted to draft!');
+      await loadRecentGenerations();
       return result;
     } catch (err) {
       setError(err.message);
@@ -176,16 +230,80 @@ const QuickGenShortcutsPage = () => {
     }
   };
 
+  // DELETE /generations/{generation_id} - Delete generation
   const deleteGeneration = async (generationId) => {
     try {
       await apiCall(`/generations/${generationId}`, 'DELETE');
-      setSuccessMessage('Generation deleted successfully!');
+      setSuccessMessage('🗑️ Generation deleted successfully!');
       await loadRecentGenerations();
+      await loadGenerationStats();
     } catch (err) {
       setError(err.message);
     }
   };
 
+  // Regenerate content (uses GET then POST)
+  const regenerateContent = async (generationId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const originalGen = await getGenerationById(generationId);
+      
+      const result = await quickGenerate(
+        originalGen.category,
+        originalGen.platform,
+        originalGen.prompt
+      );
+      
+      setSuccessMessage('🔄 Content regenerated successfully!');
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==================== HELPER FUNCTIONS ====================
+  
+  const getDefaultPrompt = (category, platform) => {
+    const prompts = {
+      'linkedin_post': 'Create an engaging LinkedIn post about industry insights and professional growth',
+      'instagram_reel': 'Write a viral Instagram Reel script with hooks, storytelling, and call-to-action',
+      'instagram_carousel': 'Design a 5-slide educational Instagram carousel with clear messaging',
+      'youtube_short': 'Script a 60-second YouTube Short with attention-grabbing opening and value delivery',
+      'newsletter': 'Craft an engaging email newsletter with valuable insights and clear CTAs',
+      'cold_email': 'Write a personalized cold email that builds rapport and drives response',
+      'cold_dm': 'Create a friendly, non-salesy DM that starts meaningful conversations',
+      'blog_post': 'Write an informative blog post that provides value and drives engagement',
+      'social_media': 'Create engaging social media content that resonates with the audience',
+      'lead_list': 'Generate 100 targeted leads with relevant contact information and insights'
+    };
+    
+    return prompts[category] || `Create compelling ${category} content for ${platform || 'multiple platforms'}`;
+  };
+
+  const handleGenerateContent = async (shortcut) => {
+    try {
+      if (shortcut.category === 'brand_ideas') {
+        const categories = ['blog_post', 'social_media', 'newsletter', 'video_script', 'instagram_post'];
+        await batchGenerate(categories, 10);
+      } else if (shortcut.category === 'lead_list') {
+        setSuccessMessage('🎯 Lead list generation started! You will receive 100 leads shortly.');
+        await quickGenerate(shortcut.category, shortcut.platform, 'Generate 100 targeted leads');
+      } else {
+        const customPrompt = getDefaultPrompt(shortcut.category, shortcut.platform);
+        await quickGenerate(shortcut.category, shortcut.platform, customPrompt);
+      }
+    } catch (err) {
+      console.error('Generation failed:', err);
+    }
+  };
+
+  // ==================== GENERATION SHORTCUTS DATA ====================
+  
   const generationShortcuts = [
     {
       id: 1,
@@ -279,24 +397,14 @@ const QuickGenShortcutsPage = () => {
     }
   ];
 
-  const handleGenerateContent = async (shortcut) => {
-    try {
-      if (shortcut.category === 'brand_ideas') {
-        await batchGenerate(['blog_post', 'social_media', 'newsletter', 'video_script'], 10);
-      } else {
-        await quickGenerate(shortcut.category, shortcut.platform);
-      }
-    } catch (err) {
-      console.error('Generation failed:', err);
-    }
+  const quickStats = {
+    totalGenerated: generationStats?.total_generated || 0,
+    thisWeek: generationStats?.this_week || 0,
+    thisMonth: generationStats?.this_month || 0,
+    avgPerDay: generationStats?.avg_per_day || 0
   };
 
-  const quickStats = {
-    totalGenerated: generationStats?.total_generated || 247,
-    thisWeek: generationStats?.this_week || 89,
-    thisMonth: generationStats?.this_month || 247,
-    avgPerDay: generationStats?.avg_per_day || 35
-  };
+  // ==================== RENDER ====================
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
@@ -472,6 +580,54 @@ const QuickGenShortcutsPage = () => {
             </div>
           </section>
 
+          {batchStatus && (
+            <section className="mb-8">
+              <div className={`bg-slate-800/50 backdrop-blur-sm rounded-2xl border p-6 ${
+                batchStatus === 'processing' ? 'border-blue-500/50' :
+                batchStatus === 'completed' ? 'border-green-500/50' :
+                'border-red-500/50'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {batchStatus === 'processing' && (
+                      <>
+                        <Loader className="animate-spin text-blue-400" size={24} />
+                        <div>
+                          <h3 className="font-bold text-lg">Batch Generation in Progress</h3>
+                          <p className="text-sm text-slate-400">Creating multiple content pieces...</p>
+                        </div>
+                      </>
+                    )}
+                    {batchStatus === 'completed' && (
+                      <>
+                        <CheckCircle className="text-green-400" size={24} />
+                        <div>
+                          <h3 className="font-bold text-lg">Batch Generation Complete!</h3>
+                          <p className="text-sm text-slate-400">All content has been generated successfully</p>
+                        </div>
+                      </>
+                    )}
+                    {batchStatus === 'failed' && (
+                      <>
+                        <XCircle className="text-red-400" size={24} />
+                        <div>
+                          <h3 className="font-bold text-lg">Batch Generation Failed</h3>
+                          <p className="text-sm text-slate-400">Please try again or contact support</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setBatchStatus(null)}
+                    className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -488,12 +644,39 @@ const QuickGenShortcutsPage = () => {
                       className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:border-yellow-300/30 transition-all group"
                     >
                       <div className="flex-1">
-                        <p className="font-semibold">{item.category?.replace('_', ' ').toUpperCase()}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-semibold">{item.category?.replace(/_/g, ' ').toUpperCase()}</p>
+                          {item.platform && (
+                            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded text-xs">
+                              {item.platform}
+                            </span>
+                          )}
+                          {item.is_auto_generated && (
+                            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs flex items-center gap-1">
+                              <Zap size={12} />
+                              Auto
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-slate-400">
-                          {new Date(item.created_at).toLocaleDateString()}
+                          {new Date(item.created_at).toLocaleDateString()} • {item.model_used || 'AI Model'}
                         </p>
+                        {item.generation_time && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Generated in {item.generation_time.toFixed(2)}s
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => regenerateContent(item.id)}
+                          className="px-3 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 rounded text-sm transition-all flex items-center gap-1"
+                          disabled={loading}
+                          title="Regenerate"
+                        >
+                          <Zap size={14} />
+                          Regen
+                        </button>
                         <button
                           onClick={() => convertToDraft(item.id)}
                           className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded text-sm transition-all"
@@ -511,6 +694,15 @@ const QuickGenShortcutsPage = () => {
                       </div>
                     </div>
                   ))}
+                  {recentGenerationsData.length > 4 && (
+                    <button
+                      onClick={() => setActiveTab('history')}
+                      className="w-full py-2 text-sm text-yellow-300 hover:text-yellow-200 transition-colors flex items-center justify-center gap-2"
+                    >
+                      View All Generations
+                      <TrendingUp size={16} />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -554,9 +746,20 @@ const QuickGenShortcutsPage = () => {
           </section>
 
           <footer className="mt-12 pt-8 border-t border-slate-700/50">
-            <p className="text-sm text-slate-400">
-              We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-400">
+                We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
+              </p>
+              <button 
+                onClick={loadRecentGenerations}
+                className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors text-sm flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+            </div>
           </footer>
         </main>
       </div>
