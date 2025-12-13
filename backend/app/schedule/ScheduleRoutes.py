@@ -6,7 +6,7 @@ from datetime import datetime
 from app.db.database import get_db
 from app.schedule.ScheduleSchemas import (
     ScheduleCreate, ScheduleUpdate, ScheduleResponse, ScheduleListResponse,
-    ScheduleCreateFromBasket, ScheduleFilter, PostingStatus, ScheduleCalendarResponse
+    ScheduleCreateFromBasket, ScheduleFilter, PostingStatus, ScheduleCalendarResponse 
 )
 from app.schedule.ScheduleServices import ScheduleService
 
