@@ -1,0 +1,9 @@
+fastapi==0.95.2
+uvicorn[standard]==0.22.0
+SQLAlchemy==1.4.52
+psycopg2-binary==2.9.7
+python-dotenv==1.0.0
+APScheduler==3.10.1
+httpx==0.24.0
+instagrappy==0.1.0   # replace with actual package name / version you used
+pydantic==1.10.12

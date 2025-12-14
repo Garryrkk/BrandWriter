@@ -1,0 +1,82 @@
+DVANCED CONTENT TYPES (ADD TO YOUR AUTOMATION)
+Technical Explainers
+
+Rules:
+
+Use diagrams in text form
+
+Break down workflows
+
+Add failure modes
+
+Add “What most teams misunderstand” sections
+
+Case Studies
+
+Rules:
+
+Problem → Constraint → Approach → Outcome
+
+No exaggeration
+
+Show numbers
+
+Pitch Deck Copy
+
+Rules:
+
+1 line per slide
+
+Sharp, outcome-driven
+
+No marketing fluff
+
+Tutorial Scripts
+
+Rules:
+
+Tell → Show → Apply
+
+Use real datasets
+
+Keep pacing fast
+
+Onboarding Emails
+
+Rules:
+
+Short, precise
+
+1 action per email
+
+Engineer-friendly language
+
+ BIG LIST OF HOOKS (FOR BLOGS + LINKEDIN)
+
+“Most teams blame compute. The real bottleneck is iteration.”
+
+“Your model is slow because your workflow is slow.”
+
+“If it takes a quarter to ship, it’s not an AI team — it’s a research lab.”
+
+“Scaling hardware is easy. Scaling clarity is hard.”
+
+“More parameters ≠ more progress.”
+
+“Feedback loops beat fancy architectures.”
+
+“Stop optimizing your model. Optimize your process.”
+
+“If your evaluation takes hours, it's not evaluation. It's a delay.”
+
+ CALLS TO ACTION (POLISHED & NON-CRINGE)
+
+“Want faster iterations? Start here.”
+
+“Ready to simplify your workflow?”
+
+“Turn complexity into clarity — talk to us.”
+
+“Ship improvements weekly. Not quarterly.”
+
+“See how clarity changes your velocity.”
