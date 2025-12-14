@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, Zap, Cpu, Brain, Workflow, Settings, Grid3x3, BookOpen, Palette, Home, FileText, Trash2, Clock, Calendar, Wand2, LogOut, Menu, X, Mic, Code, Database, CloudLightning, Atom, Binary, CircuitBoard, GitBranch, Layers, Target, Activity, Bot, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import {  Zap, Cpu, Brain, BookOpen, Home, FileText, Trash2, Clock, Calendar, Menu, X, Mic, Code, Database, Bot, Sparkles } from 'lucide-react';
 
 // Import page components
-import AutoGenSettingsPage from './pages/auto_generate';
+import QuickGenShortcutsPage from './pages/auto_generate'
 import DraftsPage from './pages/drafts';
 import HistoryPage from './pages/history';
 import TemplatesPage from './pages/templates';
-import SchedulePage from './pages/schedule';
+import SchedulerPage from './pages/schedule';
 import BasketPage from './pages/basket';
 
 const App = () => {
@@ -101,9 +101,9 @@ const App = () => {
       case 'history':
         return <HistoryPage />;
       case 'schedule':
-        return <SchedulePage />;
+        return <SchedulerPage />;
       case 'autogen':
-        return <AutoGenSettingsPage />;
+        return <QuickGenShortcutsPage />;
       case 'templates':
         return <TemplatesPage />;
       case 'dashboard':
@@ -326,14 +326,8 @@ const App = () => {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <button className="px-4 py-2 bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 rounded-lg font-semibold hover:shadow-lg hover:shadow-yellow-500/50 transition-all">
-              Products
-            </button>
-            <button className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors">
-              Contact
-            </button>
-            <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold">
-              8
+            <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold text-lg">
+              G
             </div>
             <button className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors">
               <Trash2 size={20} />
@@ -344,8 +338,8 @@ const App = () => {
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-64 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
-          <nav className="p-4 space-y-2">
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-72 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
+          <nav className="p-6 space-y-4">
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -353,16 +347,18 @@ const App = () => {
                   key={item.id}
                   onClick={() => {
                     setActiveTab(item.id);
-                    setSidebarOpen(false);
+                    if (window.innerWidth < 1024) {
+                      setSidebarOpen(false);
+                    }
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  className={`w-full flex items-center gap-4 px-5 py-4 rounded-lg transition-all ${
                     activeTab === item.id
                       ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border border-yellow-300/30'
                       : 'hover:bg-slate-700/30'
                   }`}
                 >
-                  <Icon size={20} className={activeTab === item.id ? 'text-yellow-300' : ''} />
-                  <span className="font-medium">{item.label}</span>
+                  <Icon size={24} className={activeTab === item.id ? 'text-yellow-300' : ''} />
+                  <span className="font-medium text-lg">{item.label}</span>
                 </button>
               );
             })}

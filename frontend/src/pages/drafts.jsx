@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Edit, ShoppingBasket, Trash2, X, RefreshCw, Search, Filter, Loader, AlertCircle, CheckCircle, Copy, Download, Eye } from 'lucide-react';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-const BRAND_ID = process.env.REACT_APP_BRAND_ID || 'your-brand-id';
 
 const DraftsPage = () => {
   const [drafts, setDrafts] = useState([]);
@@ -11,7 +9,6 @@ const DraftsPage = () => {
   const [stats, setStats] = useState({});
   const [selectedDrafts, setSelectedDrafts] = useState([]);
   const [editingDraft, setEditingDraft] = useState(null);
-  const [viewingDraft, setViewingDraft] = useState(null);
   const [toast, setToast] = useState(null);
   const [basket, setBasket] = useState([]);
   const [showBasket, setShowBasket] = useState(false);

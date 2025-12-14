@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Plus, Linkedin, Instagram, Youtube, Mail, MessageSquare, Users, Lightbulb, Image, Layers, Loader, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 
-const QuickGenShortcutsPage = () => {
+const Generator = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('autogen');
   const [loading, setLoading] = useState(false);
@@ -767,4 +767,4 @@ const QuickGenShortcutsPage = () => {
   );
 };
 
-export default QuickGenShortcutsPage;
+export default Generator;

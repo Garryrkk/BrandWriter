@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingBasket, Calendar, Edit, Trash2, X, Clock, Loader2, AlertCircle, Plus, Filter, Archive } from 'lucide-react';
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-const BRAND_ID = process.env.REACT_APP_BRAND_ID || '00000000-0000-0000-0000-000000000000';
+
 
 const BasketPage = () => {
   const [basketItems, setBasketItems] = useState([]);
