@@ -19,7 +19,13 @@ load_dotenv()  # Load environment variables early
 class RAGService:
     def __init__(self):
         # --- Local GGUF LLaMA model for offline generation ---
-        self.local_llm = Llama(model_path=settings.LOCAL_LLM_PATH)
+        # Only load if model path is configured and exists
+        self.local_llm = None
+        if settings.LOCAL_LLM_PATH and os.path.exists(settings.LOCAL_LLM_PATH):
+            try:
+                self.local_llm = Llama(model_path=settings.LOCAL_LLM_PATH)
+            except Exception as e:
+                print(f"Warning: Could not load local LLM: {e}")
 
         # --- Voyage API for cloud embeddings ---
         self.voyage_api_key = settings.VOYAGE_API_KEY
@@ -74,7 +80,7 @@ class RAGService:
             content=content,
             full_text=content,
             is_chunk=False,
-            metadata=metadata,
+            doc_metadata=metadata,
             category=category,
             word_count=len(content.split()),
             char_count=len(content)
@@ -100,7 +106,7 @@ class RAGService:
                 total_chunks=len(chunk_docs) + 1,
                 embedding=embedding,
                 embedding_model=settings.EMBEDDING_MODEL,
-                metadata=metadata,
+                doc_metadata=metadata,
                 category=category,
                 word_count=len(chunk_text.split()),
                 char_count=len(chunk_text)

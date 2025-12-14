@@ -59,7 +59,7 @@ app.include_router(basket_routes, prefix="/api/v1")
 app.include_router(schedule_routes, prefix="/api/v1")
 app.include_router(generation_routes, prefix="/api/v1")
 app.include_router(seed_routes)
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 
 
 

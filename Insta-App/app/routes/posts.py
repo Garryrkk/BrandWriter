@@ -16,7 +16,7 @@ def check_api_key(x_api_key: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 @router.post("/schedule", response_model=ScheduleOut)
-def schedule_post(payload: ScheduleCreate, x_api_key: str = Header(None), db: Session = next(get_db())):
+def schedule_post(payload: ScheduleCreate, x_api_key: str = Header(None), db: Session = Depends(get_db)):
     check_api_key(x_api_key)
     # find account
     from app.models import InstagramAccount
@@ -32,7 +32,7 @@ def schedule_post(payload: ScheduleCreate, x_api_key: str = Header(None), db: Se
     return {"id": sp.id, "status": sp.status, "scheduled_at": sp.scheduled_at}
 
 @router.post("/post-now")
-def post_now(payload: ScheduleCreate, x_api_key: str = Header(None), db: Session = next(get_db())):
+def post_now(payload: ScheduleCreate, x_api_key: str = Header(None), db: Session = Depends(get_db)):
     check_api_key(x_api_key)
     # create ScheduledPost record and run immediately (but outside scheduler)
     from app.models import InstagramAccount

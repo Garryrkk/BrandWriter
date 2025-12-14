@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Home, Megaphone, FileText, Settings, Users, TrendingUp, Save, Plus, X, Eye, Calendar, BarChart3, Clock, Zap, Menu, ChevronLeft, Loader2, RefreshCw, Trash2, Edit } from 'lucide-react';
-
-const API_BASE_URL = 'http://localhost:8000/api/brands';
+import { mainApi } from '../api/client';
 
 const BrandVoiceDashboard = () => {
   const [currentPage, setCurrentPage] = useState('brand-voice');
@@ -81,12 +80,11 @@ const BrandVoiceDashboard = () => {
   const fetchActiveBrand = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/active`);
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentBrand(data);
-        mapBrandToState(data);
-      }
+      const data = await mainApi.brands.getActive();
+      setCurrentBrand(data);
+      mapBrandToState(data);
+      // Store active brand ID for other pages
+      localStorage.setItem('active_brand_id', data.id);
     } catch (err) {
       console.error('Error fetching active brand:', err);
     } finally {
@@ -97,16 +95,7 @@ const BrandVoiceDashboard = () => {
   const fetchBrands = async (page = 1, isActive = null) => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        page_size: '10'
-      });
-      if (isActive !== null) params.append('is_active', isActive.toString());
-      
-      const response = await fetch(`${API_BASE_URL}?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch brands');
-      
-      const data = await response.json();
+      const data = await mainApi.brands.list(page, 10);
       setBrands(data.brands);
       setTotalBrands(data.total);
       setCurrentBrandPage(data.page);
@@ -114,6 +103,7 @@ const BrandVoiceDashboard = () => {
       if (data.brands.length > 0 && !currentBrand) {
         setCurrentBrand(data.brands[0]);
         mapBrandToState(data.brands[0]);
+        localStorage.setItem('active_brand_id', data.brands[0].id);
       }
     } catch (err) {
       showMessage(err.message, true);
@@ -139,19 +129,9 @@ const BrandVoiceDashboard = () => {
         is_active: brandVoice.is_active
       };
 
-      const response = await fetch(`${API_BASE_URL}/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(brandData)
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to create brand');
-      }
-
-      const data = await response.json();
+      const data = await mainApi.brands.create(brandData);
       setCurrentBrand(data);
+      localStorage.setItem('active_brand_id', data.id);
       showMessage('Brand created successfully!');
       await fetchBrands();
     } catch (err) {
@@ -178,15 +158,7 @@ const BrandVoiceDashboard = () => {
         is_active: brandVoice.is_active
       };
 
-      const response = await fetch(`${API_BASE_URL}/${brandId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(brandData)
-      });
-
-      if (!response.ok) throw new Error('Failed to update brand');
-
-      const data = await response.json();
+      const data = await mainApi.brands.update(brandId, brandData);
       setCurrentBrand(data);
       showMessage('Brand updated successfully!');
       await fetchBrands();
@@ -204,14 +176,11 @@ const BrandVoiceDashboard = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/${brandId}?hard_delete=${hardDelete}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) throw new Error('Failed to delete brand');
+      await mainApi.brands.delete(brandId);
 
       showMessage(`Brand ${hardDelete ? 'deleted' : 'deactivated'} successfully!`);
       setCurrentBrand(null);
+      localStorage.removeItem('active_brand_id');
       setBrandVoice({
         name: '',
         tone: '',

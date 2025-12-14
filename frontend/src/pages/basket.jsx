@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBasket, Calendar, Edit, Trash2, X, Clock, Loader2, AlertCircle, Plus, Filter, Archive } from 'lucide-react';
+import { mainApi } from '../api/client';
 
-// API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-const BRAND_ID = process.env.REACT_APP_BRAND_ID || '00000000-0000-0000-0000-000000000000';
+// Brand ID Configuration
+const BRAND_ID = localStorage.getItem('active_brand_id') || '00000000-0000-0000-0000-000000000000';
 
 const BasketPage = () => {
   const [basketItems, setBasketItems] = useState([]);
@@ -23,29 +23,18 @@ const BasketPage = () => {
   });
   const [selectedItems, setSelectedItems] = useState([]);
 
-  // Fetch basket items
+  // Fetch basket items using centralized API client
   const fetchBasketItems = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const params = new URLSearchParams({
-        brand_id: BRAND_ID,
-        page: page.toString(),
-        page_size: pageSize.toString()
-      });
-      
-      if (filters.item_type) params.append('item_type', filters.item_type);
-      if (filters.platform) params.append('platform', filters.platform);
-      if (filters.status) params.append('status', filters.status);
+      const filterParams = {};
+      if (filters.item_type) filterParams.item_type = filters.item_type;
+      if (filters.platform) filterParams.platform = filters.platform;
+      if (filters.status) filterParams.status = filters.status;
 
-      const response = await fetch(`${API_BASE_URL}/basket/?${params}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch basket items: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
+      const data = await mainApi.basket.list(BRAND_ID, page, pageSize, filterParams);
       setBasketItems(data.items || []);
       setTotalItems(data.total || 0);
     } catch (err) {
@@ -59,12 +48,8 @@ const BasketPage = () => {
   // Fetch basket stats
   const fetchBasketStats = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/basket/stats?brand_id=${BRAND_ID}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
+      const data = await mainApi.basket.getStats(BRAND_ID);
+      setStats(data);
     } catch (err) {
       console.error('Error fetching basket stats:', err);
     }
@@ -73,12 +58,8 @@ const BasketPage = () => {
   // Fetch ready items
   const fetchReadyItems = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/basket/ready?brand_id=${BRAND_ID}&limit=50`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data;
-      }
+      const data = await mainApi.basket.getReady(BRAND_ID, 50);
+      return data;
     } catch (err) {
       console.error('Error fetching ready items:', err);
     }
@@ -88,19 +69,7 @@ const BasketPage = () => {
   // Create basket item
   const createBasketItem = async (itemData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/basket/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(itemData)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create basket item');
-      }
-      
-      const newItem = await response.json();
+      const newItem = await mainApi.basket.create(itemData);
       alert('Basket item created successfully!');
       fetchBasketItems();
       fetchBasketStats();
@@ -115,19 +84,7 @@ const BasketPage = () => {
   // Create basket item from draft
   const createFromDraft = async (draftId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/basket/from-draft?brand_id=${BRAND_ID}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ draft_id: draftId })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create basket item from draft');
-      }
-      
-      const newItem = await response.json();
+      const newItem = await mainApi.request(`/v1/basket/from-draft?brand_id=${BRAND_ID}`, 'POST', { draft_id: draftId });
       alert('Basket item created from draft successfully!');
       fetchBasketItems();
       fetchBasketStats();
@@ -142,13 +99,7 @@ const BasketPage = () => {
   // Get single basket item
   const getBasketItem = async (basketId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/basket/${basketId}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch basket item');
-      }
-      
-      const item = await response.json();
+      const item = await mainApi.basket.get(basketId);
       return item;
     } catch (err) {
       console.error('Error fetching basket item:', err);
@@ -159,19 +110,7 @@ const BasketPage = () => {
   // Update basket item
   const updateBasketItem = async (basketId, updateData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/basket/${basketId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update basket item');
-      }
-      
-      const updatedItem = await response.json();
+      const updatedItem = await mainApi.basket.update(basketId, updateData);
       
       // Update local state
       setBasketItems(basketItems.map(item => 
@@ -194,13 +133,7 @@ const BasketPage = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/basket/${id}`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete item');
-      }
+      await mainApi.basket.delete(id);
       
       // Update local state
       setBasketItems(basketItems.filter(item => item.id !== id));
@@ -218,15 +151,7 @@ const BasketPage = () => {
   // Archive basket item
   const archiveItem = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/basket/${id}/archive`, {
-        method: 'POST'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to archive item');
-      }
-      
-      const updatedItem = await response.json();
+      const updatedItem = await mainApi.request(`/v1/basket/${id}/archive`, 'POST');
       
       // Update local state
       setBasketItems(basketItems.map(item => 
@@ -248,19 +173,7 @@ const BasketPage = () => {
     }
     
     try {
-      const response = await fetch(`${API_BASE_URL}/basket/bulk-delete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(itemIds)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete items');
-      }
-      
-      const result = await response.json();
+      const result = await mainApi.request('/v1/basket/bulk-delete', 'POST', itemIds);
       
       // Refresh data
       fetchBasketItems();

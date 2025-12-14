@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Plus, Linkedin, Instagram, Youtube, Mail, MessageSquare, Users, Lightbulb, Image, Layers, Loader, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
+import { mainApi, instaApi } from '../api/client';
 
 const QuickGenShortcutsPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -10,8 +11,7 @@ const QuickGenShortcutsPage = () => {
   const [generationStats, setGenerationStats] = useState(null);
   const [recentGenerationsData, setRecentGenerationsData] = useState([]);
   
-  const API_BASE_URL = 'http://localhost:8000';
-  const BRAND_ID = 'your-brand-id-here';
+  const BRAND_ID = localStorage.getItem('active_brand_id') || 'your-brand-id-here';
 
   const floatingIcons = [
     { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
@@ -42,28 +42,6 @@ const QuickGenShortcutsPage = () => {
     { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
   ];
 
-  const apiCall = async (endpoint, method = 'GET', body = null) => {
-    const options = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    };
-    
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
-    
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Request failed' }));
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    
-    return response.status === 204 ? null : response.json();
-  };
-
   useEffect(() => {
     loadGenerationStats();
     loadRecentGenerations();
@@ -71,7 +49,7 @@ const QuickGenShortcutsPage = () => {
 
   const loadGenerationStats = async () => {
     try {
-      const stats = await apiCall(`/generations/stats?brand_id=${BRAND_ID}`);
+      const stats = await mainApi.generations.getStats(BRAND_ID);
       setGenerationStats(stats);
     } catch (err) {
       console.error('Failed to load stats:', err);
@@ -80,7 +58,7 @@ const QuickGenShortcutsPage = () => {
 
   const loadRecentGenerations = async () => {
     try {
-      const data = await apiCall(`/generations/?brand_id=${BRAND_ID}&page=1&page_size=10`);
+      const data = await mainApi.generations.list(BRAND_ID, 1, 10);
       setRecentGenerationsData(data.generations || []);
     } catch (err) {
       console.error('Failed to load recent generations:', err);
@@ -93,16 +71,7 @@ const QuickGenShortcutsPage = () => {
     setSuccessMessage(null);
     
     try {
-      const requestBody = {
-        brand_id: BRAND_ID,
-        category: category,
-        platform: platform,
-        custom_prompt: customPrompt,
-        rag_enabled: true,
-        variations_count: 3
-      };
-      
-      const result = await apiCall('/generations/generate', 'POST', requestBody);
+      const result = await mainApi.generations.quickGenerate(BRAND_ID, category, platform, customPrompt);
       setSuccessMessage(`Successfully generated ${category}!`);
       
       await loadGenerationStats();
@@ -123,15 +92,7 @@ const QuickGenShortcutsPage = () => {
     setSuccessMessage(null);
     
     try {
-      const requestBody = {
-        brand_id: BRAND_ID,
-        categories: categories,
-        count_per_category: countPerCategory,
-        rag_enabled: true,
-        auto_save_to_drafts: false
-      };
-      
-      const result = await apiCall('/generations/batch', 'POST', requestBody);
+      const result = await mainApi.generations.batchGenerate(BRAND_ID, categories);
       setSuccessMessage(`Successfully generated ${result.total_generated} pieces of content!`);
       
       await loadGenerationStats();

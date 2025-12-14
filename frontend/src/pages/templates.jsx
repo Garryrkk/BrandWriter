@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus, Edit, Trash2, X, Copy, Eye, RefreshCw, BarChart3 } from 'lucide-react';
-
-const API_BASE_URL = '/api/templates';
+import { mainApi } from '../api/client';
 
 const TemplatesPage = () => {
   const [templates, setTemplates] = useState([]);
@@ -43,23 +42,17 @@ const TemplatesPage = () => {
   ];
 
   // Fetch templates with filters
+  // Fetch templates with filters using centralized API client
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        page_size: pageSize.toString()
-      });
+      const filterParams = {};
+      if (filterCategory !== 'all') filterParams.category = filterCategory;
+      if (filterPlatform !== 'all') filterParams.platform = filterPlatform;
+      if (activeOnly) filterParams.active = 'true';
+      if (searchTerm) filterParams.search = searchTerm;
 
-      if (filterCategory !== 'all') params.append('category', filterCategory);
-      if (filterPlatform !== 'all') params.append('platform', filterPlatform);
-      if (activeOnly) params.append('active', 'true');
-      if (searchTerm) params.append('search', searchTerm);
-
-      const response = await fetch(`${API_BASE_URL}?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch templates');
-      
-      const data = await response.json();
+      const data = await mainApi.templates.list(page, pageSize, filterParams);
       setTemplates(data.items);
       setTotal(data.total);
       setTotalPages(Math.ceil(data.total / pageSize));
@@ -74,9 +67,7 @@ const TemplatesPage = () => {
   // Fetch template statistics
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/stats`);
-      if (!response.ok) throw new Error('Failed to fetch stats');
-      const data = await response.json();
+      const data = await mainApi.templates.getStats();
       setStats(data);
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -86,15 +77,7 @@ const TemplatesPage = () => {
   // Create template
   const createTemplate = async (templateData) => {
     try {
-      const response = await fetch(API_BASE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templateData)
-      });
-
-      if (!response.ok) throw new Error('Failed to create template');
-      
-      const newTemplate = await response.json();
+      const newTemplate = await mainApi.templates.create(templateData);
       await fetchTemplates();
       setIsCreating(false);
       alert('Template created successfully!');
@@ -109,15 +92,7 @@ const TemplatesPage = () => {
   // Update template
   const updateTemplate = async (templateId, updateData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/${templateId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      });
-
-      if (!response.ok) throw new Error('Failed to update template');
-      
-      const updated = await response.json();
+      const updated = await mainApi.templates.update(templateId, updateData);
       await fetchTemplates();
       alert('Template updated successfully!');
       return updated;
@@ -131,13 +106,7 @@ const TemplatesPage = () => {
   // Duplicate template
   const duplicateTemplate = async (templateId, newName) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/${templateId}/duplicate?new_name=${encodeURIComponent(newName)}`, {
-        method: 'POST'
-      });
-
-      if (!response.ok) throw new Error('Failed to duplicate template');
-      
-      const duplicated = await response.json();
+      const duplicated = await mainApi.templates.duplicate(templateId, newName);
       await fetchTemplates();
       alert('Template duplicated successfully!');
       return duplicated;
@@ -155,14 +124,7 @@ const TemplatesPage = () => {
     }
 
     try {
-      const url = hardDelete 
-        ? `${API_BASE_URL}/${templateId}?hard_delete=true`
-        : `${API_BASE_URL}/${templateId}`;
-      
-      const response = await fetch(url, { method: 'DELETE' });
-
-      if (!response.ok) throw new Error('Failed to delete template');
-      
+      await mainApi.templates.delete(templateId, hardDelete);
       await fetchTemplates();
       setSelectedTemplate(null);
       alert(`Template ${hardDelete ? 'deleted' : 'deactivated'} successfully!`);
@@ -175,9 +137,7 @@ const TemplatesPage = () => {
   // Get template by ID
   const fetchTemplateById = async (templateId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/${templateId}`);
-      if (!response.ok) throw new Error('Failed to fetch template');
-      const data = await response.json();
+      const data = await mainApi.templates.get(templateId);
       setSelectedTemplate(data);
     } catch (error) {
       console.error('Error fetching template:', error);
