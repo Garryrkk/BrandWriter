@@ -2,10 +2,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, and_, or_
 from typing import Optional, List
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from app.basket.BasketModels import Basket, BasketItemType, BasketStatus
 from app.draft.DraftModels import Draft
 from app.basket.BasketSchemas import BasketCreate, BasketUpdate, BasketCreateFromDraft, BasketFilter
+
+
+def make_naive(dt):
+    """Convert timezone-aware datetime to naive (UTC)"""
+    if dt is None:
+        return None
+    if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+        return dt.replace(tzinfo=None)
+    return dt
+
 
 class BasketService:
     """Service layer for Basket operations"""
@@ -13,7 +23,14 @@ class BasketService:
     @staticmethod
     async def create_basket_item(db: AsyncSession, basket_data: BasketCreate) -> Basket:
         """Create a new basket item"""
-        basket = Basket(**basket_data.model_dump())
+        data = basket_data.model_dump()
+        # Convert timezone-aware datetimes to naive for PostgreSQL
+        if 'scheduled_date' in data:
+            data['scheduled_date'] = make_naive(data['scheduled_date'])
+        if 'scheduled_time' in data:
+            data['scheduled_time'] = make_naive(data['scheduled_time'])
+        
+        basket = Basket(**data)
         db.add(basket)
         await db.commit()
         await db.refresh(basket)

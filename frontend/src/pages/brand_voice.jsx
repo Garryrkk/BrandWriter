@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Megaphone, FileText, Settings, Users, TrendingUp, Save, Plus, X, Eye, Calendar, BarChart3, Clock, Zap, Menu, ChevronLeft, Loader2, RefreshCw, Trash2, Edit } from 'lucide-react';
-
-const API_BASE_URL = 'http://localhost:8000/api/brands';
+import { Megaphone, FileText, Save, Plus, X, Calendar, BarChart3, Clock, Zap, Loader2, RefreshCw, Trash2, Edit } from 'lucide-react';
+import { mainApi } from '../api/client';
 
 const BrandVoiceDashboard = () => {
-  const [currentPage, setCurrentPage] = useState('brand-voice');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [currentTab, setCurrentTab] = useState('brand-voice');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -26,45 +24,6 @@ const BrandVoiceDashboard = () => {
     seedCorpus: '',
     is_active: true
   });
-  
-  const [contentFeed] = useState([
-    {
-      id: 1,
-      type: 'Blog Post',
-      title: 'Top 10 Marketing Trends for 2025',
-      status: 'Published',
-      date: '2025-12-10',
-      engagement: '2.3K views',
-      platform: 'Website'
-    },
-    {
-      id: 2,
-      type: 'Social Media',
-      title: 'New Product Launch Announcement',
-      status: 'Scheduled',
-      date: '2025-12-12',
-      engagement: 'N/A',
-      platform: 'LinkedIn'
-    },
-    {
-      id: 3,
-      type: 'Email',
-      title: 'Weekly Newsletter - December Edition',
-      status: 'Draft',
-      date: '2025-12-11',
-      engagement: 'N/A',
-      platform: 'Email'
-    },
-    {
-      id: 4,
-      type: 'Blog Post',
-      title: 'Customer Success Story: Brand X',
-      status: 'Published',
-      date: '2025-12-09',
-      engagement: '1.8K views',
-      platform: 'Website'
-    }
-  ]);
 
   const personalityOptions = ['Professional', 'Casual', 'Friendly', 'Bold', 'Humorous', 'Empathetic'];
 
@@ -81,12 +40,11 @@ const BrandVoiceDashboard = () => {
   const fetchActiveBrand = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/active`);
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentBrand(data);
-        mapBrandToState(data);
-      }
+      const data = await mainApi.brands.getActive();
+      setCurrentBrand(data);
+      mapBrandToState(data);
+      // Store active brand ID for other pages
+      localStorage.setItem('active_brand_id', data.id);
     } catch (err) {
       console.error('Error fetching active brand:', err);
     } finally {
@@ -97,16 +55,7 @@ const BrandVoiceDashboard = () => {
   const fetchBrands = async (page = 1, isActive = null) => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        page_size: '10'
-      });
-      if (isActive !== null) params.append('is_active', isActive.toString());
-      
-      const response = await fetch(`${API_BASE_URL}?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch brands');
-      
-      const data = await response.json();
+      const data = await mainApi.brands.list(page, 10);
       setBrands(data.brands);
       setTotalBrands(data.total);
       setCurrentBrandPage(data.page);
@@ -114,6 +63,7 @@ const BrandVoiceDashboard = () => {
       if (data.brands.length > 0 && !currentBrand) {
         setCurrentBrand(data.brands[0]);
         mapBrandToState(data.brands[0]);
+        localStorage.setItem('active_brand_id', data.brands[0].id);
       }
     } catch (err) {
       showMessage(err.message, true);
@@ -139,19 +89,9 @@ const BrandVoiceDashboard = () => {
         is_active: brandVoice.is_active
       };
 
-      const response = await fetch(`${API_BASE_URL}/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(brandData)
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to create brand');
-      }
-
-      const data = await response.json();
+      const data = await mainApi.brands.create(brandData);
       setCurrentBrand(data);
+      localStorage.setItem('active_brand_id', data.id);
       showMessage('Brand created successfully!');
       await fetchBrands();
     } catch (err) {
@@ -178,15 +118,7 @@ const BrandVoiceDashboard = () => {
         is_active: brandVoice.is_active
       };
 
-      const response = await fetch(`${API_BASE_URL}/${brandId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(brandData)
-      });
-
-      if (!response.ok) throw new Error('Failed to update brand');
-
-      const data = await response.json();
+      const data = await mainApi.brands.update(brandId, brandData);
       setCurrentBrand(data);
       showMessage('Brand updated successfully!');
       await fetchBrands();
@@ -204,14 +136,11 @@ const BrandVoiceDashboard = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/${brandId}?hard_delete=${hardDelete}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) throw new Error('Failed to delete brand');
+      await mainApi.brands.delete(brandId);
 
       showMessage(`Brand ${hardDelete ? 'deleted' : 'deactivated'} successfully!`);
       setCurrentBrand(null);
+      localStorage.removeItem('active_brand_id');
       setBrandVoice({
         name: '',
         tone: '',
@@ -310,15 +239,17 @@ const BrandVoiceDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-900 text-gray-100">
+    <div className="space-y-6">
+      {/* Notifications */}
       {(successMessage || error) && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
-          error ? 'bg-red-500' : 'bg-emerald-500'
+        <div className={`px-6 py-4 rounded-lg shadow-lg ${
+          error ? 'bg-red-500/20 border border-red-500/30' : 'bg-emerald-500/20 border border-emerald-500/30'
         } text-white font-semibold`}>
           {error || successMessage}
         </div>
       )}
 
+      {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-800 p-6 rounded-lg flex items-center space-x-3">
@@ -328,109 +259,61 @@ const BrandVoiceDashboard = () => {
         </div>
       )}
 
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gray-800 border-r border-gray-700 flex flex-col transition-all duration-300`}>
-        <div className="p-6 border-b border-gray-700 flex items-center justify-between">
-          {sidebarOpen && (
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 to-pink-300 bg-clip-text text-transparent">
-              Brand Hub
-            </h1>
+      {/* Page Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <Megaphone className="text-yellow-300" size={36} />
+            Brand Voice Settings
+          </h1>
+          <p className="text-slate-400 mt-1">
+            {currentBrand ? `Editing: ${currentBrand.name}` : 'Create a new brand voice'}
+          </p>
+        </div>
+        <div className="flex items-center space-x-3">
+          {currentBrand && (
+            <>
+              <button onClick={() => { setCurrentBrand(null); setBrandVoice({ name: '', tone: '', personality: [], writingStyle: '', messagingPillars: ['', '', ''], keywordsUse: [], keywordsAvoid: [], targetAudience: '', brandGoals: '', seedCorpus: '', is_active: true }); }} className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-gray-100 px-4 py-3 rounded-lg font-semibold transition-colors">
+                <Plus size={20} />
+                <span>New Brand</span>
+              </button>
+              <button onClick={() => deleteBrand(currentBrand.id, false)} className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition-colors">
+                <Trash2 size={20} />
+                <span>Delete</span>
+              </button>
+            </>
           )}
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-gray-700 rounded-lg transition-colors ml-auto">
-            {sidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+          <button onClick={saveBrandVoice} disabled={loading} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-200 to-pink-300 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+            <Save size={20} />
+            <span>{currentBrand ? 'Update' : 'Create'} Brand</span>
           </button>
         </div>
-        
-        <nav className="flex-1 p-4 space-y-2">
-          <button onClick={() => setCurrentPage('dashboard')} className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg transition-colors ${currentPage === 'dashboard' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`} title={!sidebarOpen ? 'Dashboard' : ''}>
-            <Home size={20} />
-            {sidebarOpen && <span>Dashboard</span>}
-          </button>
-          
-          <button onClick={() => setCurrentPage('brand-voice')} className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg transition-colors ${currentPage === 'brand-voice' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`} title={!sidebarOpen ? 'Brand Voice' : ''}>
-            <Megaphone size={20} />
-            {sidebarOpen && <span>Brand Voice</span>}
-          </button>
-          
-          <button onClick={() => setCurrentPage('content-feed')} className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg transition-colors ${currentPage === 'content-feed' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`} title={!sidebarOpen ? 'Content Feed' : ''}>
-            <FileText size={20} />
-            {sidebarOpen && <span>Content Feed</span>}
-          </button>
-          
-          <button className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors`} title={!sidebarOpen ? 'Analytics' : ''}>
-            <TrendingUp size={20} />
-            {sidebarOpen && <span>Analytics</span>}
-          </button>
-          
-          <button className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors`} title={!sidebarOpen ? 'Team' : ''}>
-            <Users size={20} />
-            {sidebarOpen && <span>Team</span>}
-          </button>
-          
-          <button className={`w-full flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors`} title={!sidebarOpen ? 'Settings' : ''}>
-            <Settings size={20} />
-            {sidebarOpen && <span>Settings</span>}
-          </button>
-        </nav>
-        
-        <div className="p-4 border-t border-gray-700">
-          <div className={`flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'} px-4 py-3`}>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-200 to-pink-300 flex items-center justify-center text-gray-900 font-bold flex-shrink-0">
-              A
-            </div>
-            {sidebarOpen && (
-              <div>
-                <p className="font-semibold">Admin User</p>
-                <p className="text-xs text-gray-400">admin@brand.com</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
+      </div>
 
-      <main className="flex-1 overflow-y-auto">
-        <header className="bg-gray-800 border-b border-gray-700 p-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-bold">
-                {currentPage === 'brand-voice' ? 'Brand Voice Settings' : currentPage === 'dashboard' ? 'Brand Management' : 'Auto-Generated Content Feed'}
-              </h2>
-              <p className="text-gray-400 mt-1">
-                {currentPage === 'brand-voice' ? `${currentBrand ? `Editing: ${currentBrand.name}` : 'Create a new brand voice'}` : currentPage === 'dashboard' ? 'Manage all your brands' : 'Live-updating content across all channels'}
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              {currentPage === 'brand-voice' && (
-                <>
-                  {currentBrand && (
-                    <>
-                      <button onClick={() => { setCurrentBrand(null); setBrandVoice({ name: '', tone: '', personality: [], writingStyle: '', messagingPillars: ['', '', ''], keywordsUse: [], keywordsAvoid: [], targetAudience: '', brandGoals: '', seedCorpus: '', is_active: true }); }} className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-gray-100 px-4 py-3 rounded-lg font-semibold transition-colors">
-                        <Plus size={20} />
-                        <span>New Brand</span>
-                      </button>
-                      <button onClick={() => deleteBrand(currentBrand.id, false)} className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition-colors">
-                        <Trash2 size={20} />
-                        <span>Delete</span>
-                      </button>
-                    </>
-                  )}
-                  <button onClick={saveBrandVoice} disabled={loading} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-200 to-pink-300 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
-                    <Save size={20} />
-                    <span>{currentBrand ? 'Update' : 'Create'} Brand</span>
-                  </button>
-                </>
-              )}
-              {currentPage === 'dashboard' && (
-                <button onClick={() => fetchBrands(currentBrandPage)} className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-gray-100 px-4 py-3 rounded-lg font-semibold transition-colors">
-                  <RefreshCw size={20} />
-                  <span>Refresh</span>
-                </button>
-              )}
-            </div>
+      {/* Tab Navigation */}
+      <div className="flex space-x-2 border-b border-gray-700 pb-4 mb-6">
+        <button 
+          onClick={() => setCurrentTab('brand-voice')} 
+          className={`px-4 py-2 rounded-lg transition-colors ${currentTab === 'brand-voice' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`}
+        >
+          <div className="flex items-center space-x-2">
+            <Megaphone size={18} />
+            <span>Brand Voice</span>
           </div>
-        </header>
+        </button>
+        <button 
+          onClick={() => setCurrentTab('all-brands')} 
+          className={`px-4 py-2 rounded-lg transition-colors ${currentTab === 'all-brands' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`}
+        >
+          <div className="flex items-center space-x-2">
+            <FileText size={18} />
+            <span>All Brands ({totalBrands})</span>
+          </div>
+        </button>
+      </div>
 
-        <div className="p-6">
-          {currentPage === 'dashboard' ? (
+      {/* Tab Content */}
+      {currentTab === 'all-brands' ? (
             <div className="space-y-6">
               <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
                 <div className="p-6 border-b border-gray-700">
@@ -463,7 +346,7 @@ const BrandVoiceDashboard = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center space-x-2">
-                              <button onClick={() => { setCurrentBrand(brand); mapBrandToState(brand); setCurrentPage('brand-voice'); }} className="text-yellow-200 hover:text-yellow-100 transition-colors p-2" title="Edit brand">
+                              <button onClick={() => { setCurrentBrand(brand); mapBrandToState(brand); setCurrentTab('brand-voice'); }} className="text-yellow-200 hover:text-yellow-100 transition-colors p-2" title="Edit brand">
                                 <Edit size={18} />
                               </button>
                               <button onClick={() => deleteBrand(brand.id, false)} className="text-red-400 hover:text-red-300 transition-colors p-2" title="Delete brand">
@@ -494,7 +377,7 @@ const BrandVoiceDashboard = () => {
                 )}
               </div>
             </div>
-          ) : currentPage === 'brand-voice' ? (
+          ) : (
             <div className="space-y-6">
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-xl font-semibold mb-4 flex items-center">
@@ -623,105 +506,7 @@ const BrandVoiceDashboard = () => {
                 </label>
               </div>
             </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="grid md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-yellow-200/10 to-yellow-200/5 border border-yellow-200/20 rounded-lg p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Total Content</p>
-                      <p className="text-3xl font-bold text-yellow-200 mt-1">24</p>
-                    </div>
-                    <FileText className="text-yellow-200" size={32} />
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-lg p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Published</p>
-                      <p className="text-3xl font-bold text-emerald-400 mt-1">18</p>
-                    </div>
-                    <Zap className="text-emerald-400" size={32} />
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-sky-500/10 to-sky-500/5 border border-sky-500/20 rounded-lg p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Scheduled</p>
-                      <p className="text-3xl font-bold text-sky-400 mt-1">4</p>
-                    </div>
-                    <Calendar className="text-sky-400" size={32} />
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-pink-300/10 to-pink-300/5 border border-pink-300/20 rounded-lg p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">Total Views</p>
-                      <p className="text-3xl font-bold text-pink-300 mt-1">12.4K</p>
-                    </div>
-                    <BarChart3 className="text-pink-300" size={32} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-                <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                  <h3 className="text-xl font-semibold">Recent Content</h3>
-                  <button className="bg-gradient-to-r from-yellow-200 to-pink-300 text-gray-900 px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity flex items-center space-x-2">
-                    <Plus size={18} />
-                    <span>New Content</span>
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-700/50">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Type</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Title</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Platform</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Date</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Engagement</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-700">
-                      {contentFeed.map(item => (
-                        <tr key={item.id} className="hover:bg-gray-700/30 transition-colors">
-                          <td className="px-6 py-4">
-                            <span className="bg-gray-700 px-3 py-1 rounded-full text-xs">
-                              {item.type}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 font-medium">{item.title}</td>
-                          <td className="px-6 py-4 text-gray-400">{item.platform}</td>
-                          <td className="px-6 py-4">
-                            <span className={`${getStatusColor(item.status)} px-3 py-1 rounded-full text-xs font-semibold`}>
-                              {item.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-gray-400">
-                            <div className="flex items-center space-x-2">
-                              <Clock size={14} />
-                              <span>{item.date}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-gray-400">{item.engagement}</td>
-                          <td className="px-6 py-4">
-                            <button className="text-yellow-200 hover:text-yellow-100 transition-colors">
-                              <Eye size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
           )}
-        </div>
-      </main>
     </div>
   );
 };

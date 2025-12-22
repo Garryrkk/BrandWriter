@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Clock, ChevronRight, Edit, Trash2, CheckCircle, Play, AlertCircle, Plus, Filter } from 'lucide-react';
-
-const API_BASE_URL = 'http://localhost:8000/api'; // Update with your actual API URL
+import { Calendar, Clock, ChevronRight, Edit, Trash2, CheckCircle, Play, AlertCircle, Plus, Filter, X, Sparkles } from 'lucide-react';
+import { mainApi, instaApi } from '../api/client';
 
 const SchedulerPage = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('schedule');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [todaySchedule, setTodaySchedule] = useState([]);
@@ -16,7 +13,7 @@ const SchedulerPage = () => {
     monthScheduled: 0,
     completedToday: 0
   });
-  const [brandId, setBrandId] = useState('your-brand-id-here'); // Replace with actual brand ID
+  const [brandId, setBrandId] = useState(localStorage.getItem('active_brand_id') || 'your-brand-id-here');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -26,42 +23,16 @@ const SchedulerPage = () => {
     category: null
   });
 
-  // Floating icons data
-  const floatingIcons = [
-    { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
-    { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
-    { Icon: Network, top: '45%', left: '10%', size: 36, opacity: 0.12 },
-    { Icon: Bot, top: '60%', right: '15%', size: 30, opacity: 0.1 },
-    { Icon: Sparkles, top: '15%', right: '40%', size: 24, opacity: 0.09 },
-    { Icon: Rocket, top: '75%', left: '25%', size: 28, opacity: 0.11 },
-    { Icon: Code, top: '35%', left: '85%', size: 26, opacity: 0.08 },
-    { Icon: Database, top: '80%', right: '30%', size: 32, opacity: 0.1 },
-    { Icon: Globe, top: '20%', left: '70%', size: 30, opacity: 0.09 },
-    { Icon: Server, top: '90%', left: '50%', size: 28, opacity: 0.12 },
-    { Icon: Terminal, top: '50%', right: '45%', size: 24, opacity: 0.08 },
-    { Icon: Brain, top: '70%', left: '60%', size: 34, opacity: 0.1 },
-    { Icon: Cpu, top: '5%', left: '45%', size: 26, opacity: 0.09 },
-    { Icon: Network, top: '85%', right: '10%', size: 30, opacity: 0.11 },
-    { Icon: Bot, top: '40%', left: '30%', size: 28, opacity: 0.08 },
-  ];
-
-  // API Functions
+  // API Functions using centralized client
   const fetchSchedules = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        brand_id: brandId,
-        page: 1,
-        page_size: 50,
-        ...(filters.platform && { platform: filters.platform }),
-        ...(filters.posting_status && { posting_status: filters.posting_status }),
-        ...(filters.category && { category: filters.category })
-      });
+      const filterParams = {};
+      if (filters.platform) filterParams.platform = filters.platform;
+      if (filters.posting_status) filterParams.posting_status = filters.posting_status;
+      if (filters.category) filterParams.category = filters.category;
 
-      const response = await fetch(`${API_BASE_URL}/schedules?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch schedules');
-      const data = await response.json();
-      
+      const data = await mainApi.schedule.list(brandId, 1, 50, filterParams);
       processScheduleData(data.schedules);
       setError(null);
     } catch (err) {
@@ -74,9 +45,7 @@ const SchedulerPage = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/schedules/stats?brand_id=${brandId}`);
-      if (!response.ok) throw new Error('Failed to fetch stats');
-      const data = await response.json();
+      const data = await mainApi.schedule.getStats(brandId);
       setStats(data);
     } catch (err) {
       console.error('Error fetching stats:', err);
@@ -86,11 +55,7 @@ const SchedulerPage = () => {
   const fetchCalendarView = async () => {
     try {
       const now = new Date();
-      const response = await fetch(
-        `${API_BASE_URL}/schedules/calendar?brand_id=${brandId}&month=${now.getMonth() + 1}&year=${now.getFullYear()}`
-      );
-      if (!response.ok) throw new Error('Failed to fetch calendar');
-      const data = await response.json();
+      const data = await mainApi.schedule.getCalendar(brandId, now.getMonth() + 1, now.getFullYear());
       return data;
     } catch (err) {
       console.error('Error fetching calendar:', err);
@@ -99,13 +64,7 @@ const SchedulerPage = () => {
 
   const createSchedule = async (scheduleData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/schedules/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scheduleData)
-      });
-      if (!response.ok) throw new Error('Failed to create schedule');
-      const data = await response.json();
+      const data = await mainApi.schedule.create(scheduleData);
       await fetchSchedules();
       await fetchStats();
       setShowAddModal(false);
@@ -118,19 +77,7 @@ const SchedulerPage = () => {
 
   const createFromBasket = async (basketItemId, scheduledTime) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/schedules/from-basket?brand_id=${brandId}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            basket_item_id: basketItemId,
-            scheduled_time: scheduledTime
-          })
-        }
-      );
-      if (!response.ok) throw new Error('Failed to create schedule from basket');
-      const data = await response.json();
+      const data = await mainApi.schedule.fromBasket(brandId, basketItemId, scheduledTime);
       await fetchSchedules();
       await fetchStats();
       return data;
@@ -142,13 +89,7 @@ const SchedulerPage = () => {
 
   const updateSchedule = async (scheduleId, updateData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/schedules/${scheduleId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      });
-      if (!response.ok) throw new Error('Failed to update schedule');
-      const data = await response.json();
+      const data = await mainApi.schedule.update(scheduleId, updateData);
       await fetchSchedules();
       await fetchStats();
       setShowEditModal(false);
@@ -162,10 +103,7 @@ const SchedulerPage = () => {
 
   const deleteSchedule = async (scheduleId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/schedules/${scheduleId}`, {
-        method: 'DELETE'
-      });
-      if (!response.ok) throw new Error('Failed to delete schedule');
+      await mainApi.schedule.delete(scheduleId);
       await fetchSchedules();
       await fetchStats();
     } catch (err) {
@@ -176,17 +114,40 @@ const SchedulerPage = () => {
 
   const cancelSchedule = async (scheduleId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/schedules/${scheduleId}/cancel`, {
-        method: 'POST'
-      });
-      if (!response.ok) throw new Error('Failed to cancel schedule');
-      const data = await response.json();
+      const data = await mainApi.schedule.cancel(scheduleId);
       await fetchSchedules();
       await fetchStats();
       return data;
     } catch (err) {
       setError(err.message);
       console.error('Error canceling schedule:', err);
+    }
+  };
+
+  // Post to Instagram using Insta-App backend
+  const postToInstagram = async (scheduleId, accountUsername, caption, mediaIds) => {
+    try {
+      const result = await instaApi.posts.postNow(accountUsername, caption, 'post', mediaIds);
+      // Update schedule status in main backend
+      await updateSchedule(scheduleId, {
+        posting_status: 'posted',
+        posted_at: new Date().toISOString()
+      });
+      return result;
+    } catch (err) {
+      setError(err.message);
+      console.error('Error posting to Instagram:', err);
+    }
+  };
+
+  // Schedule Instagram post using Insta-App backend
+  const scheduleInstagramPost = async (accountUsername, caption, mediaIds, scheduledAt) => {
+    try {
+      const result = await instaApi.posts.schedule(accountUsername, caption, 'post', mediaIds, scheduledAt);
+      return result;
+    } catch (err) {
+      setError(err.message);
+      console.error('Error scheduling Instagram post:', err);
     }
   };
 
@@ -309,143 +270,58 @@ const SchedulerPage = () => {
     }
   };
 
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', id: 'dashboard' },
-    { icon: FileText, label: 'Drafts', id: 'drafts' },
-    { icon: ShoppingCart, label: 'Basket', id: 'basket' },
-    { icon: History, label: 'History', id: 'history' },
-    { icon: Calendar, label: 'Schedule', id: 'schedule' },
-    { icon: Zap, label: 'Auto-Gen', id: 'autogen' },
-    { icon: FileCode, label: 'Templates', id: 'templates' },
-    { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
-      {/* Floating Background Icons */}
-      {floatingIcons.map((item, idx) => {
-        const IconComponent = item.Icon;
-        return (
-          <div
-            key={idx}
-            className="absolute pointer-events-none"
-            style={{
-              top: item.top,
-              left: item.left,
-              right: item.right,
-              opacity: item.opacity,
-            }}
-          >
-            <IconComponent size={item.size} className="text-yellow-200" />
-          </div>
-        );
-      })}
+    <div className="space-y-8">
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/30 rounded-lg px-6 py-3 flex items-center gap-2">
+          <AlertCircle size={16} />
+          <span className="text-sm text-red-400">{error}</span>
+          <button onClick={() => setError(null)} className="ml-auto">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
-      {/* Header */}
-      <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-            >
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-            <div className="flex items-center gap-2">
-              <Brain className="text-yellow-300" size={32} />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
-                Brand Writer
-              </h1>
-            </div>
+      {/* Page Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+              <Calendar className="text-yellow-300" size={36} />
+              Today's Schedule
+            </h1>
+            <p className="text-slate-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
           </div>
-          <div className="flex items-center gap-4">
-            {error && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-red-500/20 text-red-400 rounded-lg text-sm">
-                <AlertCircle size={16} />
-                {error}
-              </div>
-            )}
-            <button className="px-4 py-2 bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 rounded-lg font-semibold hover:shadow-lg hover:shadow-yellow-500/50 transition-all">
-              Products
-            </button>
-            <button className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors">
-              Contact
-            </button>
-            <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold">
-              {stats.todayScheduled}
-            </div>
-            <button className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors">
-              <ShoppingCart size={20} />
-            </button>
+          <button 
+            onClick={() => fetchSchedules()}
+            disabled={loading}
+            className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+        
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+            <p className="text-slate-400 text-sm mb-1">Today Scheduled</p>
+            <p className="text-2xl font-bold text-yellow-300">{stats.todayScheduled}</p>
+          </div>
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+            <p className="text-slate-400 text-sm mb-1">This Week</p>
+            <p className="text-2xl font-bold text-blue-400">{stats.weekScheduled}</p>
+          </div>
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+            <p className="text-slate-400 text-sm mb-1">This Month</p>
+            <p className="text-2xl font-bold text-purple-400">{stats.monthScheduled}</p>
+          </div>
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+            <p className="text-slate-400 text-sm mb-1">Completed Today</p>
+            <p className="text-2xl font-bold text-green-400">{stats.completedToday}</p>
           </div>
         </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-64 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
-          <nav className="p-4 space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    activeTab === item.id
-                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border border-yellow-300/30'
-                      : 'hover:bg-slate-700/30'
-                  }`}
-                >
-                  <Icon size={20} className={activeTab === item.id ? 'text-yellow-300' : ''} />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-6 lg:p-8 relative z-10">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-                  <Calendar className="text-yellow-300" size={36} />
-                  Today's Schedule
-                </h1>
-                <p className="text-slate-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
-              </div>
-              <button 
-                onClick={() => fetchSchedules()}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50"
-              >
-                {loading ? 'Loading...' : 'Refresh'}
-              </button>
-            </div>
-            
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-                <p className="text-slate-400 text-sm mb-1">Today Scheduled</p>
-                <p className="text-2xl font-bold text-yellow-300">{stats.todayScheduled}</p>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-                <p className="text-slate-400 text-sm mb-1">This Week</p>
-                <p className="text-2xl font-bold text-blue-400">{stats.weekScheduled}</p>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-                <p className="text-slate-400 text-sm mb-1">This Month</p>
-                <p className="text-2xl font-bold text-purple-400">{stats.monthScheduled}</p>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-                <p className="text-slate-400 text-sm mb-1">Completed Today</p>
-                <p className="text-2xl font-bold text-green-400">{stats.completedToday}</p>
-              </div>
-            </div>
-          </div>
+      </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
             {/* Today's Timeline - Main Section */}
@@ -633,8 +509,6 @@ const SchedulerPage = () => {
               We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
             </p>
           </footer>
-        </main>
-      </div>
 
       {/* Add Schedule Modal */}
       {showAddModal && (

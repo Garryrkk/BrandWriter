@@ -26,7 +26,7 @@ class QuickGenerateRequest(BaseModel):
     category: str
     platform: Optional[str] = None
     custom_prompt: Optional[str] = None
-    rag_enabled: bool = True
+    rag_enabled: bool = False  # Default to False since Voyage API key may not be configured
     variations_count: int = 3
 
 # Batch Generate Request
@@ -34,7 +34,7 @@ class BatchGenerateRequest(BaseModel):
     brand_id: UUID
     categories: List[str] = Field(..., min_items=1)
     count_per_category: int = Field(default=10, ge=1, le=100)
-    rag_enabled: bool = True
+    rag_enabled: bool = False  # Default to False since Voyage API key may not be configured
 
 # Response Schema
 class GenerationResponse(GenerationBase):
@@ -46,7 +46,7 @@ class GenerationResponse(GenerationBase):
     selected_variation: Optional[int] = None
     rag_documents_used: Optional[List[str]] = None
     rag_context: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    meta_data: Optional[Dict[str, Any]] = None
     quality_score: Optional[float] = None
     token_count: Optional[int] = None
     generation_time: Optional[float] = None

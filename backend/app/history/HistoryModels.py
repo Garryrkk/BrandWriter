@@ -33,7 +33,7 @@ class History(Base):
     rag_documents_used = Column(JSON)  # List of document IDs/references
     
     # Metadata
-    metadata = Column(JSON)  # Additional context
+    meta_info = Column(JSON)  # Additional context
     tone = Column(String(100))
     
     # Assets

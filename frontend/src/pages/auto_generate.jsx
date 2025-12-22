@@ -1,77 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Plus, Linkedin, Instagram, Youtube, Mail, MessageSquare, Users, Lightbulb, Image, Layers, Loader, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
+import { FileText, Zap, Sparkles, Plus, Lightbulb, Loader, CheckCircle, XCircle, X, TrendingUp, History, Linkedin, Instagram, Youtube, Mail, Layers, MessageSquare, Users } from 'lucide-react';
+import { mainApi, instaApi } from '../api/client';
 
 const QuickGenShortcutsPage = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('autogen');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [generationStats, setGenerationStats] = useState(null);
   const [recentGenerationsData, setRecentGenerationsData] = useState([]);
-  
-  const API_BASE_URL = 'http://localhost:8000';
-  const BRAND_ID = 'your-brand-id-here';
-
-  const floatingIcons = [
-    { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
-    { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
-    { Icon: Network, top: '45%', left: '10%', size: 36, opacity: 0.12 },
-    { Icon: Bot, top: '60%', right: '15%', size: 30, opacity: 0.1 },
-    { Icon: Sparkles, top: '15%', right: '40%', size: 24, opacity: 0.09 },
-    { Icon: Rocket, top: '75%', left: '25%', size: 28, opacity: 0.11 },
-    { Icon: Code, top: '35%', left: '85%', size: 26, opacity: 0.08 },
-    { Icon: Database, top: '80%', right: '30%', size: 32, opacity: 0.1 },
-    { Icon: Globe, top: '20%', left: '70%', size: 30, opacity: 0.09 },
-    { Icon: Server, top: '90%', left: '50%', size: 28, opacity: 0.12 },
-    { Icon: Terminal, top: '50%', right: '45%', size: 24, opacity: 0.08 },
-    { Icon: Brain, top: '70%', left: '60%', size: 34, opacity: 0.1 },
-    { Icon: Cpu, top: '5%', left: '45%', size: 26, opacity: 0.09 },
-    { Icon: Network, top: '85%', right: '10%', size: 30, opacity: 0.11 },
-    { Icon: Bot, top: '40%', left: '30%', size: 28, opacity: 0.08 },
-  ];
-
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', id: 'dashboard' },
-    { icon: FileText, label: 'Drafts', id: 'drafts' },
-    { icon: ShoppingCart, label: 'Basket', id: 'basket' },
-    { icon: History, label: 'History', id: 'history' },
-    { icon: Calendar, label: 'Schedule', id: 'schedule' },
-    { icon: Zap, label: 'Auto-Gen', id: 'autogen' },
-    { icon: FileCode, label: 'Templates', id: 'templates' },
-    { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
-  ];
-
-  const apiCall = async (endpoint, method = 'GET', body = null) => {
-    const options = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    };
-    
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
-    
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Request failed' }));
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    
-    return response.status === 204 ? null : response.json();
-  };
+  const [activeBrand, setActiveBrand] = useState(null);
+  const [brandId, setBrandId] = useState(localStorage.getItem('active_brand_id'));
 
   useEffect(() => {
-    loadGenerationStats();
-    loadRecentGenerations();
+    loadActiveBrand();
   }, []);
 
-  const loadGenerationStats = async () => {
+  useEffect(() => {
+    if (brandId) {
+      loadGenerationStats();
+      loadRecentGenerations();
+    }
+  }, [brandId]);
+
+  const loadActiveBrand = async () => {
     try {
-      const stats = await apiCall(`/generations/stats?brand_id=${BRAND_ID}`);
+      const brand = await mainApi.brands.getActive();
+      if (brand && brand.id) {
+        setActiveBrand(brand);
+        setBrandId(brand.id);
+        localStorage.setItem('active_brand_id', brand.id);
+      }
+    } catch (err) {
+      console.error('Failed to load active brand:', err);
+    }
+  };
+
+  const loadGenerationStats = async () => {
+    if (!brandId) return;
+    try {
+      const stats = await mainApi.generations.getStats(brandId);
       setGenerationStats(stats);
     } catch (err) {
       console.error('Failed to load stats:', err);
@@ -79,8 +46,9 @@ const QuickGenShortcutsPage = () => {
   };
 
   const loadRecentGenerations = async () => {
+    if (!brandId) return;
     try {
-      const data = await apiCall(`/generations/?brand_id=${BRAND_ID}&page=1&page_size=10`);
+      const data = await mainApi.generations.list(brandId, 1, 10);
       setRecentGenerationsData(data.generations || []);
     } catch (err) {
       console.error('Failed to load recent generations:', err);
@@ -88,21 +56,16 @@ const QuickGenShortcutsPage = () => {
   };
 
   const quickGenerate = async (category, platform = null, customPrompt = null) => {
+    if (!brandId) {
+      setError('No brand selected. Please create or select a brand first.');
+      return;
+    }
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
     
     try {
-      const requestBody = {
-        brand_id: BRAND_ID,
-        category: category,
-        platform: platform,
-        custom_prompt: customPrompt,
-        rag_enabled: true,
-        variations_count: 3
-      };
-      
-      const result = await apiCall('/generations/generate', 'POST', requestBody);
+      const result = await mainApi.generations.quickGenerate(brandId, category, platform, customPrompt);
       setSuccessMessage(`Successfully generated ${category}!`);
       
       await loadGenerationStats();
@@ -118,20 +81,16 @@ const QuickGenShortcutsPage = () => {
   };
 
   const batchGenerate = async (categories, countPerCategory = 5) => {
+    if (!brandId) {
+      setError('No brand selected. Please create or select a brand first.');
+      return;
+    }
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
     
     try {
-      const requestBody = {
-        brand_id: BRAND_ID,
-        categories: categories,
-        count_per_category: countPerCategory,
-        rag_enabled: true,
-        auto_save_to_drafts: false
-      };
-      
-      const result = await apiCall('/generations/batch', 'POST', requestBody);
+      const result = await mainApi.generations.batchGenerate(brandId, categories);
       setSuccessMessage(`Successfully generated ${result.total_generated} pieces of content!`);
       
       await loadGenerationStats();
@@ -148,12 +107,7 @@ const QuickGenShortcutsPage = () => {
 
   const addFeedback = async (generationId, rating, comments = null) => {
     try {
-      const requestBody = {
-        rating: rating,
-        comments: comments
-      };
-      
-      await apiCall(`/generations/${generationId}/feedback`, 'POST', requestBody);
+      await mainApi.generations.addFeedback(generationId, rating, comments);
       setSuccessMessage('Feedback submitted successfully!');
     } catch (err) {
       setError(err.message);
@@ -165,7 +119,7 @@ const QuickGenShortcutsPage = () => {
     setError(null);
     
     try {
-      const result = await apiCall(`/generations/${generationId}/to-draft`, 'POST');
+      const result = await mainApi.generations.convertToDraft(generationId);
       setSuccessMessage('Successfully converted to draft!');
       return result;
     } catch (err) {
@@ -178,7 +132,7 @@ const QuickGenShortcutsPage = () => {
 
   const deleteGeneration = async (generationId) => {
     try {
-      await apiCall(`/generations/${generationId}`, 'DELETE');
+      await mainApi.generations.delete(generationId);
       setSuccessMessage('Generation deleted successfully!');
       await loadRecentGenerations();
     } catch (err) {
@@ -299,133 +253,60 @@ const QuickGenShortcutsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
-      {floatingIcons.map((item, idx) => {
-        const IconComponent = item.Icon;
-        return (
-          <div
-            key={idx}
-            className="absolute pointer-events-none"
-            style={{
-              top: item.top,
-              left: item.left,
-              right: item.right,
-              opacity: item.opacity,
-            }}
-          >
-            <IconComponent size={item.size} className="text-yellow-200" />
-          </div>
-        );
-      })}
+    <div className="space-y-8">
+      {/* Status Messages */}
+      {loading && (
+        <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg px-6 py-3 flex items-center gap-2">
+          <Loader className="animate-spin" size={16} />
+          <span className="text-sm">Generating content...</span>
+        </div>
+      )}
+      {successMessage && (
+        <div className="bg-green-500/20 border border-green-500/30 rounded-lg px-6 py-3 flex items-center gap-2">
+          <CheckCircle size={16} />
+          <span className="text-sm">{successMessage}</span>
+          <button onClick={() => setSuccessMessage(null)} className="ml-auto">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/30 rounded-lg px-6 py-3 flex items-center gap-2">
+          <XCircle size={16} />
+          <span className="text-sm">{error}</span>
+          <button onClick={() => setError(null)} className="ml-auto">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
-      <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-            >
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-            <div className="flex items-center gap-2">
-              <Brain className="text-yellow-300" size={32} />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
-                Brand Writer
-              </h1>
-            </div>
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+          <Zap className="text-yellow-300" size={36} />
+          Quick Generation Shortcuts
+        </h1>
+        <p className="text-slate-400 mb-6">Create content instantly with one click — choose your format and let AI do the work</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+            <p className="text-slate-400 text-sm mb-1">Total Generated</p>
+            <p className="text-2xl font-bold text-yellow-300">{quickStats.totalGenerated}</p>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="px-4 py-2 bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 rounded-lg font-semibold hover:shadow-lg hover:shadow-yellow-500/50 transition-all">
-              Products
-            </button>
-            <button className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors">
-              Contact
-            </button>
-            <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold">
-              8
-            </div>
-            <button className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors">
-              <ShoppingCart size={20} />
-            </button>
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+            <p className="text-slate-400 text-sm mb-1">This Week</p>
+            <p className="text-2xl font-bold text-blue-400">{quickStats.thisWeek}</p>
+          </div>
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+            <p className="text-slate-400 text-sm mb-1">This Month</p>
+            <p className="text-2xl font-bold text-purple-400">{quickStats.thisMonth}</p>
+          </div>
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+            <p className="text-slate-400 text-sm mb-1">Avg Per Day</p>
+            <p className="text-2xl font-bold text-green-400">{quickStats.avgPerDay}</p>
           </div>
         </div>
-
-        {loading && (
-          <div className="bg-blue-500/20 border-b border-blue-500/30 px-6 py-2 flex items-center gap-2">
-            <Loader className="animate-spin" size={16} />
-            <span className="text-sm">Generating content...</span>
-          </div>
-        )}
-        {successMessage && (
-          <div className="bg-green-500/20 border-b border-green-500/30 px-6 py-2 flex items-center gap-2">
-            <CheckCircle size={16} />
-            <span className="text-sm">{successMessage}</span>
-            <button onClick={() => setSuccessMessage(null)} className="ml-auto">
-              <X size={16} />
-            </button>
-          </div>
-        )}
-        {error && (
-          <div className="bg-red-500/20 border-b border-red-500/30 px-6 py-2 flex items-center gap-2">
-            <XCircle size={16} />
-            <span className="text-sm">{error}</span>
-            <button onClick={() => setError(null)} className="ml-auto">
-              <X size={16} />
-            </button>
-          </div>
-        )}
-      </header>
-
-      <div className="flex">
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-64 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
-          <nav className="p-4 space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    activeTab === item.id
-                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border border-yellow-300/30'
-                      : 'hover:bg-slate-700/30'
-                  }`}
-                >
-                  <Icon size={20} className={activeTab === item.id ? 'text-yellow-300' : ''} />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        <main className="flex-1 p-6 lg:p-8 relative z-10">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-              <Zap className="text-yellow-300" size={36} />
-              Quick Generation Shortcuts
-            </h1>
-            <p className="text-slate-400 mb-6">Create content instantly with one click — choose your format and let AI do the work</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-                <p className="text-slate-400 text-sm mb-1">Total Generated</p>
-                <p className="text-2xl font-bold text-yellow-300">{quickStats.totalGenerated}</p>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-                <p className="text-slate-400 text-sm mb-1">This Week</p>
-                <p className="text-2xl font-bold text-blue-400">{quickStats.thisWeek}</p>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-                <p className="text-slate-400 text-sm mb-1">This Month</p>
-                <p className="text-2xl font-bold text-purple-400">{quickStats.thisMonth}</p>
-              </div>
-              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-                <p className="text-slate-400 text-sm mb-1">Avg Per Day</p>
-                <p className="text-2xl font-bold text-green-400">{quickStats.avgPerDay}</p>
-              </div>
-            </div>
-          </div>
+      </div>
 
           <section className="mb-8">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -558,8 +439,6 @@ const QuickGenShortcutsPage = () => {
               We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
             </p>
           </footer>
-        </main>
-      </div>
     </div>
   );
 };

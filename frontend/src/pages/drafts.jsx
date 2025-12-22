@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Edit, ShoppingBasket, Trash2, X, RefreshCw, Search, Filter, Loader, AlertCircle, CheckCircle, Copy, Download, Eye } from 'lucide-react';
+import { mainApi } from '../api/client';
 
+const BRAND_ID = localStorage.getItem('active_brand_id') || 'your-brand-id';
 
 const DraftsPage = () => {
   const [drafts, setDrafts] = useState([]);
@@ -9,6 +11,7 @@ const DraftsPage = () => {
   const [stats, setStats] = useState({});
   const [selectedDrafts, setSelectedDrafts] = useState([]);
   const [editingDraft, setEditingDraft] = useState(null);
+  const [viewingDraft, setViewingDraft] = useState(null);
   const [toast, setToast] = useState(null);
   const [basket, setBasket] = useState([]);
   const [showBasket, setShowBasket] = useState(false);
@@ -58,41 +61,24 @@ const DraftsPage = () => {
   const fetchDrafts = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        brand_id: BRAND_ID,
-        page: pagination.page,
-        page_size: pagination.pageSize,
-        ...(filters.category !== 'all' && { category: filters.category }),
-        ...(filters.platform !== 'all' && { platform: filters.platform }),
-        ...(filters.status !== 'all' && { status: filters.status }),
-        ...(filters.search && { search_query: filters.search })
-      });
+      const filterParams = {};
+      if (filters.category !== 'all') filterParams.category = filters.category;
+      if (filters.platform !== 'all') filterParams.platform = filters.platform;
+      if (filters.status !== 'all') filterParams.status = filters.status;
+      if (filters.search) filterParams.search_query = filters.search;
 
-      const response = await fetch(`${API_BASE_URL}/drafts?${params}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`
-        }
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          setDrafts([]);
-          setPagination(prev => ({ ...prev, total: 0 }));
-        } else {
-          throw new Error(`Error: ${response.status}`);
-        }
-        return;
-      }
-
-      const data = await response.json();
+      const data = await mainApi.drafts.list(BRAND_ID, pagination.page, pagination.pageSize, filterParams);
       setDrafts(data.drafts || []);
       setPagination(prev => ({ ...prev, total: data.total || 0 }));
       setError(null);
     } catch (err) {
-      setError(err.message);
-      showToast('Failed to load drafts', 'error');
+      if (err.message.includes('404')) {
+        setDrafts([]);
+        setPagination(prev => ({ ...prev, total: 0 }));
+      } else {
+        setError(err.message);
+        showToast('Failed to load drafts', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -100,18 +86,8 @@ const DraftsPage = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/drafts/stats?brand_id=${BRAND_ID}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
+      const data = await mainApi.drafts.getStats(BRAND_ID);
+      setStats(data);
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     }
@@ -119,18 +95,7 @@ const DraftsPage = () => {
 
   const updateDraft = async (draftId, updates) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/drafts/${draftId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`
-        },
-        body: JSON.stringify(updates)
-      });
-
-      if (!response.ok) throw new Error('Failed to update draft');
-
-      const updatedDraft = await response.json();
+      const updatedDraft = await mainApi.drafts.update(draftId, updates);
       setDrafts(drafts.map(d => d.id === draftId ? updatedDraft : d));
       showToast('Draft saved', 'success');
       setEditingDraft(null);
@@ -146,15 +111,7 @@ const DraftsPage = () => {
     if (!window.confirm('Delete this draft?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/drafts/${draftId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to delete draft');
-
+      await mainApi.drafts.delete(draftId);
       setDrafts(drafts.filter(d => d.id !== draftId));
       setSelectedDrafts(selectedDrafts.filter(id => id !== draftId));
       showToast('Draft deleted', 'success');
@@ -168,18 +125,7 @@ const DraftsPage = () => {
     if (!window.confirm(`Delete ${draftIds.length} draft(s)?`)) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/drafts/bulk-delete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`
-        },
-        body: JSON.stringify({ draft_ids: draftIds })
-      });
-
-      if (!response.ok) throw new Error('Failed to delete drafts');
-
-      const data = await response.json();
+      const data = await mainApi.drafts.bulkDelete(draftIds);
       setDrafts(drafts.filter(d => !draftIds.includes(d.id)));
       setSelectedDrafts([]);
       showToast(`${data.deleted_count} draft(s) deleted`, 'success');

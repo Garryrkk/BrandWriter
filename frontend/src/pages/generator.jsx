@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Plus, Linkedin, Instagram, Youtube, Mail, MessageSquare, Users, Lightbulb, Image, Layers, Loader, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
+import { mainApi, instaApi } from '../api/client';
 
-const Generator = () => {
+const QuickGenShortcutsPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('autogen');
   const [loading, setLoading] = useState(false);
@@ -12,8 +13,7 @@ const Generator = () => {
   const [batchStatus, setBatchStatus] = useState(null);
   const [selectedGeneration, setSelectedGeneration] = useState(null);
   
-  const API_BASE_URL = 'http://localhost:8000';
-  const BRAND_ID = 'your-brand-id-here'; // Replace with actual brand ID
+  const BRAND_ID = localStorage.getItem('active_brand_id') || 'your-brand-id-here';
 
   const floatingIcons = [
     { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
@@ -44,29 +44,6 @@ const Generator = () => {
     { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
   ];
 
-  // ==================== API HELPER ====================
-  const apiCall = async (endpoint, method = 'GET', body = null) => {
-    const options = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    };
-    
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
-    
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Request failed' }));
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    
-    return response.status === 204 ? null : response.json();
-  };
-
   // ==================== LOAD DATA ====================
   useEffect(() => {
     loadGenerationStats();
@@ -75,7 +52,7 @@ const Generator = () => {
 
   const loadGenerationStats = async () => {
     try {
-      const stats = await apiCall(`/generations/stats?brand_id=${BRAND_ID}`);
+      const stats = await mainApi.generations.getStats(BRAND_ID);
       setGenerationStats(stats);
     } catch (err) {
       console.error('Failed to load stats:', err);
@@ -90,7 +67,7 @@ const Generator = () => {
 
   const loadRecentGenerations = async () => {
     try {
-      const data = await apiCall(`/generations/?brand_id=${BRAND_ID}&page=1&page_size=10`);
+      const data = await mainApi.generations.list(BRAND_ID, 1, 10);
       setRecentGenerationsData(data.generations || []);
     } catch (err) {
       console.error('Failed to load recent generations:', err);
@@ -100,23 +77,14 @@ const Generator = () => {
 
   // ==================== GENERATION ENDPOINTS ====================
   
-  // POST /generations/generate - Quick content generation
+  // Quick content generation
   const quickGenerate = async (category, platform = null, customPrompt = null) => {
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
     
     try {
-      const requestBody = {
-        brand_id: BRAND_ID,
-        category: category,
-        platform: platform,
-        custom_prompt: customPrompt,
-        rag_enabled: true,
-        variations_count: 3
-      };
-      
-      const result = await apiCall('/generations/generate', 'POST', requestBody);
+      const result = await mainApi.generations.quickGenerate(BRAND_ID, category, platform, customPrompt);
       setSuccessMessage(`✨ Successfully generated ${category.replace(/_/g, ' ')}!`);
       
       await loadGenerationStats();
@@ -131,7 +99,7 @@ const Generator = () => {
     }
   };
 
-  // POST /generations/batch - Batch generate content
+  // Batch generate content
   const batchGenerate = async (categories, countPerCategory = 5) => {
     setLoading(true);
     setError(null);
@@ -139,15 +107,7 @@ const Generator = () => {
     setBatchStatus('processing');
     
     try {
-      const requestBody = {
-        brand_id: BRAND_ID,
-        categories: categories,
-        count_per_category: countPerCategory,
-        rag_enabled: true,
-        auto_save_to_drafts: false
-      };
-      
-      const result = await apiCall('/generations/batch', 'POST', requestBody);
+      const result = await mainApi.generations.batchGenerate(BRAND_ID, categories);
       setSuccessMessage(`🎉 Successfully generated ${result.total_generated} pieces of content across ${Object.keys(result.generations_by_category).length} categories!`);
       setBatchStatus('completed');
       
@@ -164,19 +124,10 @@ const Generator = () => {
     }
   };
 
-  // GET /generations/ - Get all generations with filters
+  // Get all generations with filters
   const getGenerationsWithFilters = async (filters = {}) => {
     try {
-      const params = new URLSearchParams({
-        brand_id: BRAND_ID,
-        page: filters.page || 1,
-        page_size: filters.page_size || 50,
-        ...(filters.category && { category: filters.category }),
-        ...(filters.platform && { platform: filters.platform }),
-        ...(filters.is_auto_generated !== undefined && { is_auto_generated: filters.is_auto_generated })
-      });
-      
-      const data = await apiCall(`/generations/?${params.toString()}`);
+      const data = await mainApi.generations.list(BRAND_ID, filters.page || 1, filters.page_size || 50);
       return data;
     } catch (err) {
       setError(err.message);
@@ -184,10 +135,10 @@ const Generator = () => {
     }
   };
 
-  // GET /generations/{generation_id} - Get generation by ID
+  // Get generation by ID
   const getGenerationById = async (generationId) => {
     try {
-      const generation = await apiCall(`/generations/${generationId}`);
+      const generation = await mainApi.generations.get(generationId);
       setSelectedGeneration(generation);
       return generation;
     } catch (err) {
@@ -196,15 +147,10 @@ const Generator = () => {
     }
   };
 
-  // POST /generations/{generation_id}/feedback - Add feedback
+  // Add feedback to generation
   const addFeedback = async (generationId, rating, comments = null) => {
     try {
-      const requestBody = {
-        rating: rating,
-        comments: comments
-      };
-      
-      await apiCall(`/generations/${generationId}/feedback`, 'POST', requestBody);
+      await mainApi.request(`/v1/generations/${generationId}/feedback`, 'POST', { rating, comments });
       setSuccessMessage('👍 Feedback submitted successfully!');
       await loadRecentGenerations();
     } catch (err) {
@@ -212,13 +158,13 @@ const Generator = () => {
     }
   };
 
-  // POST /generations/{generation_id}/to-draft - Convert to draft
+  // Convert generation to draft
   const convertToDraft = async (generationId) => {
     setLoading(true);
     setError(null);
     
     try {
-      const result = await apiCall(`/generations/${generationId}/to-draft`, 'POST');
+      const result = await mainApi.request(`/v1/generations/${generationId}/to-draft`, 'POST');
       setSuccessMessage('📝 Successfully converted to draft!');
       await loadRecentGenerations();
       return result;
@@ -230,10 +176,10 @@ const Generator = () => {
     }
   };
 
-  // DELETE /generations/{generation_id} - Delete generation
+  // Delete generation
   const deleteGeneration = async (generationId) => {
     try {
-      await apiCall(`/generations/${generationId}`, 'DELETE');
+      await mainApi.generations.delete(generationId);
       setSuccessMessage('🗑️ Generation deleted successfully!');
       await loadRecentGenerations();
       await loadGenerationStats();
@@ -767,4 +713,4 @@ const Generator = () => {
   );
 };
 
-export default Generator;
+export default QuickGenShortcutsPage;

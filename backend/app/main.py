@@ -8,8 +8,15 @@ from app.brand.BrandRoutes import router as brand_routes
 from app.draft.DraftRoutes import router as draft_routes
 from app.schedule.ScheduleRoutes import router as schedule_routes
 from app.generation.GenerationRoutes import router as generation_routes
+from app.history.HistoryRoutes import router as history_routes
+from app.templates.TemplaesRoutes import router as template_routes
 from app.auth.auth_routes import router as auth_router
 from app.routes.seed_routes import router as seed_routes
+from app.routes.send import router as send_routes
+from app.routes.stats import router as stats_routes
+from app.platforms.routes import router as platforms_routes
+from app.workers.routes import router as workers_routes
+from app.observability.routes import router as observability_routes
 
 # Import worker
 from app.workers.scheduler_work import start_scheduler, shutdown_scheduler
@@ -40,7 +47,8 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
     description="Automated Content OS for Brand Content Generation and Scheduling",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redirect_slashes=False  # Prevent 307 redirects that break CORS through proxy
 )
 
 # CORS middleware
@@ -58,9 +66,15 @@ app.include_router(draft_routes, prefix="/api/v1")
 app.include_router(basket_routes, prefix="/api/v1")
 app.include_router(schedule_routes, prefix="/api/v1")
 app.include_router(generation_routes, prefix="/api/v1")
+app.include_router(history_routes, prefix="/api/v1")
+app.include_router(template_routes, prefix="/api/v1")
 app.include_router(seed_routes)
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(send_routes, prefix="/api/v1")
+app.include_router(stats_routes, prefix="/api/v1")
+app.include_router(platforms_routes, prefix="/api/v1")
+app.include_router(workers_routes, prefix="/api/v1")
+app.include_router(observability_routes, prefix="/api/v1")
 
 
 # Health check

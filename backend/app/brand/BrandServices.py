@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func
 from typing import Optional, List
 from uuid import UUID
-from app.models.brand import Brand
+from app.brand.BrandModels import Brand
 from app.brand.BrandSchemas import BrandCreate, BrandUpdate
 from datetime import datetime
 

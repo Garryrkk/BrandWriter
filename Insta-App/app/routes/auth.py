@@ -1,5 +1,5 @@
 # app/routes/auth.py
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Depends
 from app.db import get_db
 from sqlalchemy.orm import Session
 from app.models import InstagramAccount
@@ -20,7 +20,7 @@ class AccountCreate(BaseModel):
     password: str
 
 @router.post("/create_account")
-def create_account(payload: AccountCreate, db: Session = next(get_db())):
+def create_account(payload: AccountCreate, db: Session = Depends(get_db)):
     acc = InstagramAccount(username=payload.username, password_encrypted=payload.password)
     db.add(acc); db.commit(); db.refresh(acc)
     return {"id": acc.id, "username": acc.username}

@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from uuid import UUID
 import time
+import traceback
+import logging
 from app.db.database import get_db
 from app.generation.GenerationSchemas import (
     GenerationCreate, GenerationResponse, GenerationListResponse,
@@ -16,6 +18,8 @@ from app.services.ai_service import AIService
 from app.draft.DraftServices import DraftService
 from app.draft.DraftSchemas import DraftCreate, Platform, ContentCategory
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/generations", tags=["generations"])
 
 # Initialize AI and RAG services
@@ -28,59 +32,69 @@ async def generate_content(
     db: AsyncSession = Depends(get_db)
 ):
     """Quick content generation"""
-    # Get brand
-    brand = await BrandService.get_brand_by_id(db, request.brand_id)
-    if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
-    
-    # Get RAG context if enabled
-    rag_context = None
-    if request.rag_enabled:
-        query = request.custom_prompt or f"Content about {request.category}"
-        rag_context = await rag_service.get_context_for_generation(
-            db, request.brand_id, query, category=request.category
+    try:
+        # Get brand
+        brand = await BrandService.get_brand_by_id(db, request.brand_id)
+        if not brand:
+            raise HTTPException(status_code=404, detail="Brand not found")
+        
+        # Get RAG context if enabled
+        rag_context = None
+        rag_query = None
+        if request.rag_enabled:
+            rag_query = request.custom_prompt or f"Content about {request.category}"
+            rag_context = await rag_service.get_context_for_generation(
+                db, request.brand_id, rag_query, category=request.category
+            )
+        
+        # Generate content
+        start_time = time.time()
+        topic = request.custom_prompt or f"Create {request.category} content"
+        
+        variations = await ai_service.generate_content(
+            brand=brand,
+            category=request.category,
+            topic=topic,
+            rag_context=rag_context,
+            variations=request.variations_count
         )
-    
-    # Generate content
-    start_time = time.time()
-    topic = request.custom_prompt or f"Create {request.category} content"
-    
-    variations = await ai_service.generate_content(
-        brand=brand,
-        category=request.category,
-        topic=topic,
-        rag_context=rag_context,
-        variations=request.variations_count
-    )
-    
-    generation_time = time.time() - start_time
-    
-    # Create generation record
-    generation_data = GenerationCreate(
-        brand_id=request.brand_id,
-        category=request.category,
-        platform=request.platform,
-        prompt=topic,
-        rag_enabled=request.rag_enabled,
-        rag_query=query if request.rag_enabled else None
-    )
-    
-    generation = await GenerationService.create_generation(
-        db,
-        generation_data,
-        output=variations[0] if variations else {},
-        model_used=ai_service.model,
-        generation_time=generation_time,
-        token_count=variations[0].get('tokens') if variations else None
-    )
-    
-    # Store variations
-    if len(variations) > 1:
-        generation.variations = variations
-        await db.commit()
-        await db.refresh(generation)
-    
-    return generation
+        
+        generation_time = time.time() - start_time
+        
+        # Create generation record
+        generation_data = GenerationCreate(
+            brand_id=request.brand_id,
+            category=request.category,
+            platform=request.platform,
+            prompt=topic,
+            rag_enabled=request.rag_enabled,
+            rag_query=rag_query
+        )
+        
+        generation = await GenerationService.create_generation(
+            db,
+            generation_data,
+            output=variations[0] if variations else {},
+            model_used=ai_service.model,
+            generation_time=generation_time,
+            token_count=variations[0].get('tokens') if variations else None
+        )
+        
+        # Store variations
+        if len(variations) > 1:
+            generation.variations = variations
+            await db.commit()
+            await db.refresh(generation)
+        
+        return generation
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating content: {str(e)}")
+        logger.error(traceback.format_exc())
+        print(f"ERROR in generate_content: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 @router.post("/batch", response_model=BatchGenerationResponse)
 async def batch_generate(
@@ -237,6 +251,16 @@ async def generation_to_draft(
     if not generation:
         raise HTTPException(status_code=404, detail="Generation not found")
     
+    # Convert meta_data to dict if it's not already
+    meta_data = generation.meta_data
+    if meta_data is None:
+        meta_data = {}
+    elif not isinstance(meta_data, dict):
+        try:
+            meta_data = dict(meta_data) if hasattr(meta_data, '__iter__') else {}
+        except (TypeError, ValueError):
+            meta_data = {}
+    
     # Create draft from generation
     draft_data = DraftCreate(
         brand_id=generation.brand_id,
@@ -244,7 +268,7 @@ async def generation_to_draft(
         platform=Platform(generation.platform) if generation.platform else Platform.INTERNAL,
         title=f"Generated {generation.category}",
         content=generation.output,
-        metadata=generation.metadata,
+        metadata=meta_data,
         tone=generation.tone,
         prompt_used=generation.prompt,
         model_used=generation.model_used

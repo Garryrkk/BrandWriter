@@ -11,7 +11,14 @@ Base = declarative_base()
 
 # =============== PostgreSQL (Async SQLAlchemy) ===============
 
-DATABASE_URL = os.getenv("DATABASE_URL").replace("postgres://", "postgresql+asyncpg://")
+_db_url = os.getenv("DATABASE_URL", "")
+# Convert to async driver URL if needed
+if _db_url.startswith("postgres://"):
+    DATABASE_URL = _db_url.replace("postgres://", "postgresql+asyncpg://")
+elif _db_url.startswith("postgresql://") and "+asyncpg" not in _db_url:
+    DATABASE_URL = _db_url.replace("postgresql://", "postgresql+asyncpg://")
+else:
+    DATABASE_URL = _db_url
 
 engine = create_async_engine(
     DATABASE_URL,
@@ -42,6 +49,17 @@ mongo_db = mongo_client[MONGO_DB_NAME]
 # =============== Init DB ===============
 async def init_db():
     try:
+        # Import all models so they are registered with Base
+        from app.brand.BrandModels import Brand
+        from app.draft.DraftModels import Draft
+        from app.basket.BasketModels import Basket
+        from app.schedule.ScheduleModels import Schedule
+        from app.generation.GenerationModels import Generation
+        from app.history.HistoryModels import History
+        from app.models.email import Email
+        from app.models.daily_send import DailySend
+        from app.models.send_log import SendLog
+        
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         print("PostgreSQL connected.")
