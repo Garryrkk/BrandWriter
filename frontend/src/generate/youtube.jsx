@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Youtube, AlertCircle } from 'lucide-react';
+import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Mail, AlertCircle, Eye, RefreshCw } from 'lucide-react';
 import GeneratedContentCard from '../components/generation/GeneratedContentCard';
 import EditContentModal from '../components/generation/EditContentModal';
 import ImprovePromptModal from '../components/generation/ImprovePromptModal';
-import PreviewModal from '../components/generation/PreviewModal';
+import PreviewModal from '../previews/PreviewModal';
 import { generateContent } from '../services/generation.api';
 
-const YouTubeGeneratorPage = () => {
+const EmailGeneratorPage = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('autogen');
   
   // Generation state
-  const [contentType, setContentType] = useState('long-script');
+  const [contentType, setContentType] = useState('promotional');
   const [topic, setTopic] = useState('');
   const [audience, setAudience] = useState('');
   const [goal, setGoal] = useState('');
@@ -21,6 +21,9 @@ const YouTubeGeneratorPage = () => {
   
   // Modal state
   const [editingContent, setEditingContent] = useState(null);
+  const [showImproveModal, setShowImproveModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
 
   const floatingIcons = [
     { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
@@ -42,11 +45,11 @@ const YouTubeGeneratorPage = () => {
   ];
 
   const contentTypes = [
-    { value: 'long-script', label: 'Long Form Script' },
-    { value: 'shorts-script', label: 'YouTube Shorts Script' },
-    { value: 'description', label: 'Video Description' },
-    { value: 'tutorial', label: 'Tutorial Script' },
-    { value: 'review', label: 'Review Script' },
+    { value: 'promotional', label: 'Promotional Email' },
+    { value: 'newsletter', label: 'Newsletter' },
+    { value: 'welcome', label: 'Welcome Series' },
+    { value: 'abandoned', label: 'Abandoned Cart' },
+    { value: 'announcement', label: 'Announcement' },
   ];
 
   const handleGenerate = async () => {
@@ -58,7 +61,7 @@ const YouTubeGeneratorPage = () => {
     setIsGenerating(true);
     try {
       const result = await generateContent({
-        platform: 'youtube',
+        platform: 'email',
         category: contentType,
         brand_id: 'BRAND_ID',
         prompt: `Topic: ${topic}\nAudience: ${audience}\nGoal: ${goal}\n${customInstruction ? `Additional: ${customInstruction}` : ''}`
@@ -66,10 +69,10 @@ const YouTubeGeneratorPage = () => {
 
       setGeneratedContent({
         id: result.content_id || Date.now(),
-        platform: 'YouTube',
+        platform: 'Email',
         category: contentType,
-        script: result.text,
-        title: result.title || '',
+        subject: result.subject || 'Email Subject',
+        body: result.text,
         created_at: new Date().toISOString(),
       });
     } catch (error) {
@@ -83,10 +86,34 @@ const YouTubeGeneratorPage = () => {
   const handleSaveEdit = (editedContent) => {
     setGeneratedContent({
       ...generatedContent,
-      script: editedContent.script,
-      title: editedContent.title
+      subject: editedContent.subject,
+      body: editedContent.body
     });
     setEditingContent(null);
+  };
+
+  const handleImproveContent = async (modifiers) => {
+    setIsImproving(true);
+    try {
+      const result = await generateContent({
+        platform: 'email',
+        category: contentType,
+        brand_id: 'BRAND_ID',
+        prompt: `Topic: ${topic}\nAudience: ${audience}\nGoal: ${goal}\nTone: ${modifiers.tone}\nLength: ${modifiers.length}\nCTA: ${modifiers.cta}\nBrand Heavy: ${modifiers.brand_heavy}\nPlatform Native: ${modifiers.platform_native}\n${modifiers.extra_instruction ? `Additional: ${modifiers.extra_instruction}` : ''}`
+      });
+
+      setGeneratedContent({
+        ...generatedContent,
+        subject: result.subject || generatedContent.subject,
+        body: result.text,
+      });
+      setShowImproveModal(false);
+    } catch (error) {
+      console.error('Improvement error:', error);
+      alert('Failed to improve content. Please try again.');
+    } finally {
+      setIsImproving(false);
+    }
   };
 
   return (
@@ -173,19 +200,19 @@ const YouTubeGeneratorPage = () => {
           {/* Page Header */}
           <div className="mb-8">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
-                <Youtube size={32} className="text-white" />
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center">
+                <Mail size={32} className="text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold mb-1">YouTube Script Generator</h1>
-                <p className="text-slate-400">Create compelling video scripts and descriptions</p>
+                <h1 className="text-3xl font-bold mb-1">Email Content Generator</h1>
+                <p className="text-slate-400">Create compelling email campaigns and newsletters</p>
               </div>
             </div>
 
             {/* Constraints Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg">
-              <AlertCircle size={16} className="text-red-400" />
-              <span className="text-red-400 text-sm font-medium">Hook in first 8 seconds • CTA placement • Timestamps recommended</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg">
+              <AlertCircle size={16} className="text-blue-400" />
+              <span className="text-blue-400 text-sm font-medium">Subject line optimization • Mobile-friendly • Clear CTA placement</span>
             </div>
           </div>
 
@@ -198,7 +225,7 @@ const YouTubeGeneratorPage = () => {
 
                 {/* Content Type Selector */}
                 <div className="mb-6">
-                  <label className="block text-sm font-semibold mb-3 text-slate-300">Content Type</label>
+                  <label className="block text-sm font-semibold mb-3 text-slate-300">Email Type</label>
                   <select
                     value={contentType}
                     onChange={(e) => setContentType(e.target.value)}
@@ -217,7 +244,7 @@ const YouTubeGeneratorPage = () => {
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    placeholder="e.g., Complete guide to home recording"
+                    placeholder="e.g., Black Friday Sale Announcement"
                     className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-yellow-300/50 transition-all"
                   />
                 </div>
@@ -229,7 +256,7 @@ const YouTubeGeneratorPage = () => {
                     type="text"
                     value={audience}
                     onChange={(e) => setAudience(e.target.value)}
-                    placeholder="e.g., Beginner musicians, podcasters"
+                    placeholder="e.g., Loyal customers, subscribers"
                     className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-yellow-300/50 transition-all"
                   />
                 </div>
@@ -241,7 +268,7 @@ const YouTubeGeneratorPage = () => {
                     type="text"
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
-                    placeholder="e.g., Education, subscriber growth"
+                    placeholder="e.g., Increase click-through rate, boost sales"
                     className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-yellow-300/50 transition-all"
                   />
                 </div>
@@ -262,7 +289,7 @@ const YouTubeGeneratorPage = () => {
                 <button
                   onClick={handleGenerate}
                   disabled={isGenerating}
-                  className="w-full py-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-bold hover:shadow-xl hover:shadow-red-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg font-bold hover:shadow-xl hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isGenerating ? (
                     <>
@@ -272,7 +299,7 @@ const YouTubeGeneratorPage = () => {
                   ) : (
                     <>
                       <Zap size={20} />
-                      Generate YouTube Script
+                      Generate Email
                     </>
                   )}
                 </button>
@@ -282,15 +309,33 @@ const YouTubeGeneratorPage = () => {
             {/* Output Panel */}
             <div>
               {generatedContent ? (
-                <GeneratedContentCard 
-                  content={generatedContent}
-                  onEdit={() => setEditingContent(generatedContent)}
-                />
+                <div className="space-y-4">
+                  <GeneratedContentCard 
+                    content={generatedContent}
+                    onEdit={() => setEditingContent(generatedContent)}
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowPreviewModal(true)}
+                      className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-semibold hover:shadow-xl hover:shadow-green-500/30 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Eye size={20} />
+                      Preview
+                    </button>
+                    <button
+                      onClick={() => setShowImproveModal(true)}
+                      className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg font-semibold hover:shadow-xl hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw size={20} />
+                      Improve
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="bg-slate-800/30 backdrop-blur-sm rounded-2xl border border-slate-700/50 border-dashed p-12 text-center">
-                  <Youtube size={64} className="text-slate-600 mx-auto mb-4" />
+                  <Mail size={64} className="text-slate-600 mx-auto mb-4" />
                   <p className="text-slate-400 text-lg mb-2">No content generated yet</p>
-                  <p className="text-slate-500 text-sm">Fill in the form and click Generate to create your YouTube script</p>
+                  <p className="text-slate-500 text-sm">Fill in the form and click Generate to create your email</p>
                 </div>
               )}
             </div>
@@ -309,13 +354,29 @@ const YouTubeGeneratorPage = () => {
       {editingContent && (
         <EditContentModal
           content={editingContent}
-          platform="YouTube"
+          platform="Email"
           onSave={handleSaveEdit}
           onClose={() => setEditingContent(null)}
+        />
+      )}
+
+      {showImproveModal && generatedContent && (
+        <ImprovePromptModal
+          onSubmit={handleImproveContent}
+          onClose={() => setShowImproveModal(false)}
+          isProcessing={isImproving}
+        />
+      )}
+
+      {showPreviewModal && generatedContent && (
+        <PreviewModal
+          content={generatedContent}
+          platform="Email"
+          onClose={() => setShowPreviewModal(false)}
         />
       )}
     </div>
   );
 };
 
-export default YouTubeGeneratorPage;
+export default EmailGeneratorPage;

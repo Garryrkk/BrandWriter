@@ -7,149 +7,22 @@ import {
   CircuitBoard, Workflow, GitBranch, Layers, Target, Activity, ArrowLeft
 } from 'lucide-react';
 
-// ============ PAGE IMPORTS ============
-// Main pages
-const QuickGenShortcutsPage = () => (
-  <div className="space-y-6">
-    <h1 className="text-4xl font-bold text-white">Quick Generate Shortcuts</h1>
-    <p className="text-gray-400">Rapidly generate content with pre-built shortcuts</p>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {['LinkedIn Quick', 'Instagram Quick', 'Email Quick', 'YouTube Quick'].map(item => (
-        <div key={item} className="bg-gray-800/50 p-6 rounded-lg border border-gray-700">
-          <p className="text-white font-semibold">{item}</p>
-          <p className="text-gray-400 text-sm mt-2">Ready-to-use templates</p>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+// ============ REAL PAGE IMPORTS ============
+import QuickGenShortcutsPage from './pages/auto_generate';
+import DraftsPage from './pages/drafts';
+import HistoryPage from './pages/history';
+import TemplatesPage from './pages/templates';
+import SchedulerPage from './pages/schedule';
+import BasketPage from './pages/basket';
+import BrandVoicePage from './pages/brand_voice';
+import EmailStatsPage from './pages/email';
 
-const DraftsPage = () => (
-  <div className="space-y-6">
-    <h1 className="text-4xl font-bold text-white">Drafts</h1>
-    <p className="text-gray-400">Your work in progress content</p>
-    <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
-      <div className="space-y-3">
-        {['Draft 1: LinkedIn Post', 'Draft 2: Email Campaign', 'Draft 3: IG Reel Script'].map(draft => (
-          <div key={draft} className="bg-gray-700/50 p-4 rounded border border-gray-600 hover:border-yellow-300">
-            <p className="text-white">{draft}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
-const BasketPage = () => (
-  <div className="space-y-6">
-    <h1 className="text-4xl font-bold text-white">Content Basket</h1>
-    <p className="text-gray-400">Ready to schedule content</p>
-    <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
-      <div className="space-y-3">
-        {['Content 1: LinkedIn Ready', 'Content 2: Email Ready', 'Content 3: IG Ready'].map(item => (
-          <div key={item} className="bg-gray-700/50 p-4 rounded border border-gray-600 flex justify-between items-center">
-            <p className="text-white">{item}</p>
-            <button className="px-3 py-1 bg-pink-500 text-white rounded text-xs">Schedule</button>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
-const HistoryPage = () => (
-  <div className="space-y-6">
-    <h1 className="text-4xl font-bold text-white">History</h1>
-    <p className="text-gray-400">All previously generated and published content</p>
-    <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
-      <div className="space-y-3">
-        {['Published: LinkedIn Post #5', 'Published: Email Campaign #3', 'Published: IG Reel #2'].map(item => (
-          <div key={item} className="bg-gray-700/50 p-4 rounded border border-gray-600">
-            <p className="text-white">{item}</p>
-            <p className="text-gray-400 text-sm mt-1">2 hours ago</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
-const TemplatesPage = () => (
-  <div className="space-y-6">
-    <h1 className="text-4xl font-bold text-white">Templates</h1>
-    <p className="text-gray-400">Pre-built content templates for all platforms</p>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {['Thought Leadership', 'Product Launch', 'Educational', 'Personal Story', 'Case Study', 'Industry News'].map(template => (
-        <div key={template} className="bg-gray-800/50 p-6 rounded-lg border border-gray-700 hover:border-yellow-300 cursor-pointer">
-          <p className="text-white font-semibold">{template}</p>
-          <p className="text-gray-400 text-sm mt-2">Click to use</p>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-const SchedulerPage = () => (
-  <div className="space-y-6">
-    <h1 className="text-4xl font-bold text-white">Content Scheduler</h1>
-    <p className="text-gray-400">Plan and schedule your content across all platforms</p>
-    <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
-      <div className="space-y-4">
-        {[
-          { time: '9:00 AM', platform: 'LinkedIn', content: 'Thought Leadership' },
-          { time: '12:00 PM', platform: 'Instagram', content: 'IG Reel' },
-          { time: '3:00 PM', platform: 'Email', content: 'Newsletter' },
-          { time: '6:00 PM', platform: 'YouTube', content: 'Short' }
-        ].map((slot, idx) => (
-          <div key={idx} className="bg-gray-700/50 p-4 rounded border border-gray-600">
-            <p className="text-yellow-300 font-bold">{slot.time}</p>
-            <p className="text-white">{slot.platform} - {slot.content}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
-const BrandVoicePage = () => (
-  <div className="space-y-6">
-    <h1 className="text-4xl font-bold text-white">Brand Voice</h1>
-    <p className="text-gray-400">Define and manage your brand voice and tone</p>
-    <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6 space-y-4">
-      <div>
-        <label className="text-white font-semibold">Brand Personality</label>
-        <p className="text-gray-400">Professional, Innovative, Friendly</p>
-      </div>
-      <div>
-        <label className="text-white font-semibold">Tone</label>
-        <p className="text-gray-400">Authoritative, Approachable, Engaging</p>
-      </div>
-      <div>
-        <label className="text-white font-semibold">Key Messages</label>
-        <p className="text-gray-400">Innovation, Growth, Community</p>
-      </div>
-    </div>
-  </div>
-);
-
-const EmailStatsPage = () => (
-  <div className="space-y-6">
-    <h1 className="text-4xl font-bold text-white">Email Statistics</h1>
-    <p className="text-gray-400">Track your email campaign performance</p>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {[
-        { label: 'Total Sent', value: '1,240', icon: Mail },
-        { label: 'Open Rate', value: '42%', icon: TrendingUp },
-        { label: 'Click Rate', value: '12%', icon: MessageSquare }
-      ].map(stat => (
-        <div key={stat.label} className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
-          <p className="text-gray-400 text-sm">{stat.label}</p>
-          <p className="text-white text-3xl font-bold mt-2">{stat.value}</p>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+// ============ GENERATE PAGE IMPORTS ============
+import GenerateLinkedIn from './generate/linkedin';
+import GenerateInstagram from './generate/instagram';
+import GenerateYouTube from './generate/youtube';
+import GenerateEmail from './generate/email';
+import GenerateMedium from './generate/medium';
 
 // ============ STATE MANAGEMENT ============
 const createStore = (initialState) => {
@@ -185,7 +58,7 @@ const dashboardStore = createStore({
     instagram: { generated: 20, scheduled: 5, published: 3, quota: 80 },
     youtube: { generated: 3, scheduled: 2, published: 1, quota: 97 },
     medium: { generated: 8, scheduled: 2, published: 1, quota: 92 },
-    emails: { coldEmails: 100, coldDMs: 100, status: 'Completed at 6:00 AM' }
+    email: { coldEmails: 100, coldDMs: 100, status: 'Completed at 6:00 AM' }
   },
   autoGenFeed: [
     { id: 1, type: 'linkedin', time: '2 mins ago', preview: '5 biggest mistakes founders make when pitching investors…', text: '5 biggest mistakes founders make when pitching investors…\n\nFull content here...' },
@@ -203,13 +76,15 @@ const dashboardStore = createStore({
   ]
 });
 
-// ============ COMPONENTS ============
+// ============ FLOATING ICONS COMPONENT ============
 const FloatingIcons = () => {
   const icons = [
     { Icon: Brain, top: '10%', left: '15%', delay: 0, size: 32 },
     { Icon: Cpu, top: '25%', right: '20%', delay: 1, size: 28 },
     { Icon: Network, bottom: '30%', left: '10%', delay: 2, size: 36 },
     { Icon: Bot, top: '45%', right: '15%', delay: 0.5, size: 40 },
+    { Icon: Sparkles, top: '60%', left: '25%', delay: 1.5, size: 24 },
+    { Icon: Code, bottom: '15%', right: '25%', delay: 2.5, size: 30 },
   ];
 
   return (
@@ -243,10 +118,11 @@ const FloatingIcons = () => {
   );
 };
 
+// ============ SIDEBAR COMPONENT ============
 const Sidebar = ({ currentPage, setCurrentPage }) => {
   const menuItems = [
     { icon: Home, label: 'Dashboard', id: 'dashboard' },
-    { icon: Zap, label: 'Quick Gen', id: 'quickgen' },
+    { icon: Zap, label: 'Quick Generate', id: 'quickgen' },
     { icon: FileText, label: 'Drafts', id: 'drafts' },
     { icon: ShoppingBasket, label: 'Basket', id: 'basket' },
     { icon: History, label: 'History', id: 'history' },
@@ -295,7 +171,8 @@ const Sidebar = ({ currentPage, setCurrentPage }) => {
   );
 };
 
-const Dashboard = () => {
+// ============ DASHBOARD COMPONENT ============
+const Dashboard = ({ setCurrentPage }) => {
   const [state] = useStore(dashboardStore);
   const platforms = ["instagram", "linkedin", "email", "youtube", "medium"];
 
@@ -376,6 +253,13 @@ const Dashboard = () => {
               "from-emerald-500 to-teal-600"
             }
             stats={state.stats[platform]}
+            onClick={() => {
+              if (platform === 'linkedin') setCurrentPage('generate-linkedin');
+              if (platform === 'instagram') setCurrentPage('generate-instagram');
+              if (platform === 'youtube') setCurrentPage('generate-youtube');
+              if (platform === 'email') setCurrentPage('generate-email');
+              if (platform === 'medium') setCurrentPage('generate-medium');
+            }}
           />
         ))}
       </div>
@@ -410,14 +294,32 @@ const Dashboard = () => {
               <ScheduleItem key={idx} item={item} />
             ))}
           </div>
-          <button className="w-full mt-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all">
+          <button 
+            onClick={() => setCurrentPage('schedule')}
+            className="w-full mt-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all"
+          >
             Open Full Scheduler
           </button>
         </div>
       </div>
 
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-        <h2 className="text-2xl font-bold text-white mb-4">Content Pipeline</h2>
+        <h2 className="text-2xl font-bold text-white mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <QuickAction icon={Linkedin} label="LinkedIn Post" onClick={() => setCurrentPage('generate-linkedin')} />
+          <QuickAction icon={Instagram} label="IG Reel" onClick={() => setCurrentPage('generate-instagram')} />
+          <QuickAction icon={Instagram} label="IG Carousel" onClick={() => setCurrentPage('generate-instagram')} />
+          <QuickAction icon={Youtube} label="YouTube Short" onClick={() => setCurrentPage('generate-youtube')} />
+          <QuickAction icon={Mail} label="Newsletter" onClick={() => setCurrentPage('generate-medium')} />
+          <QuickAction icon={Mail} label="Cold Email" onClick={() => setCurrentPage('generate-email')} />
+          <QuickAction icon={MessageSquare} label="Cold DM" onClick={() => setCurrentPage('quickgen')} />
+          <QuickAction icon={TrendingUp} label="Lead List" onClick={() => setCurrentPage('quickgen')} />
+          <QuickAction icon={Sparkles} label="Brand Ideas" onClick={() => setCurrentPage('brand')} />
+        </div>
+      </div>
+
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
+        <h2 className="text-2xl font-bold text-white mb-6">Content Pipeline</h2>
         <div className="space-y-4">
           <PipelineBar label="Auto-Generated" count={120} max={150} color="bg-yellow-300" />
           <PipelineBar label="Drafts" count={43} max={150} color="bg-blue-400" />
@@ -453,9 +355,13 @@ const Dashboard = () => {
   );
 };
 
-const StatCard = ({ icon: Icon, platform, color, stats }) => {
+// ============ STAT CARD COMPONENT ============
+const StatCard = ({ icon: Icon, platform, color, stats, onClick }) => {
   return (
-    <div className={`bg-gradient-to-br ${color} rounded-2xl p-6 text-white shadow-xl relative overflow-hidden`}>
+    <div 
+      onClick={onClick}
+      className={`bg-gradient-to-br ${color} rounded-2xl p-6 text-white shadow-xl relative overflow-hidden cursor-pointer hover:shadow-2xl hover:scale-105 transition-all`}
+    >
       <div className="absolute top-0 right-0 opacity-10">
         <Icon size={120} />
       </div>
@@ -485,6 +391,7 @@ const StatCard = ({ icon: Icon, platform, color, stats }) => {
   );
 };
 
+// ============ FEED ITEM COMPONENT ============
 const FeedItem = ({ item, onEdit, onImprove, onPreview, onAddToBasket }) => {
   const icons = { linkedin: Linkedin, email: Mail, reel: Instagram };
   const Icon = icons[item.type];
@@ -528,6 +435,7 @@ const FeedItem = ({ item, onEdit, onImprove, onPreview, onAddToBasket }) => {
   );
 };
 
+// ============ SCHEDULE ITEM COMPONENT ============
 const ScheduleItem = ({ item }) => {
   return (
     <div className="bg-gray-700/50 rounded-lg p-3 border border-gray-600">
@@ -541,6 +449,20 @@ const ScheduleItem = ({ item }) => {
   );
 };
 
+// ============ QUICK ACTION COMPONENT ============
+const QuickAction = ({ icon: Icon, label, onClick }) => {
+  return (
+    <button 
+      onClick={onClick}
+      className="bg-gray-700/50 hover:bg-gray-600 border border-gray-600 hover:border-yellow-300 rounded-xl p-4 transition-all group"
+    >
+      <Icon size={24} className="text-yellow-300 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+      <p className="text-xs text-white text-center">{label}</p>
+    </button>
+  );
+};
+
+// ============ PIPELINE BAR COMPONENT ============
 const PipelineBar = ({ label, count, max, color }) => {
   const percentage = (count / max) * 100;
   
@@ -557,6 +479,7 @@ const PipelineBar = ({ label, count, max, color }) => {
   );
 };
 
+// ============ EDIT MODAL COMPONENT ============
 const EditModal = ({ content, onSave, onClose }) => {
   const [text, setText] = useState(content.text);
 
@@ -591,6 +514,7 @@ const EditModal = ({ content, onSave, onClose }) => {
   );
 };
 
+// ============ IMPROVE MODAL COMPONENT ============
 const ImproveModal = ({ content, onSave, onClose }) => {
   const [text, setText] = useState(content.text);
   const [improving, setImproving] = useState(false);
@@ -641,6 +565,7 @@ const ImproveModal = ({ content, onSave, onClose }) => {
   );
 };
 
+// ============ PREVIEW MODAL COMPONENT ============
 const PreviewModal = ({ content, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -676,8 +601,18 @@ const App = () => {
 
   const renderPage = () => {
     switch(currentPage) {
+      case 'generate-linkedin':
+        return <GenerateLinkedIn onBack={() => setCurrentPage('dashboard')} />;
+      case 'generate-instagram':
+        return <GenerateInstagram onBack={() => setCurrentPage('dashboard')} />;
+      case 'generate-youtube':
+        return <GenerateYouTube onBack={() => setCurrentPage('dashboard')} />;
+      case 'generate-email':
+        return <GenerateEmail onBack={() => setCurrentPage('dashboard')} />;
+      case 'generate-medium':
+        return <GenerateMedium onBack={() => setCurrentPage('dashboard')} />;
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard setCurrentPage={setCurrentPage} />;
       case 'quickgen':
         return <QuickGenShortcutsPage />;
       case 'drafts':
@@ -695,7 +630,7 @@ const App = () => {
       case 'email':
         return <EmailStatsPage />;
       default:
-        return <Dashboard />;
+        return <Dashboard setCurrentPage={setCurrentPage} />;
     }
   };
 
