@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Edit, RefreshCw, Target, Eye, Save, ShoppingCart, Trash2, Clock } from 'lucide-react';
+
 import ImprovePromptModal from './ImprovePromptModal';
-import PreviewModal from './PreviewModal';
 import EditContentModal from './EditContentModal';
-import { regenerateWithModifiers } from '../../services/generation.api';
+import PreviewModal from '../../previews/PreviewModal';
+
+import { regenerateWithModifiers } from '../../api/generation.api';
+
 
 const GeneratedContentCard = ({ content }) => {
   const [showImprove, setShowImprove] = useState(false);
