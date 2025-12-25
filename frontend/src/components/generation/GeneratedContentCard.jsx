@@ -5,8 +5,6 @@ import ImprovePromptModal from './ImprovePromptModal';
 import EditContentModal from './EditContentModal';
 import PreviewModal from '../../previews/PreviewModal';
 
-import { regenerateWithModifiers } from '../../api/generation.api';
-
 
 const GeneratedContentCard = ({ content }) => {
   const [showImprove, setShowImprove] = useState(false);

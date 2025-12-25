@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, BookOpen, AlertCircle } from 'lucide-react';
 import GeneratedContentCard from '../components/generation/GeneratedContentCard';
 import EditContentModal from '../components/generation/EditContentModal';
 import ImprovePromptModal from '../components/generation/ImprovePromptModal';
-import PreviewModal from '../previews/PreviewModal';
+//import PreviewModal from '../previews/PreviewModal';
 
 // Mock API function (replace with actual API call)
 const generateContent = async (params) => {
@@ -35,7 +35,7 @@ const MediumGeneratorPage = () => {
   const [generatedContent, setGeneratedContent] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   
-  const [editingContent, setEditingContent] = useState(null);
+ const [editingContent, setEditingContent] = useState(null);
   const [showImproveModal, setShowImproveModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isImproving, setIsImproving] = useState(false);

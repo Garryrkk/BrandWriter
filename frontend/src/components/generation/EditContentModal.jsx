@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { X, Edit, Save, AlertCircle, GitBranch } from 'lucide-react';
 
+
 const EditContentModal = ({ content, platform, onSave, onClose, baseContent }) => {
-  const [edited, setEdited] = useState({ ...content });
+  const [edited, setEdited] = useState(() => ({
+    ...(content || {})
+  }));
   const [wordCount, setWordCount] = useState(0);
   const [text, setText] = useState(baseContent || '');
-
+ 
   const updateField = (key, value) => {
     setEdited(prev => ({ ...prev, [key]: value }));
     
@@ -15,12 +18,15 @@ const EditContentModal = ({ content, platform, onSave, onClose, baseContent }) =
       setWordCount(count);
     }
   };
-
+  
+  
   const handleTextChange = (value) => {
     setText(value);
     const count = value.trim().split(/\s+/).filter(Boolean).length;
     setWordCount(count);
   };
+
+  
 
   const renderEditor = () => {
     switch (platform?.toLowerCase()) {
@@ -164,13 +170,15 @@ const EditContentModal = ({ content, platform, onSave, onClose, baseContent }) =
     }
   };
 
-  const handleSave = () => {
-    if (baseContent) {
-      onSave(text);
-    } else {
-      onSave(edited);
-    }
-  };
+const handleSave = () => {
+  if (!onSave) return;
+
+  if (baseContent) {
+    onSave(text);
+  } else {
+    onSave(edited || {});
+  }
+};
 
   // Calculate original word count for baseContent mode
   const originalWordCount = baseContent ? baseContent.trim().split(/\s+/).filter(Boolean).length : 0;
