@@ -4,26 +4,27 @@ import {
   BookOpen, Mic, Plus, Linkedin, Instagram, Youtube, Mail, 
   MessageSquare, TrendingUp, Clock, Zap, Brain, Cpu, Network,
   Bot, Sparkles, Code, Database, CloudLightning, Atom, Binary,
-  CircuitBoard, Workflow, GitBranch, Layers, Target, Activity, ArrowLeft, Menu
+  CircuitBoard, Workflow, GitBranch, Layers, Target, Activity, ArrowLeft, Menu, Users, Send
 } from 'lucide-react';
 
 // ============ REAL PAGE IMPORTS ============
-// Note: These would be your actual page components
-const QuickGenShortcutsPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Quick Generate</h1><p className="mt-4">Quick generation page coming soon...</p></div>;
-const DraftsPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Drafts</h1><p className="mt-4">Drafts page coming soon...</p></div>;
-const HistoryPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">History</h1><p className="mt-4">History page coming soon...</p></div>;
-const TemplatesPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Templates</h1><p className="mt-4">Templates page coming soon...</p></div>;
-const SchedulerPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Scheduler</h1><p className="mt-4">Scheduler page coming soon...</p></div>;
-const BasketPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Basket</h1><p className="mt-4">Basket page coming soon...</p></div>;
-const BrandVoicePage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Brand Voice</h1><p className="mt-4">Brand voice page coming soon...</p></div>;
+import BasketPage from './pages/basket';
+import DraftsPage from './pages/drafts';
+import HistoryPage from './pages/history';
+import SchedulerPage from './pages/schedule';
+import TemplatesPage from './pages/templates';
+import BrandVoicePage from './pages/brand_voice';
+import QuickGenShortcutsPage from './pages/generator';
 
-// ============ GENERATE PAGE IMPORTS ============
-const GenerateLinkedIn = ({ onBack }) => <div className="text-white p-8"><button onClick={onBack} className="mb-4 px-4 py-2 bg-blue-500 rounded">← Back</button><h1 className="text-3xl font-bold">Generate LinkedIn Post</h1></div>;
-const GenerateInstagram = ({ onBack }) => <div className="text-white p-8"><button onClick={onBack} className="mb-4 px-4 py-2 bg-pink-500 rounded">← Back</button><h1 className="text-3xl font-bold">Generate Instagram Content</h1></div>;
-const GenerateYouTube = ({ onBack }) => <div className="text-white p-8"><button onClick={onBack} className="mb-4 px-4 py-2 bg-red-500 rounded">← Back</button><h1 className="text-3xl font-bold">Generate YouTube Content</h1></div>;
-const GenerateMedium = ({ onBack }) => <div className="text-white p-8"><button onClick={onBack} className="mb-4 px-4 py-2 bg-orange-500 rounded">← Back</button><h1 className="text-3xl font-bold">Generate Medium/Newsletter</h1></div>;
+import GenerateLinkedIn from './generate/linkedin';
+import GenerateInstagram from './generate/instagram';
+import GenerateYouTube from './generate/youtube';
+import GenerateMedium from './generate/medium';
 
-// ============ STATE MANAGEMENT ============
+// ============ NEW IMPORTS ============
+import LeadDashboard from './linkedin/lead-discovery';
+import EmailOutreachSystem from './main-email/email';
+
 const createStore = (initialState) => {
   let state = initialState;
   const listeners = new Set();
@@ -128,7 +129,8 @@ const Sidebar = ({ currentPage, setCurrentPage, sidebarOpen, setSidebarOpen }) =
     { icon: Calendar, label: 'Schedule', id: 'schedule' },
     { icon: BookOpen, label: 'Templates', id: 'templates' },
     { icon: Mic, label: 'Brand Voice', id: 'brand' },
-    { icon: Mail, label: 'Email Stats', id: 'email' }
+    { icon: Target, label: 'Lead Discovery', id: 'lead-discovery' },
+    { icon: Send, label: 'Email Outreach', id: 'email-outreach' }
   ];
 
   return (
@@ -346,9 +348,9 @@ const Dashboard = ({ setCurrentPage }) => {
           <QuickAction icon={Instagram} label="IG Carousel" onClick={() => setCurrentPage('generate-instagram')} />
           <QuickAction icon={Youtube} label="YouTube Short" onClick={() => setCurrentPage('generate-youtube')} />
           <QuickAction icon={Mail} label="Newsletter" onClick={() => setCurrentPage('generate-medium')} />
-          <QuickAction icon={Mail} label="Cold Email" onClick={() => setCurrentPage('generate-email')} />
+          <QuickAction icon={Target} label="Lead Discovery" onClick={() => setCurrentPage('lead-discovery')} />
+          <QuickAction icon={Send} label="Email Outreach" onClick={() => setCurrentPage('email-outreach')} />
           <QuickAction icon={MessageSquare} label="Cold DM" onClick={() => setCurrentPage('quickgen')} />
-          <QuickAction icon={TrendingUp} label="Lead List" onClick={() => setCurrentPage('quickgen')} />
           <QuickAction icon={Sparkles} label="Brand Ideas" onClick={() => setCurrentPage('brand')} />
         </div>
       </div>
@@ -633,18 +635,6 @@ const PreviewModal = ({ content, onClose }) => {
   );
 };
 
-// ============ EMAIL STATS PAGE PLACEHOLDER ============
-const EmailStatsPage = () => {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-4xl font-bold text-white">Email Statistics</h1>
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
-        <p className="text-gray-300 text-lg">Email statistics dashboard coming soon...</p>
-      </div>
-    </div>
-  );
-};
-
 // ============ MAIN APP COMPONENT ============
 const App = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -678,8 +668,10 @@ const App = () => {
         return <TemplatesPage />;
       case 'brand':
         return <BrandVoicePage />;
-      case 'email':
-        return <EmailStatsPage />;
+      case 'lead-discovery':
+        return <LeadDashboard />;
+      case 'email-outreach':
+        return <EmailOutreachSystem />;
       default:
         return <Dashboard setCurrentPage={setCurrentPage} />;
     }

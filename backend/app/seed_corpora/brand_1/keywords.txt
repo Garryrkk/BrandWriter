@@ -1,0 +1,15 @@
+KEYWORDS = {
+    "GENAI": [
+        "llm", "large language model", "genai", "generative ai",
+        "gpt", "claude", "mistral", "llama", "rag",
+        "prompt engineering", "agents", "vector database", "embeddings"
+    ],
+    "MLOPS": [
+        "mlops", "model serving", "ml pipeline",
+        "feature store", "model monitoring"
+    ],
+    "CORE": [
+        "machine learning", "artificial intelligence",
+        "deep learning", "neural networks"
+    ]
+}

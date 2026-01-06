@@ -1,0 +1,5 @@
+EXCLUSIONS = [
+    "intern", "student", "fresher", "trainee",
+    "recruiter", "talent", "hr", "hiring",
+    "sales", "marketing", "coach", "mentor", "instructor"
+]
