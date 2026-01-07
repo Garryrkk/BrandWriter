@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from app.db import init_db, get_db
 from app.routes import auth_router, posts_router, media_router
+from app.routes.instagram import router as instagram_router
 from app.services.scheduler_service import start_scheduler
 
 load_dotenv()
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(posts_router, prefix="/posts", tags=["posts"])
 app.include_router(media_router, prefix="/media", tags=["media"])
+app.include_router(instagram_router)
 
 @app.on_event("startup")
 async def startup_event():

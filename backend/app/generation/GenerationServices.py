@@ -20,8 +20,10 @@ class GenerationService:
         token_count: Optional[int] = None
     ) -> Generation:
         """Create a new generation record"""
+        # Exclude variations_count from model_dump as it's not a database column
+        data = generation_data.model_dump(exclude={"variations_count"})
         generation = Generation(
-            **generation_data.model_dump(),
+            **data,
             output=output,
             model_used=model_used,
             generation_time=generation_time,

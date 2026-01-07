@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, Zap, Cpu, Brain, Workflow, Settings, Grid3x3, BookOpen, Palette, Home, FileText, Trash2, Clock, Calendar, Wand2, LogOut, Menu, X, Mic, Code, Database, CloudLightning, Atom, Binary, CircuitBoard, GitBranch, Layers, Target, Activity, Bot, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Zap, Cpu, Brain, BookOpen, Home, FileText, Trash2, Clock, Calendar, Menu, X, Mic, Code, Database, Bot, Sparkles, Mail } from 'lucide-react';
 
 // Import page components
-import AutoGenSettingsPage from './pages/auto_generate';
+import QuickGenShortcutsPage from './pages/auto_generate'
 import DraftsPage from './pages/drafts';
 import HistoryPage from './pages/history';
 import TemplatesPage from './pages/templates';
-import SchedulePage from './pages/schedule';
+import SchedulerPage from './pages/schedule';
 import BasketPage from './pages/basket';
+import BrandVoicePage from './pages/brand_voice';
+import EmailStatsPage from './pages/email';
 
 const App = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Floating icons data
   const floatingIcons = [
     { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
     { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
@@ -41,6 +42,7 @@ const App = () => {
     { icon: Zap, label: 'Auto-Gen', id: 'autogen' },
     { icon: BookOpen, label: 'Templates', id: 'templates' },
     { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
+    { icon: Mail, label: 'Email Stats', id: 'emailstats' },
   ];
 
   const platformStats = [
@@ -91,7 +93,6 @@ const App = () => {
     { title: 'Draft YouTube Script', icon: Mic, color: 'bg-red-500' },
   ];
 
-  // Render page based on activeTab
   const renderPage = () => {
     switch (activeTab) {
       case 'drafts':
@@ -101,68 +102,75 @@ const App = () => {
       case 'history':
         return <HistoryPage />;
       case 'schedule':
-        return <SchedulePage />;
+        return <SchedulerPage />;
       case 'autogen':
-        return <AutoGenSettingsPage />;
+        return <QuickGenShortcutsPage />;
       case 'templates':
         return <TemplatesPage />;
+      case 'brandvoice':
+        return <BrandVoicePage />;
+      case 'emailstats':
+        return <EmailStatsPage />;
       case 'dashboard':
       default:
         return (
-          <>
+          <div className="space-y-24">
             {/* Daily Performance Summary */}
-            <section className="mb-8">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Sparkles className="text-yellow-300" />
+            <section>
+              <h2 className="text-4xl font-bold mb-16 flex items-center gap-5 tracking-wide">
+                <Sparkles className="text-yellow-300" size={32} />
                 Daily Performance Summary
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-14">
                 {platformStats.map((platform, idx) => (
                   <div
                     key={idx}
-                    className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-yellow-300/30 transition-all hover:shadow-xl hover:shadow-yellow-500/10"
+                    className="bg-slate-800/50 backdrop-blur-sm rounded-xl py-10 px-6 border border-slate-700/50 hover:border-yellow-300/30 transition-all hover:shadow-xl hover:shadow-yellow-500/10 max-w-xs"
                   >
-                    <div className={`bg-gradient-to-r ${platform.color} w-12 h-12 rounded-lg flex items-center justify-center mb-4`}>
+                    <div className={`bg-gradient-to-r ${platform.color} w-12 h-12 rounded-lg flex items-center justify-center mb-7`}>
                       <Bot size={24} className="text-white" />
                     </div>
-                    <h3 className="text-xl font-bold mb-4">{platform.name}</h3>
+                    
+                    <h3 className="text-lg font-bold mb-8 tracking-wide">{platform.name}</h3>
+                    
                     {platform.coldEmails ? (
-                      <>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Cold Emails:</span>
-                            <span className="font-semibold text-green-400">{platform.coldEmails}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Cold DMs:</span>
-                            <span className="font-semibold text-green-400">{platform.coldDMs}</span>
-                          </div>
-                          <div className="pt-2 border-t border-slate-700">
-                            <span className="text-xs text-emerald-400">✓ {platform.status}</span>
-                          </div>
+                      <div className="space-y-5 text-base">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Cold Emails:</span>
+                          <span className="font-semibold text-green-400 text-lg">{platform.coldEmails}</span>
                         </div>
-                      </>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Cold DMs:</span>
+                          <span className="font-semibold text-green-400 text-lg">{platform.coldDMs}</span>
+                        </div>
+                        
+                        <div className="pt-5 mt-2 border-t border-slate-700">
+                          <span className="text-sm text-emerald-400">✓ {platform.status}</span>
+                        </div>
+                      </div>
                     ) : (
-                      <>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Generated today:</span>
-                            <span className="font-semibold">{platform.generated}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Scheduled today:</span>
-                            <span className="font-semibold">{platform.scheduled}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Published today:</span>
-                            <span className="font-semibold">{platform.published}</span>
-                          </div>
-                          <div className="flex justify-between pt-2 border-t border-slate-700">
-                            <span className="text-slate-400">Remaining quota:</span>
-                            <span className="font-semibold text-yellow-300">{platform.remaining}</span>
-                          </div>
+                      <div className="space-y-5 text-base">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Generated today:</span>
+                          <span className="font-semibold text-lg">{platform.generated}</span>
                         </div>
-                      </>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Scheduled today:</span>
+                          <span className="font-semibold text-lg">{platform.scheduled}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Published today:</span>
+                          <span className="font-semibold text-lg">{platform.published}</span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center pt-5 mt-2 border-t border-slate-700">
+                          <span className="text-slate-400">Remaining quota:</span>
+                          <span className="font-semibold text-yellow-300 text-lg">{platform.remaining}</span>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -170,45 +178,45 @@ const App = () => {
             </section>
 
             {/* Quick Actions */}
-            <section className="mb-8">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Zap className="text-yellow-300" />
+            <section className="mb-32">
+              <h2 className="text-4xl font-bold mb-16 flex items-center gap-5 tracking-wide">
+                <Zap className="text-yellow-300" size={32} />
                 Quick Actions
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-12">
                 {quickActions.map((action, idx) => {
                   const Icon = action.icon;
                   return (
                     <button
                       key={idx}
-                      className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 hover:border-pink-300/30 transition-all hover:shadow-xl hover:shadow-pink-500/10 group"
+                      className="bg-slate-800/50 backdrop-blur-sm rounded-xl py-10 px-6 border border-slate-700/50 hover:border-pink-300/30 transition-all hover:shadow-xl hover:shadow-pink-500/10 group max-w-xs"
                     >
-                      <div className={`${action.color} w-12 h-12 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                      <div className={`${action.color} w-12 h-12 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                         <Icon size={24} className="text-white" />
                       </div>
-                      <h3 className="font-semibold text-left">{action.title}</h3>
+                      <h3 className="font-semibold text-left text-base tracking-wide">{action.title}</h3>
                     </button>
                   );
                 })}
               </div>
             </section>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              {/* Auto-Gen Content Feed */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-20">
+              {/* Recent Content */}
               <section>
-                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                  <Cpu className="text-yellow-300" />
+                <h2 className="text-4xl font-bold mb-16 flex items-center gap-5 tracking-wide">
+                  <Cpu className="text-yellow-300" size={32} />
                   Recent Content
                 </h2>
-                <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden">
+                <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 overflow-hidden max-w-md">
                   {recentContent.map((content, idx) => (
                     <div
                       key={idx}
-                      className="p-4 border-b border-slate-700/50 last:border-b-0 hover:bg-slate-700/30 transition-colors"
+                      className="p-8 border-b border-slate-700/50 last:border-b-0 hover:bg-slate-700/30 transition-colors"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold">{content.title}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      <div className="flex items-center justify-between mb-5">
+                        <h3 className="font-semibold text-base tracking-wide">{content.title}</h3>
+                        <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
                           content.status === 'Published' ? 'bg-green-500/20 text-green-400' :
                           content.status === 'Scheduled' ? 'bg-blue-500/20 text-blue-400' :
                           content.status === 'Sent' ? 'bg-emerald-500/20 text-emerald-400' :
@@ -217,7 +225,7 @@ const App = () => {
                           {content.status}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                      <div className="flex items-center gap-3 text-sm text-slate-400">
                         <span>{content.platform}</span>
                         <span>•</span>
                         <span>{content.time}</span>
@@ -227,48 +235,51 @@ const App = () => {
                 </div>
               </section>
 
-              {/* Content Pipeline Overview */}
+              {/* Content Pipeline */}
               <section>
-                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                  <Cpu className="text-yellow-300" />
+                <h2 className="text-4xl font-bold mb-16 flex items-center gap-5 tracking-wide">
+                  <Cpu className="text-yellow-300" size={32} />
                   Content Pipeline
                 </h2>
-                <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50">
-                  <div className="space-y-4">
+                <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-10 border border-slate-700/50 max-w-md">
+                  <div className="space-y-9">
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-slate-400">Drafts in Progress</span>
-                        <span className="font-semibold">24</span>
+                      <div className="flex justify-between mb-5">
+                        <span className="text-base text-slate-400 tracking-wide">Drafts in Progress</span>
+                        <span className="font-semibold text-lg">24</span>
                       </div>
-                      <div className="w-full bg-slate-700 rounded-full h-2">
-                        <div className="bg-gradient-to-r from-yellow-300 to-pink-300 h-2 rounded-full" style={{ width: '60%' }}></div>
+                      <div className="w-full bg-slate-700 rounded-full h-3">
+                        <div className="bg-gradient-to-r from-yellow-300 to-pink-300 h-3 rounded-full" style={{ width: '60%' }}></div>
                       </div>
                     </div>
+                    
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-slate-400">Scheduled Posts</span>
-                        <span className="font-semibold">10</span>
+                      <div className="flex justify-between mb-5">
+                        <span className="text-base text-slate-400 tracking-wide">Scheduled Posts</span>
+                        <span className="font-semibold text-lg">10</span>
                       </div>
-                      <div className="w-full bg-slate-700 rounded-full h-2">
-                        <div className="bg-gradient-to-r from-blue-400 to-cyan-400 h-2 rounded-full" style={{ width: '25%' }}></div>
+                      <div className="w-full bg-slate-700 rounded-full h-3">
+                        <div className="bg-gradient-to-r from-blue-400 to-cyan-400 h-3 rounded-full" style={{ width: '25%' }}></div>
                       </div>
                     </div>
+                    
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-slate-400">Published Today</span>
-                        <span className="font-semibold">8</span>
+                      <div className="flex justify-between mb-5">
+                        <span className="text-base text-slate-400 tracking-wide">Published Today</span>
+                        <span className="font-semibold text-lg">8</span>
                       </div>
-                      <div className="w-full bg-slate-700 rounded-full h-2">
-                        <div className="bg-gradient-to-r from-green-400 to-emerald-400 h-2 rounded-full" style={{ width: '20%' }}></div>
+                      <div className="w-full bg-slate-700 rounded-full h-3">
+                        <div className="bg-gradient-to-r from-green-400 to-emerald-400 h-3 rounded-full" style={{ width: '20%' }}></div>
                       </div>
                     </div>
+                    
                     <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm text-slate-400">Templates Available</span>
-                        <span className="font-semibold">45</span>
+                      <div className="flex justify-between mb-5">
+                        <span className="text-base text-slate-400 tracking-wide">Templates Available</span>
+                        <span className="font-semibold text-lg">45</span>
                       </div>
-                      <div className="w-full bg-slate-700 rounded-full h-2">
-                        <div className="bg-gradient-to-r from-purple-400 to-pink-400 h-2 rounded-full" style={{ width: '90%' }}></div>
+                      <div className="w-full bg-slate-700 rounded-full h-3">
+                        <div className="bg-gradient-to-r from-purple-400 to-pink-400 h-3 rounded-full" style={{ width: '90%' }}></div>
                       </div>
                     </div>
                   </div>
@@ -277,18 +288,18 @@ const App = () => {
             </div>
 
             {/* Footer */}
-            <footer className="mt-12 pt-8 border-t border-slate-700/50">
-              <p className="text-sm text-slate-400">
+            <footer className="pt-20 mt-12 border-t border-slate-700/50">
+              <p className="text-base text-slate-400 leading-relaxed tracking-wide">
                 We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
               </p>
             </footer>
-          </>
+          </div>
         );
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Floating Background Icons */}
       {floatingIcons.map((item, idx) => {
         const IconComponent = item.Icon;
@@ -310,33 +321,27 @@ const App = () => {
 
       {/* Header */}
       <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between px-10 py-7">
+          <div className="flex items-center gap-7">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+              className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
             >
               {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
-            <div className="flex items-center gap-2">
-              <Brain className="text-yellow-300" size={32} />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
+            <div className="flex items-center gap-5">
+              <Brain className="text-yellow-300" size={44} />
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent tracking-wide">
                 Brand Writer
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="px-4 py-2 bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 rounded-lg font-semibold hover:shadow-lg hover:shadow-yellow-500/50 transition-all">
-              Products
-            </button>
-            <button className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors">
-              Contact
-            </button>
-            <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold">
-              8
+          <div className="flex items-center gap-6">
+            <div className="w-12 h-12 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold text-lg">
+              G
             </div>
-            <button className="w-10 h-10 bg-slate-700/50 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors">
-              <Trash2 size={20} />
+            <button className="w-12 h-12 bg-slate-700/50 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors">
+              <Trash2 size={22} />
             </button>
           </div>
         </div>
@@ -344,25 +349,22 @@ const App = () => {
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-64 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
-          <nav className="p-4 space-y-2">
+        <aside className={`${sidebarOpen ? 'w-72' : 'w-0'} overflow-hidden bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-all duration-300 z-40`}>
+          <nav className="p-8 space-y-5">
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-5 px-6 py-5 rounded-lg transition-all ${
                     activeTab === item.id
                       ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border border-yellow-300/30'
                       : 'hover:bg-slate-700/30'
                   }`}
                 >
-                  <Icon size={20} className={activeTab === item.id ? 'text-yellow-300' : ''} />
-                  <span className="font-medium">{item.label}</span>
+                  <Icon size={24} className={activeTab === item.id ? 'text-yellow-300' : ''} />
+                  <span className="font-medium text-base tracking-wide">{item.label}</span>
                 </button>
               );
             })}
@@ -370,7 +372,7 @@ const App = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 lg:p-8 relative z-10">
+        <main className="flex-1 p-14 lg:p-20 relative z-10">
           {renderPage()}
         </main>
       </div>

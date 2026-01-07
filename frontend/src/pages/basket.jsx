@@ -5,6 +5,17 @@ import { mainApi } from '../api/client';
 // Brand ID Configuration
 const BRAND_ID = localStorage.getItem('active_brand_id') || '00000000-0000-0000-0000-000000000000';
 
+// Helper function to extract text from content (handles both string and object formats)
+const getContentText = (content) => {
+  if (!content) return '';
+  if (typeof content === 'string') return content;
+  if (typeof content === 'object') {
+    // Try common text field names
+    return content.text || content.body || content.caption || content.message || JSON.stringify(content);
+  }
+  return String(content);
+};
+
 const BasketPage = () => {
   const [basketItems, setBasketItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -546,7 +557,7 @@ const BasketItemCard = ({ item, onEdit, onRemove, onArchive, onUpdate, selected,
             )}
 
             {/* Content Preview */}
-            <p className="text-gray-400 text-sm line-clamp-2 mb-3">{item.content || 'No content preview available'}</p>
+            <p className="text-gray-400 text-sm line-clamp-2 mb-3">{getContentText(item.content) || 'No content preview available'}</p>
 
             {/* Assets */}
             <div className="flex gap-4 text-xs text-gray-400 mb-4 flex-wrap">
@@ -589,7 +600,7 @@ const BasketItemCard = ({ item, onEdit, onRemove, onArchive, onUpdate, selected,
 
 const EditBasketModal = ({ item, onClose, onUpdate }) => {
   const [dateTime, setDateTime] = useState(item.scheduled_time ? new Date(item.scheduled_time).toISOString().slice(0, 16) : '');
-  const [content, setContent] = useState(item.content || '');
+  const [content, setContent] = useState(getContentText(item.content) || '');
   const [title, setTitle] = useState(item.title || '');
   const [status, setStatus] = useState(item.status || 'draft');
   const [saving, setSaving] = useState(false);
@@ -602,7 +613,7 @@ const EditBasketModal = ({ item, onClose, onUpdate }) => {
 
       const updateData = {
         title: title,
-        content: content,
+        content: { text: content },
         scheduled_time: dateTime ? new Date(dateTime).toISOString() : null,
         status: status
       };
@@ -752,13 +763,31 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
     brand_id: BRAND_ID,
     title: '',
     content: '',
-    platform: 'LinkedIn',
+    platform: 'linkedin',
     item_type: 'post',
-    status: 'draft',
-    scheduled_time: ''
+    category: 'linkedin_post',
+    status: 'pending',
+    scheduled_time: '',
+    notes: '',
+    priority: 0
   });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
+
+  // Map platform to category
+  const platformCategoryMap = {
+    linkedin: 'linkedin_post',
+    instagram: 'instagram_post',
+    twitter: 'twitter_post',
+    facebook: 'facebook_post',
+    youtube: 'youtube_video',
+    email: 'newsletter'
+  };
+
+  const handlePlatformChange = (platform) => {
+    const category = platformCategoryMap[platform.toLowerCase()] || 'general';
+    setFormData({...formData, platform: platform.toLowerCase(), category});
+  };
 
   const handleCreate = async () => {
     try {
@@ -770,10 +799,27 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
         return;
       }
 
+      // Format data to match backend schema
       const createData = {
-        ...formData,
-        scheduled_time: formData.scheduled_time ? new Date(formData.scheduled_time).toISOString() : null
+        brand_id: formData.brand_id,
+        category: formData.category,
+        platform: formData.platform,
+        item_type: formData.item_type,
+        title: formData.title,
+        content: { text: formData.content },  // Backend expects Dict[str, Any]
+        status: formData.status,
+        notes: formData.notes || null,
+        priority: formData.priority
       };
+
+      // Only add scheduled fields if a time is set
+      if (formData.scheduled_time) {
+        // Convert to ISO string without timezone for PostgreSQL compatibility
+        const dt = new Date(formData.scheduled_time);
+        const isoString = dt.toISOString().replace('Z', '');  // Remove Z suffix
+        createData.scheduled_date = isoString;
+        createData.scheduled_time = isoString;
+      }
 
       const result = await onCreate(createData);
       
@@ -821,15 +867,15 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
               <label className="block text-sm font-medium text-gray-300 mb-2">Platform</label>
               <select
                 value={formData.platform}
-                onChange={(e) => setFormData({...formData, platform: e.target.value})}
+                onChange={(e) => handlePlatformChange(e.target.value)}
                 className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-pink-300 focus:outline-none"
               >
-                <option value="LinkedIn">LinkedIn</option>
-                <option value="Instagram">Instagram</option>
-                <option value="Twitter">Twitter</option>
-                <option value="Facebook">Facebook</option>
-                <option value="YouTube">YouTube</option>
-                <option value="Email">Email</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="instagram">Instagram</option>
+                <option value="twitter">Twitter</option>
+                <option value="facebook">Facebook</option>
+                <option value="youtube">YouTube</option>
+                <option value="email">Email</option>
               </select>
             </div>
             <div>
@@ -840,11 +886,13 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
                 className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-pink-300 focus:outline-none"
               >
                 <option value="post">Post</option>
-                <option value="video">Video</option>
+                <option value="reel">Reel</option>
+                <option value="short">Short</option>
                 <option value="carousel">Carousel</option>
                 <option value="story">Story</option>
-                <option value="article">Article</option>
-                <option value="newsletter">Newsletter</option>
+                <option value="email">Email</option>
+                <option value="dm">DM</option>
+                <option value="idea">Idea</option>
               </select>
             </div>
           </div>
@@ -870,9 +918,10 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
               onChange={(e) => setFormData({...formData, status: e.target.value})}
               className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-pink-300 focus:outline-none"
             >
-              <option value="draft">Draft</option>
+              <option value="pending">Pending</option>
               <option value="ready">Ready</option>
               <option value="scheduled">Scheduled</option>
+              <option value="archived">Archived</option>
             </select>
           </div>
 

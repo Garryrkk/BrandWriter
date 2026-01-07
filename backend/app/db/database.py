@@ -49,6 +49,17 @@ mongo_db = mongo_client[MONGO_DB_NAME]
 # =============== Init DB ===============
 async def init_db():
     try:
+        # Import all models so they are registered with Base
+        from app.brand.BrandModels import Brand
+        from app.draft.DraftModels import Draft
+        from app.basket.BasketModels import Basket
+        from app.schedule.ScheduleModels import Schedule
+        from app.generation.GenerationModels import Generation
+        from app.history.HistoryModels import History
+        from app.models.email import Email
+        from app.models.daily_send import DailySend
+        from app.models.send_log import SendLog
+        
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         print("PostgreSQL connected.")

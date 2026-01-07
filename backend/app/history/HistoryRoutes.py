@@ -3,9 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
-from app.database import get_db
-from app.models.history import HistoryStatus
-from app.services.history_service import HistoryService
+from app.db.database import get_db
+from app.history.HistoryModels import HistoryStatus
+from app.history.HistoryService import HistoryService
 from pydantic import BaseModel, ConfigDict
 
 router = APIRouter(prefix="/history", tags=["history"])

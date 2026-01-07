@@ -22,7 +22,24 @@ const fetchWithErrorHandling = async (url, options = {}) => {
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ detail: `HTTP error! status: ${response.status}` }));
-      throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+      
+      // Handle FastAPI validation errors (422) which return an array of errors
+      let errorMessage;
+      if (Array.isArray(errorData.detail)) {
+        // Format validation errors nicely
+        errorMessage = errorData.detail.map(err => {
+          const field = err.loc ? err.loc.slice(1).join('.') : 'field';
+          return `${field}: ${err.msg}`;
+        }).join(', ');
+      } else if (typeof errorData.detail === 'string') {
+        errorMessage = errorData.detail;
+      } else if (errorData.message) {
+        errorMessage = errorData.message;
+      } else {
+        errorMessage = `Request failed with status ${response.status}`;
+      }
+      
+      throw new Error(errorMessage);
     }
     
     if (response.status === 204) {
@@ -70,10 +87,10 @@ export const mainApi = {
 
   // Brand endpoints
   brands: {
-    list: (page = 1, pageSize = 10) => mainApi.request(`/v1/brands?page=${page}&page_size=${pageSize}`),
+    list: (page = 1, pageSize = 10) => mainApi.request(`/v1/brands/?page=${page}&page_size=${pageSize}`),
     getActive: () => mainApi.request('/v1/brands/active'),
     get: (brandId) => mainApi.request(`/v1/brands/${brandId}`),
-    create: (brandData) => mainApi.request('/v1/brands', 'POST', brandData),
+    create: (brandData) => mainApi.request('/v1/brands/', 'POST', brandData),
     update: (brandId, brandData) => mainApi.request(`/v1/brands/${brandId}`, 'PATCH', brandData),
     delete: (brandId) => mainApi.request(`/v1/brands/${brandId}`, 'DELETE'),
     setActive: (brandId) => mainApi.request(`/v1/brands/${brandId}/activate`, 'POST'),
@@ -89,10 +106,10 @@ export const mainApi = {
         page_size: pageSize.toString(),
         ...filters
       });
-      return mainApi.request(`/v1/drafts?${params}`);
+      return mainApi.request(`/v1/drafts/?${params}`);
     },
     get: (draftId) => mainApi.request(`/v1/drafts/${draftId}`),
-    create: (draftData) => mainApi.request('/v1/drafts', 'POST', draftData),
+    create: (draftData) => mainApi.request('/v1/drafts/', 'POST', draftData),
     update: (draftId, draftData) => mainApi.request(`/v1/drafts/${draftId}`, 'PATCH', draftData),
     delete: (draftId) => mainApi.request(`/v1/drafts/${draftId}`, 'DELETE'),
     getStats: (brandId) => mainApi.request(`/v1/drafts/stats?brand_id=${brandId}`),
@@ -110,10 +127,10 @@ export const mainApi = {
         page_size: pageSize.toString(),
         ...filters
       });
-      return mainApi.request(`/v1/basket?${params}`);
+      return mainApi.request(`/v1/basket/?${params}`);
     },
     get: (itemId) => mainApi.request(`/v1/basket/${itemId}`),
-    create: (itemData) => mainApi.request('/v1/basket', 'POST', itemData),
+    create: (itemData) => mainApi.request('/v1/basket/', 'POST', itemData),
     update: (itemId, itemData) => mainApi.request(`/v1/basket/${itemId}`, 'PATCH', itemData),
     delete: (itemId) => mainApi.request(`/v1/basket/${itemId}`, 'DELETE'),
     getStats: (brandId) => mainApi.request(`/v1/basket/stats?brand_id=${brandId}`),
@@ -129,10 +146,10 @@ export const mainApi = {
         page_size: pageSize.toString(),
         ...filters
       });
-      return mainApi.request(`/v1/schedules?${params}`);
+      return mainApi.request(`/v1/schedules/?${params}`);
     },
     get: (scheduleId) => mainApi.request(`/v1/schedules/${scheduleId}`),
-    create: (scheduleData) => mainApi.request('/v1/schedules', 'POST', scheduleData),
+    create: (scheduleData) => mainApi.request('/v1/schedules/', 'POST', scheduleData),
     update: (scheduleId, scheduleData) => mainApi.request(`/v1/schedules/${scheduleId}`, 'PATCH', scheduleData),
     delete: (scheduleId) => mainApi.request(`/v1/schedules/${scheduleId}`, 'DELETE'),
     cancel: (scheduleId) => mainApi.request(`/v1/schedules/${scheduleId}/cancel`, 'POST'),
@@ -148,10 +165,10 @@ export const mainApi = {
   // Generation endpoints
   generations: {
     list: (brandId, page = 1, pageSize = 10) => 
-      mainApi.request(`/v1/generations?brand_id=${brandId}&page=${page}&page_size=${pageSize}`),
+      mainApi.request(`/v1/generations/?brand_id=${brandId}&page=${page}&page_size=${pageSize}`),
     get: (generationId) => mainApi.request(`/v1/generations/${generationId}`),
     quickGenerate: (brandId, category, platform = null, customPrompt = null) =>
-      mainApi.request('/v1/generations/quick', 'POST', {
+      mainApi.request('/v1/generations/generate', 'POST', {
         brand_id: brandId,
         category,
         platform,
@@ -162,34 +179,73 @@ export const mainApi = {
     getStats: (brandId) => mainApi.request(`/v1/generations/stats?brand_id=${brandId}`),
     regenerate: (generationId) => mainApi.request(`/v1/generations/${generationId}/regenerate`, 'POST'),
     delete: (generationId) => mainApi.request(`/v1/generations/${generationId}`, 'DELETE'),
+    addFeedback: (generationId, rating, comments = null) =>
+      mainApi.request(`/v1/generations/${generationId}/feedback`, 'POST', { rating, feedback: comments }),
+    convertToDraft: (generationId) =>
+      mainApi.request(`/v1/generations/${generationId}/to-draft`, 'POST'),
   },
 
   // Template endpoints
   templates: {
-    list: (page = 1, pageSize = 12, filters = {}) => {
+    list: (brandId, page = 1, pageSize = 12, filters = {}) => {
       const params = new URLSearchParams({
+        brand_id: brandId,
         page: page.toString(),
         page_size: pageSize.toString(),
         ...filters
       });
-      return mainApi.request(`/v1/templates?${params}`);
+      return mainApi.request(`/v1/templates/?${params}`);
     },
     get: (templateId) => mainApi.request(`/v1/templates/${templateId}`),
-    create: (templateData) => mainApi.request('/v1/templates', 'POST', templateData),
+    create: (templateData) => mainApi.request('/v1/templates/', 'POST', templateData),
     update: (templateId, templateData) => mainApi.request(`/v1/templates/${templateId}`, 'PATCH', templateData),
     delete: (templateId, hardDelete = false) => 
       mainApi.request(`/v1/templates/${templateId}${hardDelete ? '?hard_delete=true' : ''}`, 'DELETE'),
     duplicate: (templateId, newName) => 
       mainApi.request(`/v1/templates/${templateId}/duplicate?new_name=${encodeURIComponent(newName)}`, 'POST'),
-    getStats: () => mainApi.request('/v1/templates/stats'),
+    getStats: (brandId) => mainApi.request(`/v1/templates/stats?brand_id=${brandId}`),
   },
 
   // History endpoints
   history: {
     list: (brandId, page = 1, pageSize = 50) => 
-      mainApi.request(`/v1/history?brand_id=${brandId}&page=${page}&page_size=${pageSize}`),
+      mainApi.request(`/v1/history/?brand_id=${brandId}&page=${page}&page_size=${pageSize}`),
     get: (historyId) => mainApi.request(`/v1/history/${historyId}`),
     delete: (historyId) => mainApi.request(`/v1/history/${historyId}`, 'DELETE'),
+  },
+
+  // Email Send endpoints
+  send: {
+    daily: () => mainApi.request('/v1/send/daily', 'POST'),
+    pending: () => mainApi.request('/v1/send/pending'),
+  },
+
+  // Stats endpoints
+  stats: {
+    daily: (date) => mainApi.request(`/v1/stats/${date}`),
+  },
+
+  // Platform Validation endpoints
+  platforms: {
+    validate: (platform, content, assets = []) => 
+      mainApi.request(`/v1/platforms/validate/${platform}`, 'POST', { content, assets }),
+  },
+
+  // Workers endpoints (for manual posting triggers)
+  workers: {
+    runSchedule: (scheduleId) => mainApi.request(`/v1/workers/run/${scheduleId}`, 'POST'),
+    getStatus: (scheduleId) => mainApi.request(`/v1/workers/status/${scheduleId}`),
+  },
+
+  // Observability/Logs endpoints
+  logs: {
+    getPostingLogs: (scheduleId) => mainApi.request(`/v1/logs/posting/${scheduleId}`),
+    getPlatformLogs: (platform, limit = 50, status = null) => {
+      const params = new URLSearchParams({ limit: limit.toString() });
+      if (status) params.append('status', status);
+      return mainApi.request(`/v1/logs/platform/${platform}?${params}`);
+    },
+    health: () => mainApi.request('/v1/logs/health'),
   },
 
   // Dashboard/Stats
@@ -254,6 +310,18 @@ export const instaApi = {
         media_ids: mediaIds,
         scheduled_at: scheduledAt || new Date().toISOString()
       }),
+  },
+
+  // Instagram posting endpoints (new)
+  instagram: {
+    post: (scheduleId, caption, assets = []) =>
+      instaApi.request('/instagram/post', 'POST', { schedule_id: scheduleId, caption, assets }, false),
+    story: (mediaUrl, caption = null) =>
+      instaApi.request('/instagram/story', 'POST', { media_url: mediaUrl, caption }, false),
+    reel: (mediaUrl, caption = '') =>
+      instaApi.request('/instagram/reel', 'POST', { media_url: mediaUrl, caption }, false),
+    getStatus: (postId) => instaApi.request(`/instagram/status/${postId}`, 'GET', null, false),
+    getInsights: (postId) => instaApi.request(`/instagram/insights/${postId}`, 'GET', null, false),
   },
 
   // Media endpoints

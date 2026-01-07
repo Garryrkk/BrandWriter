@@ -41,6 +41,9 @@ const TemplatesPage = () => {
     'EMAIL'
   ];
 
+  // Brand ID from localStorage or default
+  const brandId = localStorage.getItem('active_brand_id') || '00000000-0000-0000-0000-000000000000';
+
   // Fetch templates with filters
   // Fetch templates with filters using centralized API client
   const fetchTemplates = async () => {
@@ -52,10 +55,10 @@ const TemplatesPage = () => {
       if (activeOnly) filterParams.active = 'true';
       if (searchTerm) filterParams.search = searchTerm;
 
-      const data = await mainApi.templates.list(page, pageSize, filterParams);
-      setTemplates(data.items);
-      setTotal(data.total);
-      setTotalPages(Math.ceil(data.total / pageSize));
+      const data = await mainApi.templates.list(brandId, page, pageSize, filterParams);
+      setTemplates(data.items || data.templates || []);
+      setTotal(data.total || 0);
+      setTotalPages(Math.ceil((data.total || 0) / pageSize));
     } catch (error) {
       console.error('Error fetching templates:', error);
       alert('Failed to load templates. Please try again.');
@@ -67,7 +70,7 @@ const TemplatesPage = () => {
   // Fetch template statistics
   const fetchStats = async () => {
     try {
-      const data = await mainApi.templates.getStats();
+      const data = await mainApi.templates.getStats(brandId);
       setStats(data);
     } catch (error) {
       console.error('Error fetching stats:', error);
