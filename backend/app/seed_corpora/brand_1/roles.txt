@@ -1,0 +1,35 @@
+ROLE_CLUSTERS = {
+    "IC": [
+        "ai engineer",
+        "machine learning engineer",
+        "ml engineer",
+        "applied scientist",
+        "research engineer",
+        "data scientist",
+        "computer vision engineer",
+        "nlp engineer",
+        "generative ai engineer",
+        "llm engineer"
+    ],
+    "SENIOR_IC": [
+        "senior ml engineer",
+        "staff ml engineer",
+        "principal ml engineer",
+        "lead ai engineer",
+        "senior data scientist"
+    ],
+    "LEADERSHIP": [
+        "cto",
+        "chief technology officer",
+        "head of ai",
+        "head of machine learning",
+        "director of data science",
+        "vp engineering"
+    ],
+    "FOUNDERS": [
+        "founder",
+        "co-founder",
+        "technical founder",
+        "founder & cto"
+    ]
+}
