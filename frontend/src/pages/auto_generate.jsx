@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Zap, Sparkles, Plus, Lightbulb, Loader, CheckCircle, XCircle, X, TrendingUp, History, Linkedin, Instagram, Youtube, Mail, Layers, MessageSquare, Users } from 'lucide-react';
 import { mainApi, instaApi } from '../api/client';
 
-<<<<<<< HEAD
-const QuickGenShortcutsPage = () => {
-=======
 const Generate = () => {
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -447,8 +443,4 @@ const Generate = () => {
   );
 };
 
-<<<<<<< HEAD
-export default QuickGenShortcutsPage;
-=======
 export default Generate;
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93

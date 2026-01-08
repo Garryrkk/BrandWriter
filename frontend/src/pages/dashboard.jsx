@@ -41,15 +41,6 @@ const dashboardStore = createStore({
     linkedin: { generated: 12, scheduled: 3, published: 1, quota: 88 },
     instagram: { generated: 20, scheduled: 5, published: 3, quota: 80 },
     youtube: { generated: 3, scheduled: 2, published: 1, quota: 97 },
-<<<<<<< HEAD
-    emails: { coldEmails: 100, coldDMs: 100, status: 'Completed at 6:00 AM' }
-  },
-  autoGenFeed: [
-    { id: 1, type: 'linkedin', time: '2 mins ago', preview: '5 biggest mistakes founders make when pitching investors…' },
-    { id: 2, type: 'email', time: '5 mins ago', preview: 'Subject: Quick question about scaling your growth' },
-    { id: 3, type: 'reel', time: '8 mins ago', preview: 'Hook: "If you\'re struggling with reach in 2025, it\'s not your fault…"' }
-  ],
-=======
     medium: { generated: 8, scheduled: 2, published: 1, quota: 92 },
     emails: { coldEmails: 100, coldDMs: 100, status: 'Completed at 6:00 AM' }
   },
@@ -61,7 +52,6 @@ const dashboardStore = createStore({
   editModal: null,
   improveModal: null,
   previewModal: null,
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
   todaySchedule: [
     { time: '9:00 AM', platform: 'LinkedIn', content: 'Thought leadership post' },
     { time: '12:00 PM', platform: 'Instagram', content: 'How to stay consistent' },
@@ -177,8 +167,6 @@ const Sidebar = ({ currentPage, setCurrentPage }) => {
 // Dashboard Page
 const Dashboard = () => {
   const [state] = useStore(dashboardStore);
-<<<<<<< HEAD
-=======
   const platforms = ["instagram", "linkedin", "email", "youtube", "medium"];
 
   const openEdit = (content) => {
@@ -218,7 +206,6 @@ const Dashboard = () => {
     alert(`Improved content saved: ${newText.substring(0, 50)}...`);
     closeImproveModal();
   };
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
 
   return (
     <div className="space-y-6">
@@ -237,33 +224,6 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Cards */}
-<<<<<<< HEAD
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={Linkedin}
-          platform="LinkedIn"
-          color="from-blue-500 to-blue-600"
-          stats={state.stats.linkedin}
-        />
-        <StatCard
-          icon={Instagram}
-          platform="Instagram"
-          color="from-pink-500 to-purple-600"
-          stats={state.stats.instagram}
-        />
-        <StatCard
-          icon={Youtube}
-          platform="YouTube"
-          color="from-red-500 to-red-600"
-          stats={state.stats.youtube}
-        />
-        <StatCard
-          icon={Mail}
-          platform="Emails"
-          color="from-emerald-500 to-teal-600"
-          stats={state.stats.emails}
-        />
-=======
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {platforms.map((platform) => (
           <StatCard
@@ -290,7 +250,6 @@ const Dashboard = () => {
             stats={state.stats[platform]}
           />
         ))}
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
       </div>
 
       {/* Main Content Grid */}
@@ -303,9 +262,6 @@ const Dashboard = () => {
           </h2>
           <div className="space-y-3">
             {state.autoGenFeed.map(item => (
-<<<<<<< HEAD
-              <FeedItem key={item.id} item={item} />
-=======
               <FeedItem 
                 key={item.id} 
                 item={item}
@@ -314,7 +270,6 @@ const Dashboard = () => {
                 onPreview={openPreview}
                 onAddToBasket={addToBasket}
               />
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
             ))}
           </div>
         </div>
@@ -363,8 +318,6 @@ const Dashboard = () => {
           <PipelineBar label="Published" count={11} max={150} color="bg-green-400" />
         </div>
       </div>
-<<<<<<< HEAD
-=======
       
       {/* Modals */}
       {state.editModal && (
@@ -389,7 +342,6 @@ const Dashboard = () => {
           onClose={closePreviewModal}
         />
       )}
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
     </div>
   );
 };
@@ -428,11 +380,7 @@ const StatCard = ({ icon: Icon, platform, color, stats }) => {
 };
 
 // Feed Item Component
-<<<<<<< HEAD
-const FeedItem = ({ item }) => {
-=======
 const FeedItem = ({ item, onEdit, onImprove, onPreview, onAddToBasket }) => {
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
   const icons = { linkedin: Linkedin, email: Mail, reel: Instagram };
   const Icon = icons[item.type];
   
@@ -444,16 +392,6 @@ const FeedItem = ({ item, onEdit, onImprove, onPreview, onAddToBasket }) => {
           <p className="text-xs text-gray-400 mb-1">{item.time}</p>
           <p className="text-white text-sm">{item.preview}</p>
           <div className="flex gap-2 mt-3">
-<<<<<<< HEAD
-            <button className="px-3 py-1 bg-yellow-300 text-gray-900 rounded text-xs font-medium hover:bg-yellow-400 transition-all">
-              Save to Draft
-            </button>
-            <button className="px-3 py-1 bg-pink-300 text-gray-900 rounded text-xs font-medium hover:bg-pink-400 transition-all">
-              Add to Basket
-            </button>
-            <button className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-500 transition-all">
-              Delete
-=======
             <button 
               onClick={() => onEdit(item)}
               className="px-3 py-1 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600 transition-all"
@@ -481,7 +419,6 @@ const FeedItem = ({ item, onEdit, onImprove, onPreview, onAddToBasket }) => {
               title="Add to Basket"
             >
               📦 Basket
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
             </button>
           </div>
         </div>
@@ -531,8 +468,6 @@ const PipelineBar = ({ label, count, max, color }) => {
   );
 };
 
-<<<<<<< HEAD
-=======
 // Edit Modal Component
 const EditModal = ({ content, onSave, onClose }) => {
   const [text, setText] = useState(content.text);
@@ -655,7 +590,6 @@ const PreviewModal = ({ content, onClose }) => {
   );
 };
 
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
 // Main App Component
 const App = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');

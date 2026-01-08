@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBasket, Calendar, Edit, Trash2, X, Clock, Loader2, AlertCircle, Plus, Filter, Archive } from 'lucide-react';
-<<<<<<< HEAD
-import { mainApi } from '../api/client';
-
-// Brand ID Configuration
-const BRAND_ID = localStorage.getItem('active_brand_id') || '00000000-0000-0000-0000-000000000000';
-=======
 
 // Mock API client for demonstration
 const mainApi = {
@@ -39,17 +33,12 @@ const mainApi = {
 
 // Brand ID Configuration
 const BRAND_ID = '00000000-0000-0000-0000-000000000000';
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
 
 // Helper function to extract text from content (handles both string and object formats)
 const getContentText = (content) => {
   if (!content) return '';
   if (typeof content === 'string') return content;
   if (typeof content === 'object') {
-<<<<<<< HEAD
-    // Try common text field names
-=======
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
     return content.text || content.body || content.caption || content.message || JSON.stringify(content);
   }
   return String(content);
@@ -600,13 +589,6 @@ const BasketItemCard = ({ item, onEdit, onRemove, onArchive, onUpdate, selected,
 
             {/* Assets */}
             <div className="flex gap-4 text-xs text-gray-400 mb-4 flex-wrap">
-<<<<<<< HEAD
-              {item.content && <span className="bg-gray-700/50 px-2 py-1 rounded">📝 Text</span>}
-              {item.media_urls && item.media_urls.length > 0 && (
-                <span className="bg-gray-700/50 px-2 py-1 rounded">🖼️ {item.media_urls.length} Media</span>
-              )}
-              {item.assets?.video && <span className="bg-gray-700/50 px-2 py-1 rounded">🎥 Video</span>}
-=======
               {item.content && (
                 <span className="bg-gray-700/50 px-2 py-1 rounded">📝 Text</span>
               )}
@@ -635,7 +617,6 @@ const BasketItemCard = ({ item, onEdit, onRemove, onArchive, onUpdate, selected,
                   )}
                 </>
               )}
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
             </div>
 
             {/* Actions */}
@@ -675,8 +656,6 @@ const EditBasketModal = ({ item, onClose, onUpdate }) => {
   const [status, setStatus] = useState(item.status || 'draft');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-<<<<<<< HEAD
-=======
   const [assets, setAssets] = useState(
     item.assets || {
       images: [],
@@ -742,7 +721,6 @@ const EditBasketModal = ({ item, onClose, onUpdate }) => {
       [type]: prev[type].filter((_, i) => i !== index)
     }));
   };
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
 
   const handleSave = async () => {
     try {
@@ -750,18 +728,11 @@ const EditBasketModal = ({ item, onClose, onUpdate }) => {
       setError(null);
 
       const updateData = {
-<<<<<<< HEAD
-        title: title,
-        content: { text: content },
-        scheduled_time: dateTime ? new Date(dateTime).toISOString() : null,
-        status: status
-=======
         title,
         content: { text: content },
         assets,
         scheduled_time: dateTime ? new Date(dateTime).toISOString() : null,
         status
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
       };
 
       const result = await onUpdate(item.id, updateData);
@@ -861,24 +832,14 @@ const EditBasketModal = ({ item, onClose, onUpdate }) => {
 
           {/* Content Editor */}
           <div>
-<<<<<<< HEAD
-            <label className="block text-sm font-medium text-gray-300 mb-2">Content</label>
-=======
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Content
             </label>
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={10}
               className="w-full bg-gray-700 text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-pink-300 focus:outline-none resize-none"
-<<<<<<< HEAD
-              placeholder="Enter content..."
-            />
-          </div>
-
-=======
             />
           </div>
 
@@ -931,7 +892,6 @@ const EditBasketModal = ({ item, onClose, onUpdate }) => {
             </div>
           )}
 
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
           {/* Actions */}
           <div className="flex gap-3">
             <button 
@@ -966,8 +926,6 @@ const EditBasketModal = ({ item, onClose, onUpdate }) => {
 };
 
 const CreateBasketModal = ({ onClose, onCreate }) => {
-<<<<<<< HEAD
-=======
   // ✅ FIX 1: Added missing assets state
   const [assets, setAssets] = useState({
     images: [],
@@ -976,7 +934,6 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
     documents: []
   });
 
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
   const [formData, setFormData] = useState({
     brand_id: BRAND_ID,
     title: '',
@@ -984,11 +941,7 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
     platform: 'linkedin',
     item_type: 'post',
     category: 'linkedin_post',
-<<<<<<< HEAD
-    status: 'pending',
-=======
     status: 'draft', // ✅ FIX 5: Changed from 'pending' to 'draft'
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
     scheduled_time: '',
     notes: '',
     priority: 0
@@ -1011,8 +964,6 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
     setFormData({...formData, platform: platform.toLowerCase(), category});
   };
 
-<<<<<<< HEAD
-=======
   // ✅ FIX 2: Single async asset uploader (removed duplicates)
   const handleAssetUpload = async (files) => {
     const fileArray = Array.from(files);
@@ -1070,7 +1021,6 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
     }));
   };
 
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
   const handleCreate = async () => {
     try {
       setCreating(true);
@@ -1088,12 +1038,8 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
         platform: formData.platform,
         item_type: formData.item_type,
         title: formData.title,
-<<<<<<< HEAD
-        content: { text: formData.content },  // Backend expects Dict[str, Any]
-=======
         content: { text: formData.content },
         assets,
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
         status: formData.status,
         notes: formData.notes || null,
         priority: formData.priority
@@ -1101,14 +1047,8 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
 
       // Only add scheduled fields if a time is set
       if (formData.scheduled_time) {
-<<<<<<< HEAD
-        // Convert to ISO string without timezone for PostgreSQL compatibility
-        const dt = new Date(formData.scheduled_time);
-        const isoString = dt.toISOString().replace('Z', '');  // Remove Z suffix
-=======
         const dt = new Date(formData.scheduled_time);
         const isoString = dt.toISOString().replace('Z', '');
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
         createData.scheduled_date = isoString;
         createData.scheduled_time = isoString;
       }
@@ -1210,11 +1150,7 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
               onChange={(e) => setFormData({...formData, status: e.target.value})}
               className="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:border-pink-300 focus:outline-none"
             >
-<<<<<<< HEAD
-              <option value="pending">Pending</option>
-=======
               <option value="draft">Draft</option>
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
               <option value="ready">Ready</option>
               <option value="scheduled">Scheduled</option>
               <option value="archived">Archived</option>
@@ -1245,8 +1181,6 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
             />
           </div>
 
-<<<<<<< HEAD
-=======
           {/* ✅ FIX 3: Removed duplicate media upload, kept only one */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1296,7 +1230,6 @@ const CreateBasketModal = ({ onClose, onCreate }) => {
             </div>
           )}
 
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
           {/* Actions */}
           <div className="flex gap-3">
             <button 
