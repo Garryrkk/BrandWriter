@@ -8,6 +8,7 @@ const EmailOutreachSystem = () => {
   const [emailsPerDay, setEmailsPerDay] = useState(100);
   const [sendLimit, setSendLimit] = useState(50);
   const [emailTemplate, setEmailTemplate] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
   const [gmailConfig, setGmailConfig] = useState({ email: '', appPassword: '' });
   const [collectedEmails, setCollectedEmails] = useState([]);
   const [stats, setStats] = useState({
@@ -22,13 +23,18 @@ const EmailOutreachSystem = () => {
   const [apiConnected, setApiConnected] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState([]);
 
-  const API_URL = 'http://localhost:5000/api';
+  // Email backend runs separately on port 5000, proxied through /email-api
+  const API_URL = '/email-api';
 
-  // Check API connection on mount
+  // Check API connection on mount - only load data if connected
   useEffect(() => {
-    checkApiConnection();
-    loadStats();
-    loadEmails();
+    let isMounted = true;
+    if (isMounted) {
+      checkApiConnection();
+    }
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const checkApiConnection = async () => {
@@ -37,30 +43,42 @@ const EmailOutreachSystem = () => {
       if (response.ok) {
         setApiConnected(true);
         addLog('Connected to backend API', 'success');
+        // Only load data after confirming connection
+        loadStats();
+        loadEmails();
+      } else {
+        setApiConnected(false);
+        addLog('Email backend not responding. Start: python api.py (in backend/app/main-email)', 'error');
       }
     } catch (error) {
       setApiConnected(false);
-      addLog('Backend API not running. Start the Flask server!', 'error');
+      addLog('Email backend not running. Start: python api.py (in backend/app/main-email)', 'error');
     }
   };
 
   const loadStats = async () => {
+    if (!apiConnected) return;
     try {
       const response = await fetch(`${API_URL}/stats`);
-      const data = await response.json();
-      setStats(data);
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
     } catch (error) {
-      console.error('Failed to load stats:', error);
+      // Silently fail if backend not connected
     }
   };
 
   const loadEmails = async () => {
+    if (!apiConnected) return;
     try {
       const response = await fetch(`${API_URL}/emails`);
-      const data = await response.json();
-      setCollectedEmails(data);
+      if (response.ok) {
+        const data = await response.json();
+        setCollectedEmails(data);
+      }
     } catch (error) {
-      console.error('Failed to load emails:', error);
+      // Silently fail if backend not connected
     }
   };
 
@@ -225,9 +243,55 @@ const EmailOutreachSystem = () => {
     a.click();
   };
 
+  const sendTestEmail = async () => {
+    if (!apiConnected) {
+      addLog('Please start the backend server first!', 'error');
+      return;
+    }
+    if (!gmailConfig.email || !gmailConfig.appPassword) {
+      addLog('Please configure Gmail credentials in Settings', 'error');
+      return;
+    }
+    if (!emailTemplate) {
+      addLog('Please create an email template first', 'error');
+      return;
+    }
+    if (!recipientEmail) {
+      addLog('Please enter a recipient email address', 'error');
+      return;
+    }
+
+    setIsSending(true);
+    addLog(`Sending email to ${recipientEmail}...`, 'info');
+
+    try {
+      const response = await fetch(`${API_URL}/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient_email: recipientEmail,
+          gmail_email: gmailConfig.email,
+          gmail_password: gmailConfig.appPassword,
+          subject: 'Email from BrandWriter',
+          body: emailTemplate
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        addLog(`✅ Email sent successfully to ${recipientEmail}!`, 'success');
+      } else {
+        addLog(`❌ Failed to send: ${data.error || 'Unknown error'}`, 'error');
+      }
+    } catch (error) {
+      addLog(`Error: ${error.message}`, 'error');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="space-y-6">
         {/* Connection Status Banner */}
         {!apiConnected && (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-4">
@@ -605,8 +669,40 @@ Variables available: {{name}}, {{email}}, {{interest}}, {{company}}`}
                       Generate at: Google Account → Security → 2-Step Verification → App passwords
                     </p>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Recipient Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={recipientEmail}
+                      onChange={(e) => setRecipientEmail(e.target.value)}
+                      placeholder="recipient@example.com"
+                      className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:outline-none text-white placeholder-slate-400"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      The email address where you want to send the test email
+                    </p>
+                  </div>
                 </div>
-                <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <div className="mt-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-6">
+                  <button
+                    onClick={sendTestEmail}
+                    disabled={isSending || !apiConnected}
+                    className={`w-full px-6 py-3 rounded-lg font-bold flex items-center justify-center space-x-2 transition-all ${
+                      isSending || !apiConnected
+                        ? 'bg-blue-500/30 text-blue-300 cursor-not-allowed'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                  >
+                    <Send className="w-5 h-5" />
+                    <span>{isSending ? 'Sending Email...' : `Send Email to ${recipientEmail || 'recipient'}`}</span>
+                  </button>
+                  <p className="text-xs text-blue-300 mt-2">
+                    Sends an email using your Gmail account to the recipient address
+                  </p>
+                </div>
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
                   <div className="flex items-start space-x-2">
                     <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
                     <div>
@@ -625,7 +721,6 @@ Variables available: {{name}}, {{email}}, {{interest}}, {{company}}`}
             )}
           </div>
         </div>
-      </div>
     </div>
   );
 };

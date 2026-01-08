@@ -130,73 +130,72 @@ const HistoryPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-            <History className="text-yellow-300" />
-            Generation History
-          </h1>
-          <p className="text-gray-400">Track all your content generations and their performance</p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+          <History className="text-yellow-300" />
+          Generation History
+        </h1>
+        <p className="text-gray-400">Track all your content generations and their performance</p>
+      </div>
 
-        {/* Controls */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Search by category, platform, or ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-700 text-white rounded-lg pl-10 pr-4 py-2 border border-gray-600 focus:border-yellow-300 focus:outline-none"
-              />
-            </div>
+      {/* Controls */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Search by category, platform, or ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-gray-700 text-white rounded-lg pl-10 pr-4 py-2 border border-gray-600 focus:border-yellow-300 focus:outline-none"
+            />
+          </div>
 
-            {/* Status Filter */}
-            <div className="flex gap-2">
-              {['all', 'posted', 'scheduled', 'generated', 'failed'].map(status => (
-                <button
-                  key={status}
-                  onClick={() => setFilterStatus(status)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    filterStatus === status
-                      ? 'bg-yellow-300 text-gray-900'
-                      : 'bg-gray-700 text-white hover:bg-gray-600'
-                  }`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
-              ))}
-            </div>
+          {/* Status Filter */}
+          <div className="flex gap-2 flex-wrap">
+            {['all', 'posted', 'scheduled', 'generated', 'failed'].map(status => (
+              <button
+                key={status}
+                onClick={() => setFilterStatus(status)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  filterStatus === status
+                    ? 'bg-yellow-300 text-gray-900'
+                    : 'bg-gray-700 text-white hover:bg-gray-600'
+                }`}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
+      </div>
 
-        {/* Results Count */}
-        <div className="mb-4 flex justify-between items-center">
-          <p className="text-gray-400">
-            Showing <span className="text-white font-bold">{filteredHistory.length}</span> of {history.length} generations
-          </p>
-          <button className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-all">
-            <Download size={16} />
-            Export CSV
-          </button>
-        </div>
+      {/* Results Count */}
+      <div className="flex justify-between items-center">
+        <p className="text-gray-400">
+          Showing <span className="text-white font-bold">{filteredHistory.length}</span> of {history.length} generations
+        </p>
+        <button className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-all">
+          <Download size={16} />
+          Export CSV
+        </button>
+      </div>
 
-        {/* History Table */}
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-700/50">
-                <tr>
-                  <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">ID</th>
-                  <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Category</th>
-                  <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Platform</th>
-                  <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Variation</th>
-                  <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Generated At</th>
+      {/* History Table */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-700/50">
+              <tr>
+                <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">ID</th>
+                <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Category</th>
+                <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Platform</th>
+                <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Variation</th>
+                <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Generated At</th>
                   <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Status</th>
                   <th className="text-left px-6 py-4 text-gray-300 font-semibold text-sm">Action</th>
                 </tr>
@@ -240,7 +239,6 @@ const HistoryPage = () => {
             <p className="text-gray-400 text-lg">No history found matching your filters</p>
           </div>
         )}
-      </div>
 
       {/* Detail Modal */}
       {selectedItem && (

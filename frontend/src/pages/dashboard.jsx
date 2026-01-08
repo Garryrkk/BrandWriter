@@ -112,58 +112,6 @@ const FloatingIcons = () => {
   );
 };
 
-// Sidebar Component
-const Sidebar = ({ currentPage, setCurrentPage }) => {
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', id: 'dashboard' },
-    { icon: FileText, label: 'Drafts', id: 'drafts' },
-    { icon: ShoppingBasket, label: 'Basket', id: 'basket' },
-    { icon: History, label: 'History', id: 'history' },
-    { icon: Calendar, label: 'Schedule', id: 'schedule' },
-    { icon: Settings, label: 'Auto-Gen', id: 'autogen' },
-    { icon: BookOpen, label: 'Templates', id: 'templates' },
-    { icon: Mic, label: 'Brand Voice', id: 'brand' }
-  ];
-
-  return (
-    <div className="w-64 bg-gradient-to-b from-gray-900 to-gray-800 h-screen fixed left-0 top-0 border-r border-gray-700 shadow-2xl">
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-gradient-to-br from-yellow-300 to-pink-300 rounded-lg flex items-center justify-center">
-            <Sparkles className="text-gray-900" size={20} />
-          </div>
-          <span className="text-2xl font-bold text-white">Marketeam</span>
-        </div>
-        
-        <nav className="space-y-2">
-          {menuItems.map(({ icon: Icon, label, id }) => (
-            <button
-              key={id}
-              onClick={() => setCurrentPage(id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                currentPage === id
-                  ? 'bg-gradient-to-r from-yellow-300 to-pink-300 text-gray-900 shadow-lg'
-                  : 'text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              <Icon size={20} />
-              <span className="font-medium">{label}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
-      
-      <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-700">
-        <div className="text-sm text-gray-400 text-center">
-          <p>Built with 💜 by & For</p>
-          <p className="font-semibold text-pink-300">GenJecX Team</p>
-          <p className="text-xs mt-1">Two sisters Garima and Aurin</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // Dashboard Page
 const Dashboard = () => {
   const [state] = useStore(dashboardStore);
@@ -590,18 +538,4 @@ const PreviewModal = ({ content, onClose }) => {
   );
 };
 
-// Main App Component
-const App = () => {
-  const [currentPage, setCurrentPage] = useState('dashboard');
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
-      <div className="ml-64 p-8">
-        <Dashboard />
-      </div>
-    </div>
-  );
-};
-
-export default App;
+export default Dashboard;

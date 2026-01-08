@@ -47,6 +47,13 @@ class CampaignRequest(BaseModel):
     gmail: str
     app_password: str
 
+class SendEmailRequest(BaseModel):
+    recipient_email: str
+    gmail_email: str
+    gmail_password: str
+    subject: str = 'Hello from BrandWriter'
+    body: str
+
 @app.get('/api/health')
 async def health_check():
     """Check if API is running"""
@@ -218,6 +225,41 @@ async def start_scan(data: ScanRequest):
 async def get_scan_status():
     """Get current scan status"""
     return scan_status
+
+@app.post('/api/send-email')
+async def send_email(data: SendEmailRequest):
+    """Send a single test email"""
+    recipient = data.recipient_email
+    gmail = data.gmail_email
+    app_password = data.gmail_password
+    subject = data.subject
+    body = data.body
+    
+    if not gmail or not app_password:
+        raise HTTPException(status_code=400, detail='Gmail credentials required')
+    
+    if not recipient:
+        raise HTTPException(status_code=400, detail='Recipient email required')
+    
+    if not body:
+        raise HTTPException(status_code=400, detail='Email body required')
+    
+    try:
+        sender = EmailSender(gmail, app_password)
+        
+        # Send the test email
+        success = sender.send_email(recipient, subject, body)
+        
+        if success:
+            logger.info(f"Test email sent to {recipient}")
+            return {'success': True, 'message': f'Email sent successfully to {recipient}'}
+        else:
+            logger.warning(f"Failed to send email to {recipient}")
+            raise HTTPException(status_code=500, detail=f'Failed to send email to {recipient}')
+    
+    except Exception as e:
+        logger.error(f"Send email error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post('/api/send-campaign')
 async def send_campaign(data: CampaignRequest):

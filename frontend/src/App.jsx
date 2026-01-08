@@ -1,112 +1,14 @@
-<<<<<<< HEAD
 import { useState } from 'react';
-import { Zap, Cpu, Brain, BookOpen, Home, FileText, Trash2, Clock, Calendar, Menu, X, Mic, Code, Database, Bot, Sparkles, Mail } from 'lucide-react';
-
-// Import page components
-import QuickGenShortcutsPage from './pages/auto_generate'
-import DraftsPage from './pages/drafts';
-import HistoryPage from './pages/history';
-import TemplatesPage from './pages/templates';
-import SchedulerPage from './pages/schedule';
-import BasketPage from './pages/basket';
-import BrandVoicePage from './pages/brand_voice';
-import EmailStatsPage from './pages/email';
-
-const App = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
-
-  const floatingIcons = [
-    { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
-    { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
-    { Icon: Bot, top: '45%', left: '10%', size: 36, opacity: 0.12 },
-    { Icon: Bot, top: '60%', right: '15%', size: 30, opacity: 0.1 },
-    { Icon: Sparkles, top: '15%', right: '40%', size: 24, opacity: 0.09 },
-    { Icon: Zap, top: '75%', left: '25%', size: 28, opacity: 0.11 },
-    { Icon: Code, top: '35%', left: '85%', size: 26, opacity: 0.08 },
-    { Icon: Database, top: '80%', right: '30%', size: 32, opacity: 0.1 },
-    { Icon: Cpu, top: '20%', left: '70%', size: 30, opacity: 0.09 },
-    { Icon: Zap, top: '90%', left: '50%', size: 28, opacity: 0.12 },
-    { Icon: Brain, top: '50%', right: '45%', size: 24, opacity: 0.08 },
-    { Icon: Brain, top: '70%', left: '60%', size: 34, opacity: 0.1 },
-    { Icon: Cpu, top: '5%', left: '45%', size: 26, opacity: 0.09 },
-    { Icon: Bot, top: '85%', right: '10%', size: 30, opacity: 0.11 },
-    { Icon: Sparkles, top: '40%', left: '30%', size: 28, opacity: 0.08 },
-  ];
-
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', id: 'dashboard' },
-    { icon: FileText, label: 'Drafts', id: 'drafts' },
-    { icon: Trash2, label: 'Basket', id: 'basket' },
-    { icon: Clock, label: 'History', id: 'history' },
-    { icon: Calendar, label: 'Schedule', id: 'schedule' },
-    { icon: Zap, label: 'Auto-Gen', id: 'autogen' },
-    { icon: BookOpen, label: 'Templates', id: 'templates' },
-    { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
-    { icon: Mail, label: 'Email Stats', id: 'emailstats' },
-  ];
-
-  const platformStats = [
-    {
-      name: 'LinkedIn',
-      generated: 12,
-      scheduled: 3,
-      published: 1,
-      remaining: 88,
-      color: 'from-blue-400 to-blue-600'
-    },
-    {
-      name: 'Instagram',
-      generated: 20,
-      scheduled: 5,
-      published: 3,
-      remaining: 80,
-      color: 'from-pink-400 to-purple-600'
-    },
-    {
-      name: 'YouTube',
-      generated: 3,
-      scheduled: 2,
-      published: 1,
-      remaining: 97,
-      color: 'from-red-400 to-red-600'
-    },
-    {
-      name: 'Emails',
-      coldEmails: 100,
-      coldDMs: 100,
-      status: 'Completed at 6:00 AM',
-      color: 'from-green-400 to-emerald-600'
-    }
-  ];
-
-  const recentContent = [
-    { title: '10 Tips for Better Sleep', platform: 'LinkedIn', status: 'Published', time: '2 hours ago' },
-    { title: 'Summer Collection Launch', platform: 'Instagram', status: 'Scheduled', time: '4 hours ago' },
-    { title: 'Product Review: Tech Gadgets', platform: 'YouTube', status: 'Draft', time: '1 day ago' },
-    { title: 'Newsletter: Weekly Updates', platform: 'Email', status: 'Sent', time: '2 days ago' },
-  ];
-
-  const quickActions = [
-    { title: 'Generate LinkedIn Post', icon: FileText, color: 'bg-blue-500' },
-    { title: 'Create Instagram Story', icon: Sparkles, color: 'bg-pink-500' },
-    { title: 'Write Email Campaign', icon: Zap, color: 'bg-green-500' },
-    { title: 'Draft YouTube Script', icon: Mic, color: 'bg-red-500' },
-  ];
-
-  const renderPage = () => {
-    switch (activeTab) {
-=======
-import { useState, useEffect } from 'react';
 import { 
-  Home, FileText, ShoppingBasket, History, Calendar, Settings, 
-  BookOpen, Mic, Plus, Linkedin, Instagram, Youtube, Mail, 
-  MessageSquare, TrendingUp, Clock, Zap, Brain, Cpu, Network,
-  Bot, Sparkles, Code, Database, CloudLightning, Atom, Binary,
-  CircuitBoard, Workflow, GitBranch, Layers, Target, Activity, ArrowLeft, Menu, Users, Send
+  Linkedin, Instagram, Youtube, Mail, 
+  MessageSquare, Clock, Zap, Target,
+  Bot, Sparkles, TrendingUp, BookOpen, Send, FileText
 } from 'lucide-react';
 
-// ============ REAL PAGE IMPORTS ============
+// ============ LAYOUT IMPORTS ============
+import { Sidebar, Topbar } from './components/layout';
+
+// ============ PAGE IMPORTS ============
 import BasketPage from './pages/basket';
 import DraftsPage from './pages/drafts';
 import HistoryPage from './pages/history';
@@ -120,624 +22,70 @@ import GenerateInstagram from './generate/instagram';
 import GenerateYouTube from './generate/youtube';
 import GenerateMedium from './generate/medium';
 
-// ============ NEW IMPORTS ============
 import LeadDashboard from './linkedin/lead-discovery';
 import EmailOutreachSystem from './main-email/email';
 
-const createStore = (initialState) => {
-  let state = initialState;
-  const listeners = new Set();
-  
-  return {
-    getState: () => state,
-    setState: (newState) => {
-      state = { ...state, ...newState };
-      listeners.forEach(listener => listener(state));
-    },
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    }
-  };
-};
+import DashboardV2 from './components/DashboardV2';
 
-const useStore = (store) => {
-  const [state, setState] = useState(store.getState());
-  
-  useEffect(() => {
-    return store.subscribe(setState);
-  }, [store]);
-  
-  return [state, store.setState];
-};
-
-const dashboardStore = createStore({
-  stats: {
+// ============ DASHBOARD COMPONENT ============
+const Dashboard = ({ setCurrentPage }) => {
+  const stats = {
     linkedin: { generated: 12, scheduled: 3, published: 1, quota: 88 },
     instagram: { generated: 20, scheduled: 5, published: 3, quota: 80 },
     youtube: { generated: 3, scheduled: 2, published: 1, quota: 97 },
     medium: { generated: 8, scheduled: 2, published: 1, quota: 92 },
-    email: { coldEmails: 100, coldDMs: 100, status: 'Completed at 6:00 AM' }
-  },
-  autoGenFeed: [
-    { id: 1, type: 'linkedin', time: '2 mins ago', preview: '5 biggest mistakes founders make when pitching investors…', text: '5 biggest mistakes founders make when pitching investors…\n\nFull content here...' },
-    { id: 2, type: 'email', time: '5 mins ago', preview: 'Subject: Quick question about scaling your growth', text: 'Subject: Quick question about scaling your growth\n\nFull email content here...' },
-    { id: 3, type: 'reel', time: '8 mins ago', preview: 'Hook: "If you\'re struggling with reach in 2025, it\'s not your fault…"', text: 'Hook: "If you\'re struggling with reach in 2025, it\'s not your fault…"\n\nFull reel script here...' }
-  ],
-  editModal: null,
-  improveModal: null,
-  previewModal: null,
-  todaySchedule: [
+    email: { coldEmails: 100, coldDMs: 100, status: 'Completed' }
+  };
+
+  const autoGenFeed = [
+    { id: 1, type: 'linkedin', time: '2 mins ago', preview: '5 biggest mistakes founders make when pitching investors…' },
+    { id: 2, type: 'email', time: '5 mins ago', preview: 'Subject: Quick question about scaling your growth' },
+    { id: 3, type: 'reel', time: '8 mins ago', preview: 'Hook: "If you\'re struggling with reach in 2025..."' }
+  ];
+
+  const todaySchedule = [
     { time: '9:00 AM', platform: 'LinkedIn', content: 'Thought leadership post' },
     { time: '12:00 PM', platform: 'Instagram', content: 'How to stay consistent' },
     { time: '4:00 PM', platform: 'Email', content: 'Spring CTA blast' },
     { time: '7:00 PM', platform: 'YouTube', content: 'AI automation trick' }
-  ]
-});
-
-// ============ FLOATING ICONS COMPONENT ============
-const FloatingIcons = () => {
-  const icons = [
-    { Icon: Brain, top: '10%', left: '15%', delay: 0, size: 32 },
-    { Icon: Cpu, top: '25%', right: '20%', delay: 1, size: 28 },
-    { Icon: Network, bottom: '30%', left: '10%', delay: 2, size: 36 },
-    { Icon: Bot, top: '45%', right: '15%', delay: 0.5, size: 40 },
-    { Icon: Sparkles, top: '60%', left: '25%', delay: 1.5, size: 24 },
-    { Icon: Code, bottom: '15%', right: '25%', delay: 2.5, size: 30 },
   ];
 
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-5">
-      {icons.map(({ Icon, top, left, right, bottom, delay, size }, idx) => (
-        <div
-          key={idx}
-          className="absolute animate-float"
-          style={{
-            top,
-            left,
-            right,
-            bottom,
-            animationDelay: `${delay}s`,
-            animationDuration: `${4 + Math.random() * 4}s`
-          }}
-        >
-          <Icon size={size} className="text-purple-500" />
-        </div>
-      ))}
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(5deg); }
-        }
-        .animate-float {
-          animation: float ease-in-out infinite;
-        }
-      `}</style>
-    </div>
-  );
-};
-
-// ============ SIDEBAR COMPONENT ============
-const Sidebar = ({ currentPage, setCurrentPage, sidebarOpen, setSidebarOpen }) => {
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', id: 'dashboard' },
-    { icon: Zap, label: 'Quick Generate', id: 'quickgen' },
-    { icon: FileText, label: 'Drafts', id: 'drafts' },
-    { icon: ShoppingBasket, label: 'Basket', id: 'basket' },
-    { icon: History, label: 'History', id: 'history' },
-    { icon: Calendar, label: 'Schedule', id: 'schedule' },
-    { icon: BookOpen, label: 'Templates', id: 'templates' },
-    { icon: Mic, label: 'Brand Voice', id: 'brand' },
-    { icon: Target, label: 'Lead Discovery', id: 'lead-discovery' },
-    { icon: Send, label: 'Email Outreach', id: 'email-outreach' }
+  const platforms = [
+    { key: 'linkedin', icon: Linkedin, label: 'LinkedIn', color: 'from-blue-500 to-blue-600', page: 'generate-linkedin' },
+    { key: 'instagram', icon: Instagram, label: 'Instagram', color: 'from-pink-500 to-purple-600', page: 'generate-instagram' },
+    { key: 'youtube', icon: Youtube, label: 'YouTube', color: 'from-red-500 to-red-600', page: 'generate-youtube' },
+    { key: 'medium', icon: BookOpen, label: 'Medium', color: 'from-orange-500 to-amber-500', page: 'generate-medium' },
+    { key: 'email', icon: Mail, label: 'Email', color: 'from-emerald-500 to-teal-500', page: 'email-outreach' }
   ];
 
-  return (
-    <div
-      className={`fixed left-0 top-0 h-screen w-64 z-50 bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-700 shadow-2xl overflow-y-auto transform transition-transform duration-300 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
-    >
-      <div className="p-8 text-[18px]">
-        {/* Close button - only visible when sidebar is open */}
-        <button
-          onClick={() => setSidebarOpen(false)}
-          className="absolute right-4 top-10 bg-gray-800 border border-gray-700 rounded-full p-2 hover:bg-gray-700 transition"
-          title="Close sidebar"
-        >
-          <ArrowLeft size={18} className="text-white" />
-        </button>
+  const quickActions = [
+    { icon: Linkedin, label: 'LinkedIn Post', page: 'generate-linkedin', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+    { icon: Instagram, label: 'Instagram Reel', page: 'generate-instagram', color: 'bg-pink-500/10 text-pink-400 border-pink-500/20' },
+    { icon: Youtube, label: 'YouTube Short', page: 'generate-youtube', color: 'bg-red-500/10 text-red-400 border-red-500/20' },
+    { icon: Mail, label: 'Newsletter', page: 'generate-medium', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+    { icon: Target, label: 'Lead Discovery', page: 'lead-discovery', color: 'bg-violet-500/10 text-violet-400 border-violet-500/20' },
+    { icon: Send, label: 'Email Outreach', page: 'email-outreach', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
+    { icon: MessageSquare, label: 'Cold DM', page: 'quickgen', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+    { icon: Sparkles, label: 'Brand Ideas', page: 'brand', color: 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20' }
+  ];
 
-        <div className="flex items-center gap-8 mb-8">
-          <div className="w-10 h-10 bg-gradient-to-br from-yellow-300 to-pink-300 rounded-lg flex items-center justify-center">
-            <Sparkles className="text-gray-900" size={20} />
-          </div>
-          <span className="text-2xl font-bold text-white">Marketeam</span>
-        </div>
-        
-        <nav className="space-y-4">
-          {menuItems.map(({ icon: Icon, label, id }) => (
-            <button
-              key={id}
-              onClick={() => setCurrentPage(id)}
-              className={`w-full flex items-center gap-8 px-5 py-3 rounded-lg transition-all ${
-                currentPage === id
-                  ? 'bg-gradient-to-r from-yellow-300 to-pink-300 text-gray-900 shadow-lg'
-                  : 'text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              <Icon size={20} />
-              <span className="font-semibold">{label}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
-      
-      <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-700 bg-gradient-to-b from-transparent to-gray-900">
-        <div className="text-sm text-gray-400 text-center">
-          <p>Built with 💜 by & For</p>
-          <p className="font-semibold text-pink-300">GenJecX Team</p>
-          <p className="text-xs mt-1">Two sisters Garima and Aurin</p>
-        </div>
-      </div>
-    </div>
-  );
-};
+  const pipelineData = [
+    { label: 'Auto-Generated', count: 120, max: 150, color: 'bg-gradient-to-r from-yellow-400 to-orange-400' },
+    { label: 'Drafts', count: 43, max: 150, color: 'bg-gradient-to-r from-blue-400 to-cyan-400' },
+    { label: 'Basket', count: 18, max: 150, color: 'bg-gradient-to-r from-purple-400 to-pink-400' },
+    { label: 'Scheduled', count: 27, max: 150, color: 'bg-gradient-to-r from-pink-400 to-rose-400' },
+    { label: 'Published', count: 11, max: 150, color: 'bg-gradient-to-r from-green-400 to-emerald-400' }
+  ];
 
-// ============ DASHBOARD COMPONENT ============
-const Dashboard = ({ setCurrentPage }) => {
-  const [state] = useStore(dashboardStore);
-  const platforms = ["instagram", "linkedin", "email", "youtube", "medium"];
-
-  const openEdit = (content) => {
-    dashboardStore.setState({ editModal: content });
-  };
-
-  const openImprove = (content) => {
-    dashboardStore.setState({ improveModal: content });
-  };
-
-  const openPreview = (content) => {
-    dashboardStore.setState({ previewModal: content });
-  };
-
-  const addToBasket = (content) => {
-    alert(`Added to basket: ${content.preview}`);
-  };
-
-  const closeEditModal = () => {
-    dashboardStore.setState({ editModal: null });
-  };
-
-  const closeImproveModal = () => {
-    dashboardStore.setState({ improveModal: null });
-  };
-
-  const closePreviewModal = () => {
-    dashboardStore.setState({ previewModal: null });
-  };
-
-  const saveEditedContent = (newText) => {
-    alert(`Saved: ${newText.substring(0, 50)}...`);
-    closeEditModal();
-  };
-
-  const saveImprovedContent = (newText) => {
-    alert(`Improved content saved: ${newText.substring(0, 50)}...`);
-    closeImproveModal();
-  };
-
-  return (
-    <div className="space-y-2">
-      <FloatingIcons />
-<div className="w-screen relative left-[5%]">
-
-
-      <div className="flex justify-between items-center px-36">
-
-            {/* LEFT SIDE */}
-          <div className="lg:ml-46">
-          <h1 className="text-6xl font-bold text-white mb-3">
-            Dashboard
-            </h1>
-          <p className="text-gray-400">
-            Today's Performance Overview
-            </p>
-        </div>
-            {/* RIGHT SIDE */}
-        <div className="flex items-center gap-8 bg-green-900/20 text-green-500 px-10 py-8 rounded-lg border border-green-900/30">
-          <Zap size={19} />
-          <span className="text-sm font-medium">
-            System Active
-            </span>
-        </div>
-      </div>
-    </div>
-            
-            <div className="w-screen relative left-[4%]">
-        <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-5">
-
-        {platforms.map((platform) => (
-          <StatCard
-            key={platform}
-            icon={
-              platform === "instagram" ? Instagram :
-              platform === "linkedin" ? Linkedin :
-              platform === "email" ? Mail :
-              platform === "youtube" ? Youtube :
-              platform === "medium" ? BookOpen : Home
-            }
-            platform={
-              platform === "medium"
-                ? "Medium / Newsletter"
-                : platform.charAt(0).toUpperCase() + platform.slice(1)
-            }
-            color={
-              platform === "instagram" ? "from-pink-500 to-purple-600" :
-              platform === "linkedin" ? "from-blue-500 to-blue-600" :
-              platform === "youtube" ? "from-red-500 to-red-600" :
-              platform === "medium" ? "from-orange-500 to-amber-600" :
-              "from-emerald-500 to-teal-600"
-            }
-            stats={state.stats[platform]}
-            onClick={() => {
-              if (platform === 'linkedin') setCurrentPage('generate-linkedin');
-              if (platform === 'instagram') setCurrentPage('generate-instagram');
-              if (platform === 'youtube') setCurrentPage('generate-youtube');
-              if (platform === 'email') setCurrentPage('generate-email');
-              if (platform === 'medium') setCurrentPage('generate-medium');
-            }}
-          />
-        ))}
-      </div>
-      </div>
-
-                   <div className="w-screen relative left-[4%]">
-      <div className="grid grid-cols-8 lg:grid-cols-8 gap-8">
-        <div className="lg:col-span-3 bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
-          <h2 className="text-4xl font-bold text-white mb-6 flex items-center gap-8">
-            <Bot className="text-yellow-300" />
-            Auto-Generated Content Feed
-          </h2>
-          <div className="space-y-7 max-h-98 overflow-y-auto pr-3">
-            {state.autoGenFeed.map(item => (
-              <FeedItem 
-                key={item.id} 
-                item={item}
-                onEdit={openEdit}
-                onImprove={openImprove}
-                onPreview={openPreview}
-                onAddToBasket={addToBasket}
-              />
-            ))}
-          </div>
-        </div>
-        </div>
-
-        <div className="w-screen relative left-[0.3%]">
-                <div className="grid grid-cols-6 lg:grid-cols-4 gap-8">
-
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-          <h2 className="text-4xl font-bold text-white mb-4 flex items-center gap-4">
-            <Clock className="text-pink-300" />
-            Today's Schedule
-          </h2>
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-3">
-            {state.todaySchedule.map((item, idx) => (
-              <ScheduleItem key={idx} item={item} />
-            ))}
-          </div>
-          <button 
-            onClick={() => setCurrentPage('schedule')}
-            className="w-full mt-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all"
-          >
-            Open Full Scheduler
-          </button>
-        </div>
-      </div>
-      </div>
-      </div>
-      
-        <div className="w-screen relative left-[3%]">
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-        <h2 className="text-4xl font-bold text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-7 md:grid-cols-7 lg:grid-cols-4 gap-12">
-          <QuickAction icon={Linkedin} label="LinkedIn Post" onClick={() => setCurrentPage('generate-linkedin')} />
-          <QuickAction icon={Instagram} label="IG Reel" onClick={() => setCurrentPage('generate-instagram')} />
-          <QuickAction icon={Instagram} label="IG Carousel" onClick={() => setCurrentPage('generate-instagram')} />
-          <QuickAction icon={Youtube} label="YouTube Short" onClick={() => setCurrentPage('generate-youtube')} />
-          <QuickAction icon={Mail} label="Newsletter" onClick={() => setCurrentPage('generate-medium')} />
-          <QuickAction icon={Target} label="Lead Discovery" onClick={() => setCurrentPage('lead-discovery')} />
-          <QuickAction icon={Send} label="Email Outreach" onClick={() => setCurrentPage('email-outreach')} />
-          <QuickAction icon={MessageSquare} label="Cold DM" onClick={() => setCurrentPage('quickgen')} />
-          <QuickAction icon={Sparkles} label="Brand Ideas" onClick={() => setCurrentPage('brand')} />
-        </div>
-      </div>
-      </div>
-         
-                 <div className="w-screen relative left-[3%]">
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-        <h2 className="text-4xl font-bold text-white mb-6">Content Pipeline</h2>
-        <div className="space-y-4">
-          <PipelineBar label="Auto-Generated" count={120} max={150} color="bg-yellow-300" />
-          <PipelineBar label="Drafts" count={43} max={150} color="bg-blue-400" />
-          <PipelineBar label="Basket" count={18} max={150} color="bg-purple-400" />
-          <PipelineBar label="Scheduled" count={27} max={150} color="bg-pink-400" />
-          <PipelineBar label="Published" count={11} max={150} color="bg-green-400" />
-        </div>
-      </div>
-      </div>
-      
-      {state.editModal && (
-        <EditModal
-          content={state.editModal}
-          onSave={saveEditedContent}
-          onClose={closeEditModal}
-        />
-      )}
-      
-      {state.improveModal && (
-        <ImproveModal
-          content={state.improveModal}
-          onSave={saveImprovedContent}
-          onClose={closeImproveModal}
-        />
-      )}
-      
-      {state.previewModal && (
-        <PreviewModal
-          content={state.previewModal}
-          onClose={closePreviewModal}
-        />
-      )}
-    </div>
-  );
-};
-
-// ============ STAT CARD COMPONENT ============
-const StatCard = ({ icon: Icon, platform, color, stats, onClick }) => {
-  return (
-    <div 
-      onClick={onClick}
-      className={`bg-gradient-to-br ${color} rounded-2xl p-6 text-white shadow-xl relative overflow-hidden cursor-pointer hover:shadow-2xl hover:scale-105 transition-all`}
-    >
-      <div className="absolute top-0 right-0 opacity-10">
-        <Icon size={120} />
-      </div>
-      <div className="relative z-10">
-        <div className="flex items-center gap-10 mb-4">
-          <Icon size={24} />
-          <span className="font-bold text-lg">{platform}</span>
-        </div>
-        {platform === 'Emails' ? (
-          <div className="space-y-2">
-            <p className="text-sm opacity-90">Cold Emails: {stats.coldEmails}</p>
-            <p className="text-sm opacity-90">Cold DMs: {stats.coldDMs}</p>
-            <p className="text-xs opacity-75 mt-2">{stats.status}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-4xl font-extrabold">{stats.generated}</p>
-            <div className="text-sm space-y-1 opacity-90">
-              <p>Scheduled: {stats.scheduled}</p>
-              <p>Published: {stats.published}</p>
-              <p className="text-xs opacity-75">Quota: {stats.quota}</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ============ FEED ITEM COMPONENT ============
-const FeedItem = ({ item, onEdit, onImprove, onPreview, onAddToBasket }) => {
-  const icons = { linkedin: Linkedin, email: Mail, reel: Instagram };
-  const Icon = icons[item.type];
-  
-  return (
-    <div className="bg-gray-700/50 rounded-lg p-4 border border-gray-600 hover:border-yellow-300 transition-all">
-      <div className="flex items-start gap-10">
-        <Icon size={20} className="text-yellow-300 mt-1" />
-        <div className="flex-1">
-          <p className="text-xs text-gray-400 mb-1">{item.time}</p>
-          <p className="text-white text-sm">{item.preview}</p>
-          <div className="flex gap-2 mt-3 flex-wrap">
-            <button 
-              onClick={() => onEdit(item)}
-              className="px-3 py-1 bg-blue-500 text-white rounded text-xs font-medium hover:bg-blue-600 transition-all"
-            >
-              ✏️ Edit
-            </button>
-            <button 
-              onClick={() => onImprove(item)}
-              className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-medium hover:bg-purple-600 transition-all"
-            >
-              🎯 Improve
-            </button>
-            <button 
-              onClick={() => onPreview(item)}
-              className="px-3 py-1 bg-indigo-500 text-white rounded text-xs font-medium hover:bg-indigo-600 transition-all"
-            >
-              👁 Preview
-            </button>
-            <button 
-              onClick={() => onAddToBasket(item)}
-              className="px-3 py-1 bg-pink-500 text-white rounded text-xs font-medium hover:bg-pink-600 transition-all"
-            >
-              📦 Basket
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============ SCHEDULE ITEM COMPONENT ============
-const ScheduleItem = ({ item }) => {
-  return (
-    <div className="bg-gray-700/50 rounded-lg p-3 border border-gray-600">
-      <div className="flex items-center gap-10 mb-1">
-        <Clock size={14} className="text-yellow-300" />
-        <span className="text-xs font-bold text-yellow-300">{item.time}</span>
-      </div>
-      <p className="text-sm text-white font-medium">{item.platform}</p>
-      <p className="text-xs text-gray-400">{item.content}</p>
-    </div>
-  );
-};
-
-// ============ QUICK ACTION COMPONENT ============
-const QuickAction = ({ icon: Icon, label, onClick }) => {
-  return (
-    <button 
-      onClick={onClick}
-      className="bg-gray-700/50 hover:bg-gray-600 border border-gray-600 hover:border-yellow-300 rounded-xl p-4 transition-all group"
-    >
-      <Icon size={24} className="text-yellow-300 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-      <p className="text-xs text-white text-center">{label}</p>
-    </button>
-  );
-};
-
-// ============ PIPELINE BAR COMPONENT ============
-const PipelineBar = ({ label, count, max, color }) => {
-  const percentage = (count / max) * 100;
-  
-  return (
-    <div>
-      <div className="flex justify-between mb-2">
-        <span className="text-white font-medium">{label}</span>
-        <span className="text-gray-400">{count}</span>
-      </div>
-      <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full transition-all duration-500`} style={{ width: `${percentage}%` }} />
-      </div>
-    </div>
-  );
-};
-
-// ============ EDIT MODAL COMPONENT ============
-const EditModal = ({ content, onSave, onClose }) => {
-  const [text, setText] = useState(content.text);
-
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 max-w-2xl w-full shadow-2xl">
-        <h3 className="text-2xl font-bold text-white mb-4">✏️ Edit Content</h3>
-        
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={8}
-          className="w-full bg-gray-700 text-white rounded-lg p-4 border border-gray-600 focus:border-yellow-300 focus:outline-none resize-none"
-        />
-
-        <div className="flex gap-3 mt-4">
-          <button 
-            onClick={() => onSave(text)}
-            className="flex-1 px-4 py-2 bg-yellow-300 text-gray-900 rounded-lg font-medium hover:bg-yellow-400 transition-all"
-          >
-            Save Changes
-          </button>
-          <button 
-            onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-500 transition-all"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============ IMPROVE MODAL COMPONENT ============
-const ImproveModal = ({ content, onSave, onClose }) => {
-  const [text, setText] = useState(content.text);
-  const [improving, setImproving] = useState(false);
-
-  const handleImprove = () => {
-    setImproving(true);
-    setTimeout(() => {
-      setText(text + "\n\n[AI-improved version with better engagement and clarity]");
-      setImproving(false);
-    }, 1500);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 max-w-2xl w-full shadow-2xl">
-        <h3 className="text-2xl font-bold text-white mb-4">🎯 Improve Content</h3>
-        
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={8}
-          className="w-full bg-gray-700 text-white rounded-lg p-4 border border-gray-600 focus:border-purple-300 focus:outline-none resize-none"
-        />
-
-        <div className="flex gap-10 mt-4">
-          <button 
-            onClick={handleImprove}
-            disabled={improving}
-            className="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-all disabled:opacity-50"
-          >
-            {improving ? "Improving..." : "🎯 Auto-Improve"}
-          </button>
-          <button 
-            onClick={() => onSave(text)}
-            className="flex-1 px-4 py-2 bg-yellow-300 text-gray-900 rounded-lg font-medium hover:bg-yellow-400 transition-all"
-          >
-            Save
-          </button>
-          <button 
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-500 transition-all"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============ PREVIEW MODAL COMPONENT ============
-const PreviewModal = ({ content, onClose }) => {
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-100 p-4">
-      <div className="bg-gray-800 rounded-2xl border border-gray-700 p-6 max-w-2xl w-full shadow-2xl">
-        <h3 className="text-2xl font-bold text-white mb-4">👁 Preview Content</h3>
-        
-        <div className="bg-gray-700 rounded-lg p-6 border border-gray-600 mb-4">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-yellow-300 to-pink-300 rounded-full"></div>
-            <div>
-              <p className="text-white font-bold">Your Brand Name</p>
-              <p className="text-gray-400 text-sm">Just now</p>
-            </div>
-          </div>
-          
-          <p className="text-white whitespace-pre-wrap">{content.text}</p>
-        </div>
-
-        <button 
-          onClick={onClose}
-          className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-500 transition-all"
-        >
-          Close Preview
-        </button>
-      </div>
-    </div>
-  );
+  return <DashboardV2 setCurrentPage={setCurrentPage} />;
 };
 
 // ============ MAIN APP COMPONENT ============
 const App = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [theme, setTheme] = useState('dark');
 
   const renderPage = () => {
     switch(currentPage) {
@@ -748,14 +96,13 @@ const App = () => {
       case 'generate-youtube':
         return <GenerateYouTube onBack={() => setCurrentPage('dashboard')} />;
       case 'generate-email':
-        return <GenerateMedium onBack={() => setCurrentPage('dashboard')} />;
+        return <EmailOutreachSystem />;
       case 'generate-medium':
         return <GenerateMedium onBack={() => setCurrentPage('dashboard')} />;
       case 'dashboard':
         return <Dashboard setCurrentPage={setCurrentPage} />;
       case 'quickgen':
         return <QuickGenShortcutsPage />;
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
       case 'drafts':
         return <DraftsPage />;
       case 'basket':
@@ -764,200 +111,6 @@ const App = () => {
         return <HistoryPage />;
       case 'schedule':
         return <SchedulerPage />;
-<<<<<<< HEAD
-      case 'autogen':
-        return <QuickGenShortcutsPage />;
-      case 'templates':
-        return <TemplatesPage />;
-      case 'brandvoice':
-        return <BrandVoicePage />;
-      case 'emailstats':
-        return <EmailStatsPage />;
-      case 'dashboard':
-      default:
-        return (
-          <div className="space-y-24">
-            {/* Daily Performance Summary */}
-            <section>
-              <h2 className="text-4xl font-bold mb-16 flex items-center gap-5 tracking-wide">
-                <Sparkles className="text-yellow-300" size={32} />
-                Daily Performance Summary
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-14">
-                {platformStats.map((platform, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-slate-800/50 backdrop-blur-sm rounded-xl py-10 px-6 border border-slate-700/50 hover:border-yellow-300/30 transition-all hover:shadow-xl hover:shadow-yellow-500/10 max-w-xs"
-                  >
-                    <div className={`bg-gradient-to-r ${platform.color} w-12 h-12 rounded-lg flex items-center justify-center mb-7`}>
-                      <Bot size={24} className="text-white" />
-                    </div>
-                    
-                    <h3 className="text-lg font-bold mb-8 tracking-wide">{platform.name}</h3>
-                    
-                    {platform.coldEmails ? (
-                      <div className="space-y-5 text-base">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">Cold Emails:</span>
-                          <span className="font-semibold text-green-400 text-lg">{platform.coldEmails}</span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">Cold DMs:</span>
-                          <span className="font-semibold text-green-400 text-lg">{platform.coldDMs}</span>
-                        </div>
-                        
-                        <div className="pt-5 mt-2 border-t border-slate-700">
-                          <span className="text-sm text-emerald-400">✓ {platform.status}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-5 text-base">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">Generated today:</span>
-                          <span className="font-semibold text-lg">{platform.generated}</span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">Scheduled today:</span>
-                          <span className="font-semibold text-lg">{platform.scheduled}</span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">Published today:</span>
-                          <span className="font-semibold text-lg">{platform.published}</span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center pt-5 mt-2 border-t border-slate-700">
-                          <span className="text-slate-400">Remaining quota:</span>
-                          <span className="font-semibold text-yellow-300 text-lg">{platform.remaining}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Quick Actions */}
-            <section className="mb-32">
-              <h2 className="text-4xl font-bold mb-16 flex items-center gap-5 tracking-wide">
-                <Zap className="text-yellow-300" size={32} />
-                Quick Actions
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-12">
-                {quickActions.map((action, idx) => {
-                  const Icon = action.icon;
-                  return (
-                    <button
-                      key={idx}
-                      className="bg-slate-800/50 backdrop-blur-sm rounded-xl py-10 px-6 border border-slate-700/50 hover:border-pink-300/30 transition-all hover:shadow-xl hover:shadow-pink-500/10 group max-w-xs"
-                    >
-                      <div className={`${action.color} w-12 h-12 rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                        <Icon size={24} className="text-white" />
-                      </div>
-                      <h3 className="font-semibold text-left text-base tracking-wide">{action.title}</h3>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-20">
-              {/* Recent Content */}
-              <section>
-                <h2 className="text-4xl font-bold mb-16 flex items-center gap-5 tracking-wide">
-                  <Cpu className="text-yellow-300" size={32} />
-                  Recent Content
-                </h2>
-                <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 overflow-hidden max-w-md">
-                  {recentContent.map((content, idx) => (
-                    <div
-                      key={idx}
-                      className="p-8 border-b border-slate-700/50 last:border-b-0 hover:bg-slate-700/30 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-5">
-                        <h3 className="font-semibold text-base tracking-wide">{content.title}</h3>
-                        <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
-                          content.status === 'Published' ? 'bg-green-500/20 text-green-400' :
-                          content.status === 'Scheduled' ? 'bg-blue-500/20 text-blue-400' :
-                          content.status === 'Sent' ? 'bg-emerald-500/20 text-emerald-400' :
-                          'bg-yellow-500/20 text-yellow-400'
-                        }`}>
-                          {content.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm text-slate-400">
-                        <span>{content.platform}</span>
-                        <span>•</span>
-                        <span>{content.time}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* Content Pipeline */}
-              <section>
-                <h2 className="text-4xl font-bold mb-16 flex items-center gap-5 tracking-wide">
-                  <Cpu className="text-yellow-300" size={32} />
-                  Content Pipeline
-                </h2>
-                <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-10 border border-slate-700/50 max-w-md">
-                  <div className="space-y-9">
-                    <div>
-                      <div className="flex justify-between mb-5">
-                        <span className="text-base text-slate-400 tracking-wide">Drafts in Progress</span>
-                        <span className="font-semibold text-lg">24</span>
-                      </div>
-                      <div className="w-full bg-slate-700 rounded-full h-3">
-                        <div className="bg-gradient-to-r from-yellow-300 to-pink-300 h-3 rounded-full" style={{ width: '60%' }}></div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between mb-5">
-                        <span className="text-base text-slate-400 tracking-wide">Scheduled Posts</span>
-                        <span className="font-semibold text-lg">10</span>
-                      </div>
-                      <div className="w-full bg-slate-700 rounded-full h-3">
-                        <div className="bg-gradient-to-r from-blue-400 to-cyan-400 h-3 rounded-full" style={{ width: '25%' }}></div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between mb-5">
-                        <span className="text-base text-slate-400 tracking-wide">Published Today</span>
-                        <span className="font-semibold text-lg">8</span>
-                      </div>
-                      <div className="w-full bg-slate-700 rounded-full h-3">
-                        <div className="bg-gradient-to-r from-green-400 to-emerald-400 h-3 rounded-full" style={{ width: '20%' }}></div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between mb-5">
-                        <span className="text-base text-slate-400 tracking-wide">Templates Available</span>
-                        <span className="font-semibold text-lg">45</span>
-                      </div>
-                      <div className="w-full bg-slate-700 rounded-full h-3">
-                        <div className="bg-gradient-to-r from-purple-400 to-pink-400 h-3 rounded-full" style={{ width: '90%' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
-
-            {/* Footer */}
-            <footer className="pt-20 mt-12 border-t border-slate-700/50">
-              <p className="text-base text-slate-400 leading-relaxed tracking-wide">
-                We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
-              </p>
-            </footer>
-          </div>
-        );
-=======
       case 'templates':
         return <TemplatesPage />;
       case 'brand':
@@ -968,119 +121,50 @@ const App = () => {
         return <EmailOutreachSystem />;
       default:
         return <Dashboard setCurrentPage={setCurrentPage} />;
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
     }
   };
 
   return (
-<<<<<<< HEAD
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-      {/* Floating Background Icons */}
-      {floatingIcons.map((item, idx) => {
-        const IconComponent = item.Icon;
-        return (
-          <div
-            key={idx}
-            className="absolute pointer-events-none"
-            style={{
-              top: item.top,
-              left: item.left,
-              right: item.right,
-              opacity: item.opacity,
-            }}
-          >
-            <IconComponent size={item.size} className="text-yellow-200" />
-          </div>
-        );
-      })}
-
-      {/* Header */}
-      <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="flex items-center justify-between px-10 py-7">
-          <div className="flex items-center gap-7">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-            >
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-            <div className="flex items-center gap-5">
-              <Brain className="text-yellow-300" size={44} />
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent tracking-wide">
-                Brand Writer
-              </h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold text-lg">
-              G
-            </div>
-            <button className="w-12 h-12 bg-slate-700/50 hover:bg-slate-700 rounded-full flex items-center justify-center transition-colors">
-              <Trash2 size={22} />
-            </button>
-          </div>
+    <div className={`h-screen w-screen ${theme === 'dark' ? 'dark' : ''} bg-white dark:bg-slate-950 text-slate-900 dark:text-white overflow-hidden`}>
+      {/* Animated Background Decorations (Dark Mode) */}
+      {theme === 'dark' && (
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/8 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/8 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
         </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'w-72' : 'w-0'} overflow-hidden bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-all duration-300 z-40`}>
-          <nav className="p-8 space-y-5">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-5 px-6 py-5 rounded-lg transition-all ${
-                    activeTab === item.id
-                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border border-yellow-300/30'
-                      : 'hover:bg-slate-700/30'
-                  }`}
-                >
-                  <Icon size={24} className={activeTab === item.id ? 'text-yellow-300' : ''} />
-                  <span className="font-medium text-base tracking-wide">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-14 lg:p-20 relative z-10">
-          {renderPage()}
-        </main>
-=======
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-[18px]">
-      {/* FLOATING HAMBURGER BUTTON - Only shows when sidebar is CLOSED */}
-      {!sidebarOpen && (
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="fixed top-6 left-6 z-50 bg-gray-800 border border-gray-700 rounded-lg p-3 hover:bg-gray-700 transition shadow-lg"
-          title="Open sidebar"
-        >
-          <Menu size={24} className="text-white" />
-        </button>
       )}
 
+      {/* Sidebar */}
       <Sidebar 
         currentPage={currentPage} 
         setCurrentPage={setCurrentPage}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
       />
-      <div
-        className={`pt-24 px-14 lg:px-20 pb-16 transition-all duration-300 ${
-          sidebarOpen ? 'ml-64' : 'ml-0'
-        }`}
-      >
-        <div className="max-w-[90rem] mx-auto">
-          {renderPage()}
-        </div>
->>>>>>> 49b8c9ceae342615158baec52c564e659a20fd93
+
+      {/* Main Layout - Offset by sidebar width on desktop */}
+      <div className={`flex flex-col h-screen transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'}`}>
+        {/* Topbar */}
+        <Topbar 
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          theme={theme}
+          setTheme={setTheme}
+        />
+
+        {/* Main Content */}
+        <main className="relative z-10 flex-1 overflow-auto pt-16">
+          <div className="w-full h-full px-6 py-6 sm:px-8 lg:px-12 xl:px-16">
+            {renderPage()}
+          </div>
+        </main>
       </div>
     </div>
   );
 };
 
 export default App;
+

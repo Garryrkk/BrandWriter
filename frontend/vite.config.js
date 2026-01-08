@@ -5,13 +5,20 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000,
+    port: 3002,
     proxy: {
       // Main backend API (runs on port 8000)
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
+      },
+      // Email outreach backend API (runs on port 5000)
+      '/email-api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/email-api/, '/api'),
       },
       // Health check for main backend
       '/health': {

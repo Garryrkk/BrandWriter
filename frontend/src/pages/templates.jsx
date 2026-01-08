@@ -169,55 +169,54 @@ const TemplatesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 flex justify-between items-start">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-              <BookOpen className="text-yellow-300" />
-              Templates Library
-            </h1>
-            <p className="text-gray-400">Manage content templates for consistent, high-quality generation</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+            <BookOpen className="text-yellow-300" />
+            Templates Library
+          </h1>
+          <p className="text-gray-400">Manage content templates for consistent, high-quality generation</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={fetchStats}
+            className="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-4 py-3 rounded-lg transition-all flex items-center gap-2"
+          >
+            <BarChart3 size={20} />
+            Stats
+          </button>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="bg-gradient-to-r from-yellow-300 to-pink-300 hover:shadow-lg text-gray-900 font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2"
+          >
+            <Plus size={20} />
+            Create Template
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Banner */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-4">
+            <p className="text-blue-300 text-sm mb-1">Total Templates</p>
+            <p className="text-white text-2xl font-bold">{stats.total_templates || 0}</p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={fetchStats}
-              className="bg-gray-700 hover:bg-gray-600 text-white font-semibold px-4 py-3 rounded-lg transition-all flex items-center gap-2"
-            >
-              <BarChart3 size={20} />
-              Stats
-            </button>
-            <button
-              onClick={() => setIsCreating(true)}
-              className="bg-gradient-to-r from-yellow-300 to-pink-300 hover:shadow-lg text-gray-900 font-bold px-6 py-3 rounded-lg transition-all flex items-center gap-2"
-            >
-              <Plus size={20} />
-              Create Template
-            </button>
+          <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-4">
+            <p className="text-green-300 text-sm mb-1">Active Templates</p>
+            <p className="text-white text-2xl font-bold">{stats.active_templates || 0}</p>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-xl p-4">
+            <p className="text-purple-300 text-sm mb-1">Categories</p>
+            <p className="text-white text-2xl font-bold">{stats.categories_count || 0}</p>
+          </div>
+          <div className="bg-gradient-to-br from-pink-500/20 to-pink-600/20 border border-pink-500/30 rounded-xl p-4">
+            <p className="text-pink-300 text-sm mb-1">Total Uses</p>
+            <p className="text-white text-2xl font-bold">{stats.total_uses || 0}</p>
           </div>
         </div>
-
-        {/* Stats Banner */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-4">
-              <p className="text-blue-300 text-sm mb-1">Total Templates</p>
-              <p className="text-white text-2xl font-bold">{stats.total_templates || 0}</p>
-            </div>
-            <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-4">
-              <p className="text-green-300 text-sm mb-1">Active Templates</p>
-              <p className="text-white text-2xl font-bold">{stats.active_templates || 0}</p>
-            </div>
-            <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-xl p-4">
-              <p className="text-purple-300 text-sm mb-1">Categories</p>
-              <p className="text-white text-2xl font-bold">{stats.categories_count || 0}</p>
-            </div>
-            <div className="bg-gradient-to-br from-pink-500/20 to-pink-600/20 border border-pink-500/30 rounded-xl p-4">
-              <p className="text-pink-300 text-sm mb-1">Total Uses</p>
-              <p className="text-white text-2xl font-bold">{stats.total_uses || 0}</p>
-            </div>
-          </div>
         )}
 
         {/* Filters */}
@@ -339,7 +338,6 @@ const TemplatesPage = () => {
             )}
           </>
         )}
-      </div>
 
       {/* View/Edit Modal */}
       {selectedTemplate && (

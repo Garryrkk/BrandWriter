@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Edit, ShoppingBasket, Trash2, X, RefreshCw, Search, Filter, Loader, AlertCircle, CheckCircle, Copy, Download, Eye } from 'lucide-react';
 import { mainApi } from '../api/client';
 
-const BRAND_ID = localStorage.getItem('active_brand_id') || 'your-brand-id';
+const BRAND_ID = localStorage.getItem('active_brand_id') || 'your-brand-id-here';
 
 const DraftsPage = () => {
   const [drafts, setDrafts] = useState([]);
@@ -36,14 +36,21 @@ const DraftsPage = () => {
 
   // Fetch drafts
   useEffect(() => {
-    fetchDrafts();
+    if (BRAND_ID && BRAND_ID !== 'your-brand-id-here') {
+      fetchDrafts();
+    } else {
+      setLoading(false);
+      setDrafts([]);
+    }
   }, [pagination.page, filters]);
 
   // Fetch stats
   useEffect(() => {
-    fetchStats();
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
+    if (BRAND_ID && BRAND_ID !== 'your-brand-id-here') {
+      fetchStats();
+      const interval = setInterval(fetchStats, 30000);
+      return () => clearInterval(interval);
+    }
   }, []);
 
   // Load basket
@@ -59,6 +66,10 @@ const DraftsPage = () => {
   }, []);
 
   const fetchDrafts = useCallback(async () => {
+    if (!BRAND_ID || BRAND_ID === 'your-brand-id-here') {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const filterParams = {};
@@ -85,6 +96,7 @@ const DraftsPage = () => {
   }, [pagination.page, pagination.pageSize, filters]);
 
   const fetchStats = async () => {
+    if (!BRAND_ID || BRAND_ID === 'your-brand-id-here') return;
     try {
       const data = await mainApi.drafts.getStats(BRAND_ID);
       setStats(data);
@@ -201,63 +213,62 @@ const DraftsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 flex justify-between items-start">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-              <FileText className="text-yellow-300" />
-              Drafts
-            </h1>
-            <p className="text-gray-400">Manage and edit your saved content drafts</p>
-          </div>
-          <button
-            onClick={() => setShowBasket(!showBasket)}
-            className="relative bg-pink-300 hover:bg-pink-400 text-gray-900 font-semibold py-2 px-4 rounded-lg transition-all flex items-center gap-2"
-          >
-            <ShoppingBasket size={20} />
-            Basket
-            {basket.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
-                {basket.length}
-              </span>
-            )}
-          </button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+            <FileText className="text-yellow-300" />
+            Drafts
+          </h1>
+          <p className="text-gray-400">Manage and edit your saved content drafts</p>
         </div>
+        <button
+          onClick={() => setShowBasket(!showBasket)}
+          className="relative bg-pink-300 hover:bg-pink-400 text-gray-900 font-semibold py-2 px-4 rounded-lg transition-all flex items-center gap-2"
+        >
+          <ShoppingBasket size={20} />
+          Basket
+          {basket.length > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+              {basket.length}
+            </span>
+          )}
+        </button>
+      </div>
 
-        {/* Stats */}
-        {Object.keys(stats).length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            {Object.entries(stats).map(([key, value]) => (
-              <div key={key} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700 hover:border-yellow-300 transition-all">
-                <p className="text-gray-400 text-sm capitalize">{key.replace(/_/g, ' ')}</p>
-                <p className="text-white text-2xl font-bold">{value}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Basket Panel */}
-        {showBasket && (
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-white font-bold text-lg">Basket ({basket.length})</h2>
-              <button onClick={() => setShowBasket(false)} className="text-gray-400 hover:text-white">
-                <X size={20} />
-              </button>
+      {/* Stats */}
+      {Object.keys(stats).length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Object.entries(stats).map(([key, value]) => (
+            <div key={key} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700 hover:border-yellow-300 transition-all">
+              <p className="text-gray-400 text-sm capitalize">{key.replace(/_/g, ' ')}</p>
+              <p className="text-white text-2xl font-bold">{value}</p>
             </div>
+          ))}
+        </div>
+      )}
 
-            {basket.length > 0 ? (
-              <>
-                <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
-                  {basket.map(item => (
-                    <div key={item.id} className="bg-gray-700/50 rounded p-3 flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="text-white text-sm font-medium">{item.title}</p>
-                        <p className="text-gray-400 text-xs">{item.category}</p>
-                      </div>
-                      <button
+      {/* Basket Panel */}
+      {showBasket && (
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-white font-bold text-lg">Basket ({basket.length})</h2>
+            <button onClick={() => setShowBasket(false)} className="text-gray-400 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+
+          {basket.length > 0 ? (
+            <>
+              <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
+                {basket.map(item => (
+                  <div key={item.id} className="bg-gray-700/50 rounded p-3 flex justify-between items-start">
+                    <div className="flex-1">
+                      <p className="text-white text-sm font-medium">{item.title}</p>
+                      <p className="text-gray-400 text-xs">{item.category}</p>
+                    </div>
+                    <button
                         onClick={() => removeFromBasket(item.id)}
                         className="text-red-400 hover:text-red-300 ml-2"
                       >
@@ -451,7 +462,6 @@ const DraftsPage = () => {
             </button>
           </div>
         )}
-      </div>
 
       {/* Toast */}
       {toast && (

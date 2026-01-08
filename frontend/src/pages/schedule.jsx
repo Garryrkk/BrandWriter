@@ -25,6 +25,10 @@ const SchedulerPage = () => {
 
   // API Functions using centralized client
   const fetchSchedules = async () => {
+    if (!brandId || brandId === 'your-brand-id-here') {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const filterParams = {};
@@ -44,6 +48,7 @@ const SchedulerPage = () => {
   };
 
   const fetchStats = async () => {
+    if (!brandId || brandId === 'your-brand-id-here') return;
     try {
       const data = await mainApi.schedule.getStats(brandId);
       setStats(data);
@@ -53,6 +58,7 @@ const SchedulerPage = () => {
   };
 
   const fetchCalendarView = async () => {
+    if (!brandId || brandId === 'your-brand-id-here') return null;
     try {
       const now = new Date();
       const data = await mainApi.schedule.getCalendar(brandId, now.getMonth() + 1, now.getFullYear());
