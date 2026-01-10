@@ -1,63 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Zap, Sparkles, Plus, Lightbulb, Loader, CheckCircle, XCircle, X, TrendingUp, History, Linkedin, Instagram, Youtube, Mail, Layers, MessageSquare, Users } from 'lucide-react';
+import { Home, FileText, ShoppingCart, History, Calendar, Zap, FileCode, Mic, Menu, X, Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server, Terminal, Plus, Linkedin, Instagram, Youtube, Mail, MessageSquare, Users, Lightbulb, Image, Layers, Loader, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 import { mainApi, instaApi } from '../api/client';
 
-const Generate = () => {
+const QuickGenShortcutsPage = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('autogen');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [generationStats, setGenerationStats] = useState(null);
   const [recentGenerationsData, setRecentGenerationsData] = useState([]);
-  const [activeBrand, setActiveBrand] = useState(null);
-  const [brandId, setBrandId] = useState(localStorage.getItem('active_brand_id'));
+  const [batchStatus, setBatchStatus] = useState(null);
+  const [selectedGeneration, setSelectedGeneration] = useState(null);
+  
+  const BRAND_ID = localStorage.getItem('active_brand_id') || 'your-brand-id-here';
 
-  useEffect(() => {
-    loadActiveBrand();
-  }, []);
+  const floatingIcons = [
+    { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
+    { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
+    { Icon: Network, top: '45%', left: '10%', size: 36, opacity: 0.12 },
+    { Icon: Bot, top: '60%', right: '15%', size: 30, opacity: 0.1 },
+    { Icon: Sparkles, top: '15%', right: '40%', size: 24, opacity: 0.09 },
+    { Icon: Rocket, top: '75%', left: '25%', size: 28, opacity: 0.11 },
+    { Icon: Code, top: '35%', left: '85%', size: 26, opacity: 0.08 },
+    { Icon: Database, top: '80%', right: '30%', size: 32, opacity: 0.1 },
+    { Icon: Globe, top: '20%', left: '70%', size: 30, opacity: 0.09 },
+    { Icon: Server, top: '90%', left: '50%', size: 28, opacity: 0.12 },
+    { Icon: Terminal, top: '50%', right: '45%', size: 24, opacity: 0.08 },
+    { Icon: Brain, top: '70%', left: '60%', size: 34, opacity: 0.1 },
+    { Icon: Cpu, top: '5%', left: '45%', size: 26, opacity: 0.09 },
+    { Icon: Network, top: '85%', right: '10%', size: 30, opacity: 0.11 },
+    { Icon: Bot, top: '40%', left: '30%', size: 28, opacity: 0.08 },
+  ];
 
+  const menuItems = [
+    { icon: Home, label: 'Dashboard', id: 'dashboard' },
+    { icon: FileText, label: 'Drafts', id: 'drafts' },
+    { icon: ShoppingCart, label: 'Basket', id: 'basket' },
+    { icon: History, label: 'History', id: 'history' },
+    { icon: Calendar, label: 'Schedule', id: 'schedule' },
+    { icon: Zap, label: 'Auto-Gen', id: 'autogen' },
+    { icon: FileCode, label: 'Templates', id: 'templates' },
+    { icon: Mic, label: 'Brand Voice', id: 'brandvoice' },
+  ];
+
+  // ==================== LOAD DATA ====================
   useEffect(() => {
-    if (brandId) {
+    // Only load data if we have a valid brand ID
+    if (BRAND_ID && BRAND_ID !== 'your-brand-id-here') {
       loadGenerationStats();
       loadRecentGenerations();
+    } else {
+      // Set default empty stats when no brand is selected
+      setGenerationStats({
+        total_generated: 0,
+        this_week: 0,
+        this_month: 0,
+        avg_per_day: 0
+      });
+      setRecentGenerationsData([]);
     }
-  }, [brandId]);
-
-  const loadActiveBrand = async () => {
-    try {
-      const brand = await mainApi.brands.getActive();
-      if (brand && brand.id) {
-        setActiveBrand(brand);
-        setBrandId(brand.id);
-        localStorage.setItem('active_brand_id', brand.id);
-      }
-    } catch (err) {
-      console.error('Failed to load active brand:', err);
-    }
-  };
+  }, [BRAND_ID]);
 
   const loadGenerationStats = async () => {
-    if (!brandId) return;
+    if (!BRAND_ID || BRAND_ID === 'your-brand-id-here') return;
     try {
-      const stats = await mainApi.generations.getStats(brandId);
+      const stats = await mainApi.generations.getStats(BRAND_ID);
       setGenerationStats(stats);
     } catch (err) {
       console.error('Failed to load stats:', err);
+      setGenerationStats({
+        total_generated: 0,
+        this_week: 0,
+        this_month: 0,
+        avg_per_day: 0
+      });
     }
   };
 
   const loadRecentGenerations = async () => {
-    if (!brandId) return;
+    if (!BRAND_ID || BRAND_ID === 'your-brand-id-here') return;
     try {
-      const data = await mainApi.generations.list(brandId, 1, 10);
+      const data = await mainApi.generations.list(BRAND_ID, 1, 10);
       setRecentGenerationsData(data.generations || []);
     } catch (err) {
       console.error('Failed to load recent generations:', err);
+      setRecentGenerationsData([]);
     }
   };
 
+  // ==================== GENERATION ENDPOINTS ====================
+  
+  // Quick content generation
   const quickGenerate = async (category, platform = null, customPrompt = null) => {
-    if (!brandId) {
-      setError('No brand selected. Please create or select a brand first.');
+    if (!BRAND_ID || BRAND_ID === 'your-brand-id-here') {
+      setError('Please select a brand first from the Brand Voice page.');
       return;
     }
     setLoading(true);
@@ -65,8 +102,8 @@ const Generate = () => {
     setSuccessMessage(null);
     
     try {
-      const result = await mainApi.generations.quickGenerate(brandId, category, platform, customPrompt);
-      setSuccessMessage(`Successfully generated ${category}!`);
+      const result = await mainApi.generations.quickGenerate(BRAND_ID, category, platform, customPrompt);
+      setSuccessMessage(`✨ Successfully generated ${category.replace(/_/g, ' ')}!`);
       
       await loadGenerationStats();
       await loadRecentGenerations();
@@ -80,18 +117,17 @@ const Generate = () => {
     }
   };
 
+  // Batch generate content
   const batchGenerate = async (categories, countPerCategory = 5) => {
-    if (!brandId) {
-      setError('No brand selected. Please create or select a brand first.');
-      return;
-    }
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
+    setBatchStatus('processing');
     
     try {
-      const result = await mainApi.generations.batchGenerate(brandId, categories);
-      setSuccessMessage(`Successfully generated ${result.total_generated} pieces of content!`);
+      const result = await mainApi.generations.batchGenerate(BRAND_ID, categories);
+      setSuccessMessage(`🎉 Successfully generated ${result.total_generated} pieces of content across ${Object.keys(result.generations_by_category).length} categories!`);
+      setBatchStatus('completed');
       
       await loadGenerationStats();
       await loadRecentGenerations();
@@ -99,28 +135,56 @@ const Generate = () => {
       return result;
     } catch (err) {
       setError(err.message);
+      setBatchStatus('failed');
       throw err;
     } finally {
       setLoading(false);
     }
   };
 
+  // Get all generations with filters
+  const getGenerationsWithFilters = async (filters = {}) => {
+    try {
+      const data = await mainApi.generations.list(BRAND_ID, filters.page || 1, filters.page_size || 50);
+      return data;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Get generation by ID
+  const getGenerationById = async (generationId) => {
+    try {
+      const generation = await mainApi.generations.get(generationId);
+      setSelectedGeneration(generation);
+      return generation;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  // Add feedback to generation
   const addFeedback = async (generationId, rating, comments = null) => {
     try {
-      await mainApi.generations.addFeedback(generationId, rating, comments);
-      setSuccessMessage('Feedback submitted successfully!');
+      await mainApi.request(`/v1/generations/${generationId}/feedback`, 'POST', { rating, comments });
+      setSuccessMessage('👍 Feedback submitted successfully!');
+      await loadRecentGenerations();
     } catch (err) {
       setError(err.message);
     }
   };
 
+  // Convert generation to draft
   const convertToDraft = async (generationId) => {
     setLoading(true);
     setError(null);
     
     try {
-      const result = await mainApi.generations.convertToDraft(generationId);
-      setSuccessMessage('Successfully converted to draft!');
+      const result = await mainApi.request(`/v1/generations/${generationId}/to-draft`, 'POST');
+      setSuccessMessage('📝 Successfully converted to draft!');
+      await loadRecentGenerations();
       return result;
     } catch (err) {
       setError(err.message);
@@ -130,16 +194,80 @@ const Generate = () => {
     }
   };
 
+  // Delete generation
   const deleteGeneration = async (generationId) => {
     try {
       await mainApi.generations.delete(generationId);
-      setSuccessMessage('Generation deleted successfully!');
+      setSuccessMessage('🗑️ Generation deleted successfully!');
       await loadRecentGenerations();
+      await loadGenerationStats();
     } catch (err) {
       setError(err.message);
     }
   };
 
+  // Regenerate content (uses GET then POST)
+  const regenerateContent = async (generationId) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const originalGen = await getGenerationById(generationId);
+      
+      const result = await quickGenerate(
+        originalGen.category,
+        originalGen.platform,
+        originalGen.prompt
+      );
+      
+      setSuccessMessage('🔄 Content regenerated successfully!');
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==================== HELPER FUNCTIONS ====================
+  
+  const getDefaultPrompt = (category, platform) => {
+    const prompts = {
+      'linkedin_post': 'Create an engaging LinkedIn post about industry insights and professional growth',
+      'instagram_reel': 'Write a viral Instagram Reel script with hooks, storytelling, and call-to-action',
+      'instagram_carousel': 'Design a 5-slide educational Instagram carousel with clear messaging',
+      'youtube_short': 'Script a 60-second YouTube Short with attention-grabbing opening and value delivery',
+      'newsletter': 'Craft an engaging email newsletter with valuable insights and clear CTAs',
+      'cold_email': 'Write a personalized cold email that builds rapport and drives response',
+      'cold_dm': 'Create a friendly, non-salesy DM that starts meaningful conversations',
+      'blog_post': 'Write an informative blog post that provides value and drives engagement',
+      'social_media': 'Create engaging social media content that resonates with the audience',
+      'lead_list': 'Generate 100 targeted leads with relevant contact information and insights'
+    };
+    
+    return prompts[category] || `Create compelling ${category} content for ${platform || 'multiple platforms'}`;
+  };
+
+  const handleGenerateContent = async (shortcut) => {
+    try {
+      if (shortcut.category === 'brand_ideas') {
+        const categories = ['blog_post', 'social_media', 'newsletter', 'video_script', 'instagram_post'];
+        await batchGenerate(categories, 10);
+      } else if (shortcut.category === 'lead_list') {
+        setSuccessMessage('🎯 Lead list generation started! You will receive 100 leads shortly.');
+        await quickGenerate(shortcut.category, shortcut.platform, 'Generate 100 targeted leads');
+      } else {
+        const customPrompt = getDefaultPrompt(shortcut.category, shortcut.platform);
+        await quickGenerate(shortcut.category, shortcut.platform, customPrompt);
+      }
+    } catch (err) {
+      console.error('Generation failed:', err);
+    }
+  };
+
+  // ==================== GENERATION SHORTCUTS DATA ====================
+  
   const generationShortcuts = [
     {
       id: 1,
@@ -233,80 +361,70 @@ const Generate = () => {
     }
   ];
 
-  const handleGenerateContent = async (shortcut) => {
-    try {
-      if (shortcut.category === 'brand_ideas') {
-        await batchGenerate(['blog_post', 'social_media', 'newsletter', 'video_script'], 10);
-      } else {
-        await quickGenerate(shortcut.category, shortcut.platform);
-      }
-    } catch (err) {
-      console.error('Generation failed:', err);
-    }
+  const quickStats = {
+    totalGenerated: generationStats?.total_generated || 0,
+    thisWeek: generationStats?.this_week || 0,
+    thisMonth: generationStats?.this_month || 0,
+    avgPerDay: generationStats?.avg_per_day || 0
   };
 
-  const quickStats = {
-    totalGenerated: generationStats?.total_generated || 247,
-    thisWeek: generationStats?.this_week || 89,
-    thisMonth: generationStats?.this_month || 247,
-    avgPerDay: generationStats?.avg_per_day || 35
-  };
+  // ==================== RENDER ====================
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Status Messages */}
       {loading && (
-        <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg px-6 py-3 flex items-center gap-2">
+        <div className="bg-blue-500/20 rounded-lg border border-blue-500/30 px-6 py-3 flex items-center gap-2">
           <Loader className="animate-spin" size={16} />
           <span className="text-sm">Generating content...</span>
         </div>
       )}
       {successMessage && (
-        <div className="bg-green-500/20 border border-green-500/30 rounded-lg px-6 py-3 flex items-center gap-2">
-          <CheckCircle size={16} />
+        <div className="bg-green-500/20 rounded-lg border border-green-500/30 px-6 py-3 flex items-center gap-2">
+          <CheckCircle size={16} className="text-green-400" />
           <span className="text-sm">{successMessage}</span>
-          <button onClick={() => setSuccessMessage(null)} className="ml-auto">
+          <button onClick={() => setSuccessMessage(null)} className="ml-auto hover:text-white">
             <X size={16} />
           </button>
         </div>
       )}
       {error && (
-        <div className="bg-red-500/20 border border-red-500/30 rounded-lg px-6 py-3 flex items-center gap-2">
-          <XCircle size={16} />
+        <div className="bg-red-500/20 rounded-lg border border-red-500/30 px-6 py-3 flex items-center gap-2">
+          <XCircle size={16} className="text-red-400" />
           <span className="text-sm">{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto">
+          <button onClick={() => setError(null)} className="ml-auto hover:text-white">
             <X size={16} />
           </button>
         </div>
       )}
 
       {/* Page Header */}
-      <div className="fixed top-10 left-0 right-0 z-50 h-20">
-        <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-          <Zap className="text-yellow-300" size={36} />
-          Quick Generation Shortcuts
-        </h1>
-        <p className="text-slate-400 mb-6">Create content instantly with one click — choose your format and let AI do the work</p>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+              <Zap className="text-yellow-300" size={36} />
+              Quick Generation Shortcuts
+            </h1>
+            <p className="text-slate-400 mb-6">Create content instantly with one click — choose your format and let AI do the work</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-            <p className="text-slate-400 text-sm mb-1">Total Generated</p>
-            <p className="text-2xl font-bold text-yellow-300">{quickStats.totalGenerated}</p>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+                <p className="text-slate-400 text-sm mb-1">Total Generated</p>
+                <p className="text-2xl font-bold text-yellow-300">{quickStats.totalGenerated}</p>
+              </div>
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+                <p className="text-slate-400 text-sm mb-1">This Week</p>
+                <p className="text-2xl font-bold text-blue-400">{quickStats.thisWeek}</p>
+              </div>
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+                <p className="text-slate-400 text-sm mb-1">This Month</p>
+                <p className="text-2xl font-bold text-purple-400">{quickStats.thisMonth}</p>
+              </div>
+              <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
+                <p className="text-slate-400 text-sm mb-1">Avg Per Day</p>
+                <p className="text-2xl font-bold text-green-400">{quickStats.avgPerDay}</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-            <p className="text-slate-400 text-sm mb-1">This Week</p>
-            <p className="text-2xl font-bold text-blue-400">{quickStats.thisWeek}</p>
-          </div>
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-            <p className="text-slate-400 text-sm mb-1">This Month</p>
-            <p className="text-2xl font-bold text-purple-400">{quickStats.thisMonth}</p>
-          </div>
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50">
-            <p className="text-slate-400 text-sm mb-1">Avg Per Day</p>
-            <p className="text-2xl font-bold text-green-400">{quickStats.avgPerDay}</p>
-          </div>
-        </div>
-      </div>
 
           <section className="mb-8">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
@@ -353,7 +471,55 @@ const Generate = () => {
             </div>
           </section>
 
-          <section className="fixed top-50 left-0 right-0 z-50 h-20 grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {batchStatus && (
+            <section className="mb-8">
+              <div className={`bg-slate-800/50 backdrop-blur-sm rounded-2xl border p-6 ${
+                batchStatus === 'processing' ? 'border-blue-500/50' :
+                batchStatus === 'completed' ? 'border-green-500/50' :
+                'border-red-500/50'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {batchStatus === 'processing' && (
+                      <>
+                        <Loader className="animate-spin text-blue-400" size={24} />
+                        <div>
+                          <h3 className="font-bold text-lg">Batch Generation in Progress</h3>
+                          <p className="text-sm text-slate-400">Creating multiple content pieces...</p>
+                        </div>
+                      </>
+                    )}
+                    {batchStatus === 'completed' && (
+                      <>
+                        <CheckCircle className="text-green-400" size={24} />
+                        <div>
+                          <h3 className="font-bold text-lg">Batch Generation Complete!</h3>
+                          <p className="text-sm text-slate-400">All content has been generated successfully</p>
+                        </div>
+                      </>
+                    )}
+                    {batchStatus === 'failed' && (
+                      <>
+                        <XCircle className="text-red-400" size={24} />
+                        <div>
+                          <h3 className="font-bold text-lg">Batch Generation Failed</h3>
+                          <p className="text-sm text-slate-400">Please try again or contact support</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setBatchStatus(null)}
+                    className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <History className="text-yellow-300" />
@@ -369,12 +535,39 @@ const Generate = () => {
                       className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:border-yellow-300/30 transition-all group"
                     >
                       <div className="flex-1">
-                        <p className="font-semibold">{item.category?.replace('_', ' ').toUpperCase()}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-semibold">{item.category?.replace(/_/g, ' ').toUpperCase()}</p>
+                          {item.platform && (
+                            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded text-xs">
+                              {item.platform}
+                            </span>
+                          )}
+                          {item.is_auto_generated && (
+                            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs flex items-center gap-1">
+                              <Zap size={12} />
+                              Auto
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-slate-400">
-                          {new Date(item.created_at).toLocaleDateString()}
+                          {new Date(item.created_at).toLocaleDateString()} • {item.model_used || 'AI Model'}
                         </p>
+                        {item.generation_time && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Generated in {item.generation_time.toFixed(2)}s
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => regenerateContent(item.id)}
+                          className="px-3 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 rounded text-sm transition-all flex items-center gap-1"
+                          disabled={loading}
+                          title="Regenerate"
+                        >
+                          <Zap size={14} />
+                          Regen
+                        </button>
                         <button
                           onClick={() => convertToDraft(item.id)}
                           className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded text-sm transition-all"
@@ -392,11 +585,20 @@ const Generate = () => {
                       </div>
                     </div>
                   ))}
+                  {recentGenerationsData.length > 4 && (
+                    <button
+                      onClick={() => setActiveTab('history')}
+                      className="w-full py-2 text-sm text-yellow-300 hover:text-yellow-200 transition-colors flex items-center justify-center gap-2"
+                    >
+                      View All Generations
+                      <TrendingUp size={16} />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
 
-            <div className="fixed top-70 left-0 right-0 z-50 h-20 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <Lightbulb className="text-yellow-300" />
                 Pro Tips
@@ -434,13 +636,24 @@ const Generate = () => {
             </div>
           </section>
 
-          <footer className="fixed top-90 left-0 right-0 z-50 h-20 mt-12 pt-8 border-t border-slate-700/50">
-            <p className="text-sm text-slate-400">
-              We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
-            </p>
+          <footer className="mt-12 pt-8 border-t border-slate-700/50">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-400">
+                We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
+              </p>
+              <button 
+                onClick={loadRecentGenerations}
+                className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors text-sm flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+            </div>
           </footer>
     </div>
   );
 };
 
-export default Generate;
+export default QuickGenShortcutsPage;

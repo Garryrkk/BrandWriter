@@ -265,68 +265,69 @@ const BasketPage = () => {
   const displayedTotalItems = basketItems.length;
 
   return (
-    <div className="fixed top-20 left-0 right-0 z-50 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
-            <ShoppingBasket className="text-pink-300" />
-            Content Basket
-          </h1>
-          <p className="text-gray-400">Review and schedule your selected content</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-all font-medium flex items-center gap-2"
-          >
-            <Filter size={18} />
-            Filters
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-lg text-white px-6 py-3 rounded-lg transition-all font-bold flex items-center gap-2"
-          >
-            <Plus size={18} />
-            Add Item
-          </button>
-        </div>
-      </div>
-
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-red-500/20 border border-red-500/50 rounded-2xl p-4 flex items-center gap-3">
-          <AlertCircle className="text-red-400" size={24} />
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8 flex justify-between items-center">
           <div>
-            <p className="text-red-400 font-semibold">Error loading basket</p>
-            <p className="text-red-300 text-sm">{error}</p>
+            <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+              <ShoppingBasket className="text-pink-300" />
+              Content Basket
+            </h1>
+            <p className="text-gray-400">Review and schedule your selected content</p>
           </div>
-          <button
-            onClick={fetchBasketItems}
-            className="ml-auto bg-red-500/30 hover:bg-red-500/50 text-red-200 px-4 py-2 rounded-lg transition-all"
-          >
-            Retry
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-all font-medium flex items-center gap-2"
+            >
+              <Filter size={18} />
+              Filters
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:shadow-lg text-white px-6 py-3 rounded-lg transition-all font-bold flex items-center gap-2"
+            >
+              <Plus size={18} />
+              Add Item
+            </button>
+          </div>
         </div>
-      )}
 
-      {/* Filters Panel */}
-      {showFilters && (
-        <FilterPanel 
-          filters={filters} 
-          onApplyFilters={applyFilters}
-          onClose={() => setShowFilters(false)}
-        />
-      )}
-
-      {/* Stats Bar */}
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-        {loading ? (
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="animate-spin text-pink-300" size={32} />
+        {/* Error Alert */}
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/50 rounded-2xl p-4 mb-6 flex items-center gap-3">
+            <AlertCircle className="text-red-400" size={24} />
+            <div>
+              <p className="text-red-400 font-semibold">Error loading basket</p>
+              <p className="text-red-300 text-sm">{error}</p>
+            </div>
+            <button
+              onClick={fetchBasketItems}
+              className="ml-auto bg-red-500/30 hover:bg-red-500/50 text-red-200 px-4 py-2 rounded-lg transition-all"
+            >
+              Retry
+            </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        )}
+
+        {/* Filters Panel */}
+        {showFilters && (
+          <FilterPanel 
+            filters={filters} 
+            onApplyFilters={applyFilters}
+            onClose={() => setShowFilters(false)}
+          />
+        )}
+
+        {/* Stats Bar */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700 mb-6">
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="animate-spin text-pink-300" size={32} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl p-4 text-white">
                 <p className="text-sm opacity-90 mb-1">Total Items</p>
                 <p className="text-3xl font-bold">{stats?.total_items || totalItems}</p>
@@ -460,6 +461,7 @@ const BasketPage = () => {
             </div>
           </div>
         )}
+      </div>
 
       {/* Modals */}
       {editingItem && (

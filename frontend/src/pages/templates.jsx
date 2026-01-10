@@ -169,7 +169,7 @@ const TemplatesPage = () => {
   };
 
   return (
-    <div className="fixed top-20 left-0 right-0 z-50 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
