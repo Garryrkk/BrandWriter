@@ -399,7 +399,7 @@ const QuickGenShortcutsPage = () => {
       )}
 
       {/* Page Header */}
-          <div className="mb-8">
+          <div className="fixed top-90 left-0 right-0 z-50 h-20">
             <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
               <Zap className="text-yellow-300" size={36} />
               Quick Generation Shortcuts

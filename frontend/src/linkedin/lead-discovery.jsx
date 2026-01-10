@@ -3,17 +3,34 @@ import { Home, FileText, Settings, BarChart3, Download, Target, CheckCircle, Pla
 import AnalyticsPage from './analytics';
 import DiscoveryRunsPage from './discovery-runs';
 import ExportsPage from './exports';
-//import LeadDetailPage from './lead-detail';
+import LeadDetailPage from './lead-detail';
 import LeadInboxPage from './lead-inbox';
 import RulesTargetingPage from './rules&targeting';
+// Import all page components
+import { Brain, Cpu, Network, Bot, Sparkles, Rocket, Code, Database, Globe, Server } from 'lucide-react';
+import { User } from 'lucide-react';
 
 const LeadDashboard = () => {
   const [activePage, setActivePage] = useState('dashboard');
+
+  const floatingIcons = [
+    { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
+    { Icon: Cpu, top: '25%', right: '20%', size: 28, opacity: 0.08 },
+    { Icon: Network, top: '45%', left: '10%', size: 36, opacity: 0.12 },
+    { Icon: Bot, top: '60%', right: '15%', size: 30, opacity: 0.1 },
+    { Icon: Sparkles, top: '15%', right: '40%', size: 24, opacity: 0.09 },
+    { Icon: Rocket, top: '75%', left: '25%', size: 28, opacity: 0.11 },
+    { Icon: Code, top: '35%', left: '85%', size: 26, opacity: 0.08 },
+    { Icon: Database, top: '80%', right: '30%', size: 32, opacity: 0.1 },
+    { Icon: Globe, top: '20%', left: '70%', size: 30, opacity: 0.09 },
+    { Icon: Server, top: '90%', left: '50%', size: 28, opacity: 0.12 },
+  ];
 
   const navItems = [
     { icon: Home, label: 'Dashboard', id: 'dashboard' },
     { icon: Activity, label: 'Discovery Runs', id: 'runs' },
     { icon: Users, label: 'Lead Inbox', id: 'leads' },
+    { icon: User, label: 'Lead Detail', id: 'detail' },
     { icon: Settings, label: 'Rules & Targeting', id: 'rules' },
     { icon: BarChart3, label: 'Analytics', id: 'analytics' },
     { icon: Download, label: 'Exports', id: 'exports' },
@@ -179,7 +196,8 @@ const LeadDashboard = () => {
           {recentInteractions.map((interaction, idx) => (
             <div
               key={idx}
-              className="p-5 border-b border-slate-700/50 last:border-b-0 hover:bg-slate-700/30 transition-all"
+              className="p-5 border-b border-slate-700/50 last:border-b-0 hover:bg-slate-700/30 transition-all cursor-pointer"
+              onClick={() => setActivePage('detail')}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -217,6 +235,8 @@ const LeadDashboard = () => {
         return <DiscoveryRunsPage />;
       case 'leads':
         return <LeadInboxPage />;
+      case 'detail':
+        return <LeadDetailPage />;
       case 'rules':
         return <RulesTargetingPage />;
       case 'analytics':
@@ -229,48 +249,80 @@ const LeadDashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Target className="text-yellow-300" size={32} />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
-              Lead Discovery
-            </h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
+      {floatingIcons.map((item, idx) => {
+        const IconComponent = item.Icon;
+        return (
+          <div
+            key={idx}
+            className="absolute pointer-events-none"
+            style={{
+              top: item.top,
+              left: item.left,
+              right: item.right,
+              opacity: item.opacity,
+            }}
+          >
+            <IconComponent size={item.size} className="text-yellow-200" />
           </div>
-          <div className="flex items-center gap-4">
-            <div className="px-4 py-2 bg-slate-700/50 rounded-lg text-sm">
-              <span className="text-slate-400">Last sync:</span>
-              <span className="ml-2 font-semibold text-green-400">12 min ago</span>
+        );
+      })}
+
+      {/* Header */}
+      <header className="fixed top-20 left-0 right-0 z-50 h-20 bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Target className="text-yellow-300" size={32} />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
+                Lead Discovery
+              </h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="px-4 py-2 bg-slate-700/50 rounded-lg text-sm">
+                <span className="text-slate-400">Last sync:</span>
+                <span className="ml-2 font-semibold text-green-400">12 min ago</span>
+              </div>
+              <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center font-bold">
+                JD
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Horizontal Navigation */}
-        <nav className="flex gap-2 overflow-x-auto pb-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActivePage(item.id)}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-lg transition-all whitespace-nowrap ${
-                  activePage === item.id
-                    ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border-2 border-yellow-300/30'
-                    : 'bg-slate-700/30 hover:bg-slate-700/50 border-2 border-transparent'
-                }`}
-              >
-                <Icon size={18} className={activePage === item.id ? 'text-yellow-300' : ''} />
-                <span className="font-medium">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+          {/* Horizontal Navigation */}
+          <nav className="flex gap-2 overflow-x-auto pb-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActivePage(item.id)}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg transition-all whitespace-nowrap ${
+                    activePage === item.id
+                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border-2 border-yellow-300/30'
+                      : 'bg-slate-700/30 hover:bg-slate-700/50 border-2 border-transparent'
+                  }`}
+                >
+                  <Icon size={18} className={activePage === item.id ? 'text-yellow-300' : ''} />
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
 
       {/* Main Content */}
-      {renderPage()}
+      <main className="fixed top-30 left-0 right-0 z-50 h-20 p-6 lg:p-8 relative">
+        {renderPage()}
+
+        {/* Footer */}
+        <footer className="mt-12 pt-8 border-t border-slate-700/50">
+          <p className="text-sm text-slate-400">
+            Lead Discovery System - Powered by AI-driven targeting and real-time discovery
+          </p>
+        </footer>
+      </main>
     </div>
   );
 };

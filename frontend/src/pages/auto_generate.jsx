@@ -281,7 +281,7 @@ const Generate = () => {
       )}
 
       {/* Page Header */}
-      <div className="mb-8">
+      <div className="fixed top-10 left-0 right-0 z-50 h-20">
         <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
           <Zap className="text-yellow-300" size={36} />
           Quick Generation Shortcuts
@@ -353,7 +353,7 @@ const Generate = () => {
             </div>
           </section>
 
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <section className="fixed top-50 left-0 right-0 z-50 h-20 grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <History className="text-yellow-300" />
@@ -396,7 +396,7 @@ const Generate = () => {
               )}
             </div>
 
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
+            <div className="fixed top-70 left-0 right-0 z-50 h-20 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <Lightbulb className="text-yellow-300" />
                 Pro Tips
@@ -434,7 +434,7 @@ const Generate = () => {
             </div>
           </section>
 
-          <footer className="mt-12 pt-8 border-t border-slate-700/50">
+          <footer className="fixed top-90 left-0 right-0 z-50 h-20 mt-12 pt-8 border-t border-slate-700/50">
             <p className="text-sm text-slate-400">
               We work in close partnership with our clients – including content creators, agencies, major brands, and marketing professionals.
             </p>

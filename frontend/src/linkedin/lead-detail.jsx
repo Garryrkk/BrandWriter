@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import { Home, Activity, Users, Settings, BarChart3, Download, Menu, X, Brain, Target, ArrowLeft, ExternalLink, Check, XCircle, StickyNote, Calendar, Award, TrendingUp, Briefcase, MapPin, Mail, Phone } from 'lucide-react';
 
 const LeadDetailPage = () => {
