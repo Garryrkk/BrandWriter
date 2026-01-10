@@ -17,6 +17,18 @@ from app.routes.stats import router as stats_routes
 from app.platforms.routes import router as platforms_routes
 from app.workers.routes import router as workers_routes
 from app.observability.routes import router as observability_routes
+# Temporarily disabled - missing providers folder
+# from app.leads.LeadRoutes import router as lead_routes
+from app.api.admin import router as admin_routes
+# Temporarily disabled - missing Lead model
+# from app.api.leads import router as api_lead_routes
+
+# Try to import docs routes if they exist
+try:
+    from app.api.routes.docs import router as docs_routes
+    DOCS_ROUTES_AVAILABLE = True
+except ImportError:
+    DOCS_ROUTES_AVAILABLE = False
 
 # Import worker
 from app.workers.scheduler_work import start_scheduler, shutdown_scheduler
@@ -75,6 +87,13 @@ app.include_router(stats_routes, prefix="/api/v1")
 app.include_router(platforms_routes, prefix="/api/v1")
 app.include_router(workers_routes, prefix="/api/v1")
 app.include_router(observability_routes, prefix="/api/v1")
+# app.include_router(lead_routes, prefix="/api/v1")  # Disabled - missing providers
+app.include_router(admin_routes, prefix="/api")
+# app.include_router(api_lead_routes, prefix="/api")  # Disabled - missing Lead model
+
+# Include docs routes if available
+if DOCS_ROUTES_AVAILABLE:
+    app.include_router(docs_routes, prefix="/api/docs", tags=["documents"])
 
 
 # Health check

@@ -342,7 +342,7 @@ const LeadInboxPage = () => {
                       className="p-1.5 hover:bg-red-500/20 rounded transition-all text-red-400"
                       title="Skip"
                     >
-                      <XIcon size={16} />
+                      <X size={16} />
                     </button>
                     <a
                       href={lead.linkedinUrl}

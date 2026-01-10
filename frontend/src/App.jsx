@@ -8,20 +8,30 @@ import {
 } from 'lucide-react';
 
 // ============ REAL PAGE IMPORTS ============
-// Note: These would be your actual page components
-const QuickGenShortcutsPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Quick Generate</h1><p className="mt-4">Quick generation page coming soon...</p></div>;
-const DraftsPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Drafts</h1><p className="mt-4">Drafts page coming soon...</p></div>;
-const HistoryPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">History</h1><p className="mt-4">History page coming soon...</p></div>;
-const TemplatesPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Templates</h1><p className="mt-4">Templates page coming soon...</p></div>;
-const SchedulerPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Scheduler</h1><p className="mt-4">Scheduler page coming soon...</p></div>;
-const BasketPage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Basket</h1><p className="mt-4">Basket page coming soon...</p></div>;
-const BrandVoicePage = () => <div className="text-white p-8"><h1 className="text-3xl font-bold">Brand Voice</h1><p className="mt-4">Brand voice page coming soon...</p></div>;
+import EmailOutreachSystem from './main-email/email';
+import BasketPageContent from './pages/basket';
+import HistoryPage from './pages/history';
+import TemplatesPage from './pages/templates';
+import SchedulerPage from './pages/schedule';
+import QuickGenPage from './pages/generator';
+import BrandVoiceDashboard from './pages/brand_voice';
 
-// ============ GENERATE PAGE IMPORTS ============
-const GenerateLinkedIn = ({ onBack }) => <div className="text-white p-8"><button onClick={onBack} className="mb-4 px-4 py-2 bg-blue-500 rounded">← Back</button><h1 className="text-3xl font-bold">Generate LinkedIn Post</h1></div>;
-const GenerateInstagram = ({ onBack }) => <div className="text-white p-8"><button onClick={onBack} className="mb-4 px-4 py-2 bg-pink-500 rounded">← Back</button><h1 className="text-3xl font-bold">Generate Instagram Content</h1></div>;
-const GenerateYouTube = ({ onBack }) => <div className="text-white p-8"><button onClick={onBack} className="mb-4 px-4 py-2 bg-red-500 rounded">← Back</button><h1 className="text-3xl font-bold">Generate YouTube Content</h1></div>;
-const GenerateMedium = ({ onBack }) => <div className="text-white p-8"><button onClick={onBack} className="mb-4 px-4 py-2 bg-orange-500 rounded">← Back</button><h1 className="text-3xl font-bold">Generate Medium/Newsletter</h1></div>;
+// ============ GENERATOR IMPORTS ============
+import LinkedInGenerator from './linkedin/lead-discovery';
+import InstagramGenerator from './generate/instagram';
+import YouTubeGenerator from './generate/youtube';
+import MediumGenerator from './generate/medium';
+
+const DraftsPage = () => <BasketPageContent />;
+const QuickGenShortcutsPage = () => <QuickGenPage />;
+const BasketPage = () => <BasketPageContent />;
+const BrandVoicePage = () => <BrandVoiceDashboard />;
+
+// Generator components - using directly
+const GenerateLinkedIn = () => <LinkedInGenerator />;
+const GenerateInstagram = () => <InstagramGenerator />;
+const GenerateYouTube = () => <YouTubeGenerator />;
+const GenerateMedium = () => <MediumGenerator />;
 
 // ============ STATE MANAGEMENT ============
 const createStore = (initialState) => {
@@ -104,7 +114,7 @@ const FloatingIcons = () => {
           <Icon size={size} className="text-purple-500" />
         </div>
       ))}
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{__html: `
         @keyframes float {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
           50% { transform: translateY(-20px) rotate(5deg); }
@@ -112,7 +122,7 @@ const FloatingIcons = () => {
         .animate-float {
           animation: float ease-in-out infinite;
         }
-      `}</style>
+      `}} />
     </div>
   );
 };
@@ -133,7 +143,7 @@ const Sidebar = ({ currentPage, setCurrentPage, sidebarOpen, setSidebarOpen }) =
 
   return (
     <div
-      className={`fixed left-0 top-0 h-screen w-64 z-50 bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-700 shadow-2xl overflow-y-auto transform transition-transform duration-300 ${
+      className={`fixed left-0 top-0 h-screen w-64 z-[60] bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-700 shadow-2xl overflow-y-auto transform transition-transform duration-300 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
@@ -633,18 +643,6 @@ const PreviewModal = ({ content, onClose }) => {
   );
 };
 
-// ============ EMAIL STATS PAGE PLACEHOLDER ============
-const EmailStatsPage = () => {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-4xl font-bold text-white">Email Statistics</h1>
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
-        <p className="text-gray-300 text-lg">Email statistics dashboard coming soon...</p>
-      </div>
-    </div>
-  );
-};
-
 // ============ MAIN APP COMPONENT ============
 const App = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -653,15 +651,17 @@ const App = () => {
   const renderPage = () => {
     switch(currentPage) {
       case 'generate-linkedin':
-        return <GenerateLinkedIn onBack={() => setCurrentPage('dashboard')} />;
+        return <GenerateLinkedIn />;
       case 'generate-instagram':
-        return <GenerateInstagram onBack={() => setCurrentPage('dashboard')} />;
+        return <GenerateInstagram />;
       case 'generate-youtube':
-        return <GenerateYouTube onBack={() => setCurrentPage('dashboard')} />;
+        return <GenerateYouTube />;
       case 'generate-email':
-        return <GenerateMedium onBack={() => setCurrentPage('dashboard')} />;
+        return <EmailOutreachSystem />;
+      case 'email':
+        return <EmailOutreachSystem />;
       case 'generate-medium':
-        return <GenerateMedium onBack={() => setCurrentPage('dashboard')} />;
+        return <GenerateMedium />;
       case 'dashboard':
         return <Dashboard setCurrentPage={setCurrentPage} />;
       case 'quickgen':
@@ -678,8 +678,6 @@ const App = () => {
         return <TemplatesPage />;
       case 'brand':
         return <BrandVoicePage />;
-      case 'email':
-        return <EmailStatsPage />;
       default:
         return <Dashboard setCurrentPage={setCurrentPage} />;
     }
@@ -691,7 +689,7 @@ const App = () => {
       {!sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
-          className="fixed top-6 left-6 z-50 bg-gray-800 border border-gray-700 rounded-lg p-3 hover:bg-gray-700 transition shadow-lg"
+          className="fixed top-6 left-6 z-[60] bg-gray-800 border border-gray-700 rounded-lg p-3 hover:bg-gray-700 transition shadow-lg"
           title="Open sidebar"
         >
           <Menu size={24} className="text-white" />

@@ -269,7 +269,7 @@ const LeadDashboard = () => {
       })}
 
       {/* Header */}
-      <header className="fixed top-20 left-0 right-0 z-50 h-20 bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
+      <header className="sticky top-0 z-50 bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -313,7 +313,7 @@ const LeadDashboard = () => {
       </header>
 
       {/* Main Content */}
-      <main className="fixed top-30 left-0 right-0 z-50 h-20 p-6 lg:p-8 relative">
+      <main className="p-6 lg:p-8 relative">
         {renderPage()}
 
         {/* Footer */}

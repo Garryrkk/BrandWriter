@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.db.session import get_db
+from app.db.database import get_db
 from app.leads.LeadSchemas import LeadCreate, LeadResponse
 from app.leads.LeadServices import collect_leads, generate_cold_email, generate_cold_dm
 from app.leads.LeadModels import Lead

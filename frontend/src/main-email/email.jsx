@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Search, Send, Settings, Database, AlertCircle, CheckCircle, Clock, Users, Eye, Trash2, Download, RefreshCw } from 'lucide-react';
+import { Mail, Search, Send, Settings, Database, AlertCircle, CheckCircle, Clock, Users, Eye, Trash2, Download, RefreshCw, Target, TrendingUp, FileText } from 'lucide-react';
 
 const EmailOutreachSystem = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -22,7 +22,8 @@ const EmailOutreachSystem = () => {
   const [apiConnected, setApiConnected] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState([]);
 
-  const API_URL = 'http://localhost:5000/api';
+  // Use proxy endpoint instead of direct localhost:5000
+  const API_URL = '/email-api';
 
   // Check API connection on mount
   useEffect(() => {
@@ -226,40 +227,33 @@ const EmailOutreachSystem = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Connection Status Banner */}
-        {!apiConnected && (
-          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-red-400" />
-                <span className="text-red-300 font-medium">Backend Not Connected</span>
-                <span className="text-red-400">- Run: python api.py</span>
-              </div>
-              <button
-                onClick={checkApiConnection}
-                className="bg-red-600 text-white px-4 py-1 rounded hover:bg-red-700 flex items-center space-x-1 transition-all"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Retry</span>
-              </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Mail className="text-yellow-300" size={32} />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
+                Email Outreach
+              </h1>
             </div>
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Mail className="w-8 h-8 text-yellow-300" />
-              <div>
-                <h1 className="text-2xl font-bold text-white">Email Outreach Automation</h1>
-                <p className="text-slate-400">Intelligent contact discovery & outreach system</p>
-              </div>
-            </div>
-            <div className="flex space-x-2">
-              <button
+            <div className="flex items-center gap-2">
+              {!apiConnected && (
+                <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/50 rounded-lg px-4 py-2">
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                  <span className="text-red-300 text-sm font-medium">Backend Not Connected</span>
+                  <button
+                    onClick={checkApiConnection}
+                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center gap-1 transition-all text-sm"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Retry</span>
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
                 onClick={startRealScan}
                 disabled={isScanning || !apiConnected}
                 className="bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-yellow-500/50 disabled:bg-slate-600 disabled:text-slate-400 flex items-center space-x-2 font-semibold transition-all"
@@ -283,10 +277,42 @@ const EmailOutreachSystem = () => {
                 <Download className="w-4 h-4" />
                 <span>Export</span>
               </button>
+              </div>
             </div>
           </div>
-        </div>
 
+          {/* Horizontal Navigation */}
+          <nav className="flex gap-2 overflow-x-auto pb-2">
+            {[
+              { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
+              { id: 'emails', label: 'Emails', icon: Mail },
+              { id: 'interests', label: 'Interests', icon: Target },
+              { id: 'template', label: 'Template', icon: FileText },
+              { id: 'settings', label: 'Settings', icon: Settings }
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg transition-all whitespace-nowrap ${
+                    activeTab === item.id
+                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border-2 border-yellow-300/30'
+                      : 'bg-slate-700/30 hover:bg-slate-700/50 border-2 border-transparent'
+                  }`}
+                >
+                  <Icon size={18} className={activeTab === item.id ? 'text-yellow-300' : ''} />
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="p-6 lg:p-8 relative">
+        <div className="max-w-7xl mx-auto">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg shadow border border-slate-700/50 p-6">
@@ -327,25 +353,8 @@ const EmailOutreachSystem = () => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 mb-6">
-          <div className="flex border-b border-slate-700/50">
-            {['dashboard', 'emails', 'interests', 'template', 'settings'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 font-medium capitalize transition-all ${
-                  activeTab === tab
-                    ? 'border-b-2 border-yellow-300 text-yellow-300'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          <div className="p-6">
+        {/* Tab Content Container */}
+        <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 p-6 mb-6">
             {/* Dashboard Tab */}
             {activeTab === 'dashboard' && (
               <div>
@@ -623,9 +632,9 @@ Variables available: {{name}}, {{email}}, {{interest}}, {{company}}`}
                 </div>
               </div>
             )}
-          </div>
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };

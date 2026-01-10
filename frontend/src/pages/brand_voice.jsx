@@ -239,6 +239,65 @@ const BrandVoiceDashboard = () => {
   };
 
   return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Megaphone className="text-yellow-300" size={32} />
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
+                Brand Voice
+              </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              {currentBrand && (
+                <>
+                  <button onClick={() => { setCurrentBrand(null); setBrandVoice({ name: '', tone: '', personality: [], writingStyle: '', messagingPillars: ['', '', ''], keywordsUse: [], keywordsAvoid: [], targetAudience: '', brandGoals: '', seedCorpus: '', is_active: true }); }} className="flex items-center gap-2 bg-slate-700/50 hover:bg-slate-700 text-gray-100 px-4 py-2 rounded-lg font-semibold transition-colors">
+                    <Plus size={20} />
+                    <span>New Brand</span>
+                  </button>
+                  <button onClick={() => deleteBrand(currentBrand.id, false)} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                    <Trash2 size={20} />
+                    <span>Delete</span>
+                  </button>
+                </>
+              )}
+              <button onClick={saveBrandVoice} disabled={loading} className="flex items-center gap-2 bg-gradient-to-r from-yellow-200 to-pink-300 text-gray-900 px-6 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+                <Save size={20} />
+                <span>{currentBrand ? 'Update' : 'Create'} Brand</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Horizontal Navigation */}
+          <nav className="flex gap-2 overflow-x-auto pb-2">
+            {[
+              { id: 'brand-voice', label: 'Brand Voice', icon: Megaphone },
+              { id: 'all-brands', label: `All Brands (${totalBrands})`, icon: FileText }
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setCurrentTab(item.id)}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg transition-all whitespace-nowrap ${
+                    currentTab === item.id
+                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border-2 border-yellow-300/30'
+                      : 'bg-slate-700/30 hover:bg-slate-700/50 border-2 border-transparent'
+                  }`}
+                >
+                  <Icon size={18} className={currentTab === item.id ? 'text-yellow-300' : ''} />
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="p-6 lg:p-8 relative">
     <div className="space-y-6">
       {/* Notifications */}
       {(successMessage || error) && (
@@ -258,59 +317,6 @@ const BrandVoiceDashboard = () => {
           </div>
         </div>
       )}
-
-      {/* Page Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Megaphone className="text-yellow-300" size={36} />
-            Brand Voice Settings
-          </h1>
-          <p className="text-slate-400 mt-1">
-            {currentBrand ? `Editing: ${currentBrand.name}` : 'Create a new brand voice'}
-          </p>
-        </div>
-        <div className="flex items-center space-x-3">
-          {currentBrand && (
-            <>
-              <button onClick={() => { setCurrentBrand(null); setBrandVoice({ name: '', tone: '', personality: [], writingStyle: '', messagingPillars: ['', '', ''], keywordsUse: [], keywordsAvoid: [], targetAudience: '', brandGoals: '', seedCorpus: '', is_active: true }); }} className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-gray-100 px-4 py-3 rounded-lg font-semibold transition-colors">
-                <Plus size={20} />
-                <span>New Brand</span>
-              </button>
-              <button onClick={() => deleteBrand(currentBrand.id, false)} className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-semibold transition-colors">
-                <Trash2 size={20} />
-                <span>Delete</span>
-              </button>
-            </>
-          )}
-          <button onClick={saveBrandVoice} disabled={loading} className="flex items-center space-x-2 bg-gradient-to-r from-yellow-200 to-pink-300 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
-            <Save size={20} />
-            <span>{currentBrand ? 'Update' : 'Create'} Brand</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="flex space-x-2 border-b border-gray-700 pb-4 mb-6">
-        <button 
-          onClick={() => setCurrentTab('brand-voice')} 
-          className={`px-4 py-2 rounded-lg transition-colors ${currentTab === 'brand-voice' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`}
-        >
-          <div className="flex items-center space-x-2">
-            <Megaphone size={18} />
-            <span>Brand Voice</span>
-          </div>
-        </button>
-        <button 
-          onClick={() => setCurrentTab('all-brands')} 
-          className={`px-4 py-2 rounded-lg transition-colors ${currentTab === 'all-brands' ? 'bg-yellow-200/20 text-yellow-200' : 'hover:bg-gray-700'}`}
-        >
-          <div className="flex items-center space-x-2">
-            <FileText size={18} />
-            <span>All Brands ({totalBrands})</span>
-          </div>
-        </button>
-      </div>
 
       {/* Tab Content */}
       {currentTab === 'all-brands' ? (
@@ -507,6 +513,8 @@ const BrandVoiceDashboard = () => {
               </div>
             </div>
           )}
+    </div>
+      </main>
     </div>
   );
 };
