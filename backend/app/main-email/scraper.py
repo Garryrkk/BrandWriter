@@ -108,106 +108,9 @@ class EmailScraper:
         return list(set(urls))[:num_results]
     
     def get_company_directories(self, interest):
-        """Get URLs from company directories based on interest"""
-        directory_urls = []
-        
-        interest_lower = interest.lower()
-        
-        if 'ai' in interest_lower or 'artificial' in interest_lower:
-            directory_urls.extend([
-                'https://stability.ai/contact',
-                'https://huggingface.co/contact',
-                'https://www.anthropic.com/',
-                'https://cohere.com/contact',
-                'https://scale.com/contact',
-                'https://www.jasper.ai/contact',
-                'https://writer.com/contact/',
-                'https://www.copy.ai/contact',
-                'https://runwayml.com/contact/',
-            ])
-        
-        if 'tech' in interest_lower or 'software' in interest_lower:
-            directory_urls.extend([
-                'https://www.atlassian.com/company/contact',
-                'https://www.twilio.com/company/contact',
-                'https://www.datadog.com/company/contact/',
-                'https://www.elastic.co/contact',
-                'https://www.cloudflare.com/company/contact/',
-                'https://www.digitalocean.com/company/contact/',
-                'https://www.linode.com/company/contact/',
-            ])
-        
-        if 'marketing' in interest_lower or 'email' in interest_lower:
-            directory_urls.extend([
-                'https://mailchimp.com/contact/',
-                'https://www.activecampaign.com/contact',
-                'https://www.getresponse.com/about/contact',
-                'https://www.sendinblue.com/contact/',
-                'https://www.constantcontact.com/about/contact-us',
-                'https://www.mailerlite.com/contact',
-                'https://convertkit.com/contact',
-                'https://www.drip.com/contact',
-            ])
-        
-        if 'startup' in interest_lower or 'business' in interest_lower:
-            directory_urls.extend([
-                'https://www.stripe.com/contact',
-                'https://www.gusto.com/about/contact',
-                'https://www.zendesk.com/company/contact/',
-                'https://www.intercom.com/company/contact',
-                'https://www.freshworks.com/company/contact/',
-                'https://www.drift.com/contact/',
-            ])
-        
-        if 'finance' in interest_lower or 'fintech' in interest_lower:
-            directory_urls.extend([
-                'https://stripe.com/contact',
-                'https://www.plaid.com/contact',
-                'https://www.brex.com/contact',
-                'https://ramp.com/contact',
-                'https://www.mercury.com/contact',
-                'https://wise.com/help/contact',
-            ])
-        
-        if 'saas' in interest_lower or 'software' in interest_lower:
-            directory_urls.extend([
-                'https://www.notion.so/contact',
-                'https://slack.com/help/contact',
-                'https://www.figma.com/contact/',
-                'https://www.canva.com/contact/',
-                'https://www.airtable.com/contact-sales',
-                'https://www.monday.com/contact-us',
-                'https://asana.com/company/contact',
-                'https://clickup.com/contact',
-            ])
-        
-        if 'ecommerce' in interest_lower or 'shop' in interest_lower:
-            directory_urls.extend([
-                'https://www.shopify.com/contact',
-                'https://www.bigcommerce.com/company/contact/',
-                'https://woocommerce.com/contact-us/',
-                'https://www.squarespace.com/contact',
-            ])
-        
-        if 'health' in interest_lower or 'medical' in interest_lower:
-            directory_urls.extend([
-                'https://www.zocdoc.com/about/contact',
-                'https://www.doctolib.com/contact',
-                'https://www.teladoc.com/contact/',
-            ])
-        
-        # Default - add some general tech companies
-        if not directory_urls:
-            directory_urls.extend([
-                'https://www.github.com/contact',
-                'https://about.gitlab.com/company/contact/',
-                'https://www.digitalocean.com/company/contact/',
-                'https://www.heroku.com/contact',
-                'https://vercel.com/contact',
-                'https://www.netlify.com/contact/',
-            ])
-        
-        return directory_urls
+        """Get URLs from company directories based on interest - DISABLED to focus on small businesses"""
+        # Disabled hardcoded big companies - we'll rely on search results only
+        return []
     
     def search_google(self, query, num_results=30):
         """Main search function combining multiple sources"""
@@ -222,14 +125,14 @@ class EmailScraper:
         all_urls.extend(directory_urls)
         print(f"[SCRAPER] Got {len(directory_urls)} directory URLs for '{interest}'")
         
-        # 2. Try Bing search
+        # 2. Try Bing search - targeting small businesses and startups
         time.sleep(1)
-        bing_urls = self.search_bing(f"{interest} company contact email", num_results // 2)
+        bing_urls = self.search_bing(f"{interest} startup small business contact email -enterprise -corporation", num_results // 2)
         all_urls.extend(bing_urls)
         
-        # 3. Try DuckDuckGo Lite
+        # 3. Try DuckDuckGo Lite - targeting indie/small companies
         time.sleep(1)
-        ddg_urls = self.search_duckduckgo_lite(f"{interest} contact us email", num_results // 2)
+        ddg_urls = self.search_duckduckgo_lite(f"small {interest} company founder email contact", num_results // 2)
         all_urls.extend(ddg_urls)
         
         # Remove duplicates and limit
