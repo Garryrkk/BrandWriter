@@ -3,21 +3,10 @@ import React, { useState } from 'react';
 import { Home, Activity, Users, Settings, BarChart3, Download, Menu, X, Brain, Target, ArrowLeft, ExternalLink, Check, XCircle, StickyNote, Calendar, Award, TrendingUp, Briefcase, MapPin, Mail, Phone } from 'lucide-react';
 
 const LeadDetailPage = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('leads');
   const [note, setNote] = useState('');
 
   const floatingIcons = [
     { Icon: Brain, top: '10%', left: '15%', size: 32, opacity: 0.1 },
-  ];
-
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', id: 'dashboard' },
-    { icon: Activity, label: 'Discovery Runs', id: 'runs' },
-    { icon: Users, label: 'Lead Inbox', id: 'leads' },
-    { icon: Settings, label: 'Rules & Targeting', id: 'rules' },
-    { icon: BarChart3, label: 'Analytics', id: 'analytics' },
-    { icon: Download, label: 'Exports', id: 'exports' },
   ];
 
   const leadDetail = {
@@ -74,9 +63,6 @@ const LeadDetailPage = () => {
       <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2 hover:bg-slate-700/50 rounded-lg transition-colors">
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
             <div className="flex items-center gap-2">
               <Target className="text-yellow-300" size={32} />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
@@ -97,26 +83,6 @@ const LeadDetailPage = () => {
       </header>
 
       <div className="flex">
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 h-screen w-64 bg-slate-800/30 backdrop-blur-md border-r border-slate-700/50 transition-transform duration-300 z-40 pt-20 lg:pt-0`}>
-          <nav className="p-4 space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    activeTab === item.id ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border border-yellow-300/30' : 'hover:bg-slate-700/30'
-                  }`}
-                >
-                  <Icon size={20} className={activeTab === item.id ? 'text-yellow-300' : ''} />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
         <main className="flex-1 p-6 lg:p-8 relative z-10">
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">

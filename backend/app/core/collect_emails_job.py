@@ -1,6 +1,5 @@
 from app.db.database import SessionLocal
 from app.models.source import Source
-from app.models.email import Email
 from app.services.collector import collect_from_website
 from app.services.validator import is_valid
 

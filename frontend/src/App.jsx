@@ -9,6 +9,7 @@ import {
 
 // ============ REAL PAGE IMPORTS ============
 import EmailOutreachSystem from './main-email/email';
+import LeadDashboard from './linkedin/lead-discovery';
 import BasketPageContent from './pages/basket';
 import HistoryPage from './pages/history';
 import TemplatesPage from './pages/templates';
@@ -136,9 +137,10 @@ const Sidebar = ({ currentPage, setCurrentPage, sidebarOpen, setSidebarOpen }) =
     { icon: ShoppingBasket, label: 'Basket', id: 'basket' },
     { icon: History, label: 'History', id: 'history' },
     { icon: Calendar, label: 'Schedule', id: 'schedule' },
-    { icon: BookOpen, label: 'Templates', id: 'templates' },
+    { icon: BookOpen, label: 'Templates', id: 'templates' }, 
     { icon: Mic, label: 'Brand Voice', id: 'brand' },
-    { icon: Mail, label: 'Email Stats', id: 'email' }
+    { icon: Mail, label: 'Email Stats', id: 'email' },
+    { icon: Linkedin, label: 'Lead Dashboard', id: 'lead-dashboard' },
   ];
 
   return (
@@ -148,7 +150,6 @@ const Sidebar = ({ currentPage, setCurrentPage, sidebarOpen, setSidebarOpen }) =
       }`}
     >
       <div className="p-8 text-[18px]">
-        {/* Close button - only visible when sidebar is open */}
         <button
           onClick={() => setSidebarOpen(false)}
           className="absolute right-4 top-10 bg-gray-800 border border-gray-700 rounded-full p-2 hover:bg-gray-700 transition"
@@ -239,142 +240,129 @@ const Dashboard = ({ setCurrentPage }) => {
   return (
     <div className="space-y-2">
       <FloatingIcons />
-<div className="w-screen relative left-[5%]">
-
-
-      <div className="flex justify-between items-center px-36">
-
-            {/* LEFT SIDE */}
+      <div className="w-screen relative left-[5%]">
+        <div className="flex justify-between items-center px-36">
           <div className="lg:ml-46">
-          <h1 className="text-6xl font-bold text-white mb-3">
-            Dashboard
-            </h1>
-          <p className="text-gray-400">
-            Today's Performance Overview
-            </p>
-        </div>
-            {/* RIGHT SIDE */}
-        <div className="flex items-center gap-8 bg-green-900/20 text-green-500 px-10 py-8 rounded-lg border border-green-900/30">
-          <Zap size={19} />
-          <span className="text-sm font-medium">
-            System Active
-            </span>
+            <h1 className="text-6xl font-bold text-white mb-3">Dashboard</h1>
+            <p className="text-gray-400">Today's Performance Overview</p>
+          </div>
+          <div className="flex items-center gap-8 bg-green-900/20 text-green-500 px-10 py-8 rounded-lg border border-green-900/30">
+            <Zap size={19} />
+            <span className="text-sm font-medium">System Active</span>
+          </div>
         </div>
       </div>
-    </div>
             
-            <div className="w-screen relative left-[4%]">
+      <div className="w-screen relative left-[4%]">
         <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-5">
-
-        {platforms.map((platform) => (
-          <StatCard
-            key={platform}
-            icon={
-              platform === "instagram" ? Instagram :
-              platform === "linkedin" ? Linkedin :
-              platform === "email" ? Mail :
-              platform === "youtube" ? Youtube :
-              platform === "medium" ? BookOpen : Home
-            }
-            platform={
-              platform === "medium"
-                ? "Medium / Newsletter"
-                : platform.charAt(0).toUpperCase() + platform.slice(1)
-            }
-            color={
-              platform === "instagram" ? "from-pink-500 to-purple-600" :
-              platform === "linkedin" ? "from-blue-500 to-blue-600" :
-              platform === "youtube" ? "from-red-500 to-red-600" :
-              platform === "medium" ? "from-orange-500 to-amber-600" :
-              "from-emerald-500 to-teal-600"
-            }
-            stats={state.stats[platform]}
-            onClick={() => {
-              if (platform === 'linkedin') setCurrentPage('generate-linkedin');
-              if (platform === 'instagram') setCurrentPage('generate-instagram');
-              if (platform === 'youtube') setCurrentPage('generate-youtube');
-              if (platform === 'email') setCurrentPage('generate-email');
-              if (platform === 'medium') setCurrentPage('generate-medium');
-            }}
-          />
-        ))}
+          {platforms.map((platform) => (
+            <StatCard
+              key={platform}
+              icon={
+                platform === "instagram" ? Instagram :
+                platform === "linkedin" ? Linkedin :
+                platform === "email" ? Mail :
+                platform === "youtube" ? Youtube :
+                platform === "medium" ? BookOpen : Home
+              }
+              platform={
+                platform === "medium"
+                  ? "Medium / Newsletter"
+                  : platform.charAt(0).toUpperCase() + platform.slice(1)
+              }
+              color={
+                platform === "instagram" ? "from-pink-500 to-purple-600" :
+                platform === "linkedin" ? "from-blue-500 to-blue-600" :
+                platform === "youtube" ? "from-red-500 to-red-600" :
+                platform === "medium" ? "from-orange-500 to-amber-600" :
+                "from-emerald-500 to-teal-600"
+              }
+              stats={state.stats[platform]}
+              onClick={() => {
+                if (platform === 'linkedin') setCurrentPage('generate-linkedin');
+                if (platform === 'instagram') setCurrentPage('generate-instagram');
+                if (platform === 'youtube') setCurrentPage('generate-youtube');
+                if (platform === 'email') setCurrentPage('generate-email');
+                if (platform === 'medium') setCurrentPage('generate-medium');
+              }}
+            />
+          ))}
+        </div>
       </div>
-      </div>
 
-                   <div className="w-screen relative left-[4%]">
-      <div className="grid grid-cols-8 lg:grid-cols-8 gap-8">
-        <div className="lg:col-span-3 bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
-          <h2 className="text-4xl font-bold text-white mb-6 flex items-center gap-8">
-            <Bot className="text-yellow-300" />
-            Auto-Generated Content Feed
-          </h2>
-          <div className="space-y-7 max-h-98 overflow-y-auto pr-3">
-            {state.autoGenFeed.map(item => (
-              <FeedItem 
-                key={item.id} 
-                item={item}
-                onEdit={openEdit}
-                onImprove={openImprove}
-                onPreview={openPreview}
-                onAddToBasket={addToBasket}
-              />
-            ))}
+      <div className="w-screen relative left-[4%]">
+        <div className="grid grid-cols-8 lg:grid-cols-8 gap-8">
+          <div className="lg:col-span-3 bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
+            <h2 className="text-4xl font-bold text-white mb-6 flex items-center gap-8">
+              <Bot className="text-yellow-300" />
+              Auto-Generated Content Feed
+            </h2>
+            <div className="space-y-7 max-h-98 overflow-y-auto pr-3">
+              {state.autoGenFeed.map(item => (
+                <FeedItem 
+                  key={item.id} 
+                  item={item}
+                  onEdit={openEdit}
+                  onImprove={openImprove}
+                  onPreview={openPreview}
+                  onAddToBasket={addToBasket}
+                />
+              ))}
+            </div>
           </div>
         </div>
-        </div>
+      </div>
 
-        <div className="w-screen relative left-[0.3%]">
-                <div className="grid grid-cols-6 lg:grid-cols-4 gap-8">
-
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
-          <h2 className="text-4xl font-bold text-white mb-4 flex items-center gap-4">
-            <Clock className="text-pink-300" />
-            Today's Schedule
-          </h2>
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-3">
-            {state.todaySchedule.map((item, idx) => (
-              <ScheduleItem key={idx} item={item} />
-            ))}
+      <div className="w-screen relative left-[0.3%]">
+        <div className="grid grid-cols-6 lg:grid-cols-4 gap-8">
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700">
+            <h2 className="text-4xl font-bold text-white mb-4 flex items-center gap-4">
+              <Clock className="text-pink-300" />
+              Today's Schedule
+            </h2>
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-3">
+              {state.todaySchedule.map((item, idx) => (
+                <ScheduleItem key={idx} item={item} />
+              ))}
+            </div>
+            <button 
+              onClick={() => setCurrentPage('schedule')}
+              className="w-full mt-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all"
+            >
+              Open Full Scheduler
+            </button>
           </div>
-          <button 
-            onClick={() => setCurrentPage('schedule')}
-            className="w-full mt-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all"
-          >
-            Open Full Scheduler
-          </button>
         </div>
-      </div>
-      </div>
       </div>
       
-        <div className="w-screen relative left-[3%]">
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-        <h2 className="text-4xl font-bold text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-7 md:grid-cols-7 lg:grid-cols-4 gap-12">
-          <QuickAction icon={Linkedin} label="LinkedIn Post" onClick={() => setCurrentPage('generate-linkedin')} />
-          <QuickAction icon={Instagram} label="IG Reel" onClick={() => setCurrentPage('generate-instagram')} />
-          <QuickAction icon={Instagram} label="IG Carousel" onClick={() => setCurrentPage('generate-instagram')} />
-          <QuickAction icon={Youtube} label="YouTube Short" onClick={() => setCurrentPage('generate-youtube')} />
-          <QuickAction icon={Mail} label="Newsletter" onClick={() => setCurrentPage('generate-medium')} />
-          <QuickAction icon={Mail} label="Cold Email" onClick={() => setCurrentPage('generate-email')} />
-          <QuickAction icon={MessageSquare} label="Cold DM" onClick={() => setCurrentPage('quickgen')} />
-          <QuickAction icon={TrendingUp} label="Lead List" onClick={() => setCurrentPage('quickgen')} />
-          <QuickAction icon={Sparkles} label="Brand Ideas" onClick={() => setCurrentPage('brand')} />
+      <div className="w-screen relative left-[3%]">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
+          <h2 className="text-4xl font-bold text-white mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-7 md:grid-cols-7 lg:grid-cols-4 gap-12">
+            <QuickAction icon={Linkedin} label="LinkedIn Post" onClick={() => setCurrentPage('generate-linkedin')} />
+            <QuickAction icon={Instagram} label="IG Reel" onClick={() => setCurrentPage('generate-instagram')} />
+            <QuickAction icon={Instagram} label="IG Carousel" onClick={() => setCurrentPage('generate-instagram')} />
+            <QuickAction icon={Youtube} label="YouTube Short" onClick={() => setCurrentPage('generate-youtube')} />
+            <QuickAction icon={Mail} label="Newsletter" onClick={() => setCurrentPage('generate-medium')} />
+            <QuickAction icon={Mail} label="Cold Email" onClick={() => setCurrentPage('generate-email')} />
+            <QuickAction icon={MessageSquare} label="Cold DM" onClick={() => setCurrentPage('quickgen')} />
+            <QuickAction icon={TrendingUp} label="Lead List" onClick={() => setCurrentPage('quickgen')} />
+            <QuickAction icon={Sparkles} label="Brand Ideas" onClick={() => setCurrentPage('brand')} />
+          </div>
         </div>
-      </div>
       </div>
          
-                 <div className="w-screen relative left-[3%]">
-      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
-        <h2 className="text-4xl font-bold text-white mb-6">Content Pipeline</h2>
-        <div className="space-y-4">
-          <PipelineBar label="Auto-Generated" count={120} max={150} color="bg-yellow-300" />
-          <PipelineBar label="Drafts" count={43} max={150} color="bg-blue-400" />
-          <PipelineBar label="Basket" count={18} max={150} color="bg-purple-400" />
-          <PipelineBar label="Scheduled" count={27} max={150} color="bg-pink-400" />
-          <PipelineBar label="Published" count={11} max={150} color="bg-green-400" />
+      <div className="w-screen relative left-[3%]">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-700">
+          <h2 className="text-4xl font-bold text-white mb-6">Content Pipeline</h2>
+          <div className="space-y-4">
+            <PipelineBar label="Auto-Generated" count={120} max={150} color="bg-yellow-300" />
+            <PipelineBar label="Drafts" count={43} max={150} color="bg-blue-400" />
+            <PipelineBar label="Basket" count={18} max={150} color="bg-purple-400" />
+            <PipelineBar label="Scheduled" count={27} max={150} color="bg-pink-400" />
+            <PipelineBar label="Published" count={11} max={150} color="bg-green-400" />
+          </div>
         </div>
-      </div>
       </div>
       
       {state.editModal && (
@@ -678,6 +666,8 @@ const App = () => {
         return <TemplatesPage />;
       case 'brand':
         return <BrandVoicePage />;
+      case 'lead-dashboard':
+        return <LeadDashboard />;
       default:
         return <Dashboard setCurrentPage={setCurrentPage} />;
     }
@@ -685,7 +675,6 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-[18px]">
-      {/* FLOATING HAMBURGER BUTTON - Only shows when sidebar is CLOSED */}
       {!sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}

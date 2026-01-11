@@ -3,9 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
 from app.schemas.send import SendDailyOut
-from app.models.email import Email
-from app.models.daily_send import DailySend
-from app.models.send_log import SendLog
 from datetime import date, datetime
 import random
 

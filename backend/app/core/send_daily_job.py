@@ -1,8 +1,6 @@
 from app.services.selector import select_daily
 from app.services.sender import send_email
 from app.db.database import SessionLocal
-from app.models.daily_send import DailySend
-from app.models.send_log import SendLog
 from datetime import date
 
 def send_daily_job():
