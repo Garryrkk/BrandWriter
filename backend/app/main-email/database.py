@@ -29,6 +29,31 @@ class Database:
                 created_date DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS raw_emails (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL,
+                source_url TEXT,
+                interests TEXT,
+                created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(email, source_url)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS low_score_emails (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL,
+                source_url TEXT,
+                interests TEXT,
+                score INTEGER,
+                role TEXT,
+                is_valid BOOLEAN DEFAULT 0,
+                created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(email, source_url)
+            )
+        ''')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS campaigns (
@@ -66,6 +91,53 @@ class Database:
             return True
         except sqlite3.IntegrityError:
             return False  # Email already exists
+        finally:
+            conn.close()
+
+    def add_raw_email(self, email_data):
+        """Store raw extracted emails before validation/scoring."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                INSERT OR IGNORE INTO raw_emails (email, source_url, interests)
+                VALUES (?, ?, ?)
+            ''', (
+                email_data.get('email'),
+                email_data.get('source_url'),
+                json.dumps(email_data.get('interests', [])),
+            ))
+            conn.commit()
+            return True
+        except Exception as exc:
+            logger.debug(f"Raw insert failed: {exc}")
+            return False
+        finally:
+            conn.close()
+
+    def add_low_score_email(self, email_data):
+        """Store low-score leads so discovery is never blocked."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                INSERT OR IGNORE INTO low_score_emails (email, source_url, interests, score, role, is_valid)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                email_data.get('email'),
+                email_data.get('source_url'),
+                json.dumps(email_data.get('interests', [])),
+                email_data.get('score'),
+                email_data.get('role'),
+                email_data.get('is_valid', False),
+            ))
+            conn.commit()
+            return True
+        except Exception as exc:
+            logger.debug(f"Low-score insert failed: {exc}")
+            return False
         finally:
             conn.close()
     
