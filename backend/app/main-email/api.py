@@ -10,6 +10,77 @@ import logging
 import threading
 import time
 
+
+class LeadScorer:
+    """Score and filter leads to target small product startups."""
+
+    def __init__(self):
+        self.reject_role_tokens = [
+            'marketing', 'growth', 'sales', 'partnership', 'hr', 'recruiter', 'community',
+            'coach', 'consultant', 'agency', 'evangelist'
+        ]
+        self.engineering_tokens = ['engineer', 'eng', 'dev', 'developer', 'platform', 'infra']
+        self.head_tokens = ['head', 'vp', 'lead', 'principal', 'staff']
+
+    def build_mix_targets(self, total):
+        targets = {
+            'founder': max(1, int(total * 0.35)),
+            'cto': max(1, int(total * 0.25)),
+            'engineer': max(1, int(total * 0.2)),
+            'head': max(1, int(total * 0.05)),
+        }
+        while sum(targets.values()) > total and targets['head'] > 0:
+            targets['head'] -= 1
+        return targets
+
+    def classify_role(self, email: str, signals: dict) -> Optional[str]:
+        local = email.split('@')[0].lower()
+        if any(tok in local for tok in self.reject_role_tokens):
+            return 'rejected'
+        if 'founder' in local or 'cofounder' in local or 'co-founder' in local:
+            return 'founder'
+        if 'cto' in local or 'chieftechnologyofficer' in local.replace('.', ''):
+            return 'cto'
+
+        text_hits = signals.get('title_hits', set()) if signals else set()
+        if any('founder' in t for t in text_hits):
+            return 'founder'
+        if any('cto' in t for t in text_hits):
+            return 'cto'
+        if any(tok in local for tok in self.head_tokens) or any('head of engineering' in t or 'vp engineering' in t for t in text_hits):
+            return 'head'
+        if any(tok in local for tok in self.engineering_tokens) or any('engineer' in t for t in text_hits):
+            return 'engineer'
+
+        return None
+
+    def score(self, email: str, signals: dict, role: Optional[str]) -> int:
+        score = 0
+        if role == 'founder':
+            score += 40
+        elif role == 'cto':
+            score += 40
+        elif role in ['head']:
+            score += 10
+        elif role == 'engineer':
+            score += 30
+
+        if signals.get('has_product_keywords'):
+            score += 10
+        if signals.get('has_agency_keywords'):
+            score -= 50
+
+        local = email.split('@')[0].lower()
+        if any(tok in local for tok in self.reject_role_tokens):
+            score -= 30
+
+        return score
+
+    def within_mix(self, role: Optional[str], counts: dict, targets: dict) -> bool:
+        if role not in targets:
+            return False
+        return counts.get(role, 0) < targets[role]
+
 app = FastAPI()
 
 # CORS configuration
@@ -24,6 +95,7 @@ app.add_middleware(
 db = Database()
 scraper = EmailScraper()
 validator = EmailValidator()
+scorer = LeadScorer()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -129,16 +201,26 @@ async def start_scan(data: ScanRequest):
             scan_status['is_scanning'] = True
             scan_status['progress'] = 0
             scan_status['total'] = target_count
-            
+            counters = {
+                'pages_scanned': 0,
+                'emails_extracted': 0,
+                'emails_filtered': 0,
+                'emails_scored': 0,
+                'emails_collected': 0,
+            }
+
             collected = 0
+            role_counts = {'founder': 0, 'cto': 0, 'engineer': 0, 'head': 0}
+            mix_targets = scorer.build_mix_targets(target_count)
             print(f"[SCAN] Starting scan for interests: {interests}")
             logger.info(f"Starting scan for {interests}")
-            
+
             for interest in interests:
                 if collected >= target_count:
                     break
-                
+
                 try:
+<<<<<<< HEAD
                     # Search for relevant websites
                     query = f"{interest} contact email"
                     print(f"[SCAN] Searching for: {query}")
@@ -148,62 +230,175 @@ async def start_scan(data: ScanRequest):
                     print(f"[SCAN] Found {len(urls)} URLs to scrape")
                     logger.info(f"Found {len(urls)} URLs to scrape")
                     
+=======
+                    # Use site-finding queries (product-first)
+                    query = f"{interest} saas startup site pricing"
+                    print(f"[SCAN] Searching for: {query}")
+                    logger.info(f"Searching for: {query}")
+
+                    urls = scraper.search_google(query, num_results=60)
+
+                    big_company_domains = [
+                        'microsoft', 'google', 'facebook', 'meta', 'amazon', 'apple',
+                        'oracle', 'salesforce', 'adobe', 'ibm', 'sap', 'cisco',
+                        'stripe', 'shopify', 'mailchimp', 'hubspot', 'zendesk',
+                        'atlassian', 'slack', 'notion', 'figma', 'canva', 'asana',
+                        'twilio', 'cloudflare', 'digitalocean', 'heroku', 'netlify'
+                    ]
+
+                    filtered_urls = []
+                    curated_cap = max(1, target_count // 7)  # limit curated to ~15%
+                    curated_used = 0
+                    for url in urls:
+                        url_lower = url.lower()
+                        if any(big_domain in url_lower for big_domain in big_company_domains):
+                            continue
+                        # limit curated sources
+                        if 'cal.com' in url_lower or 'supabase.com' in url_lower or 'modal.com' in url_lower:
+                            if curated_used >= curated_cap:
+                                continue
+                            curated_used += 1
+                        filtered_urls.append(url)
+
+                    print(f"[SCAN] Found {len(filtered_urls)} URLs after filtering")
+                    logger.info(f"Found {len(filtered_urls)} URLs to scrape (filtered from {len(urls)})")
+
+                    urls = filtered_urls
+
+>>>>>>> 3a184d8561b71a85f42ac2b5763145af457890ef
                     for url in urls:
                         if collected >= target_count:
                             break
-                        
+
                         try:
-                            # Find contact pages
                             contact_urls = scraper.find_contact_pages(url)
-                            
-                            for contact_url in contact_urls[:3]:  # Limit to 3 pages per site
+
+                            for contact_url in contact_urls:
                                 if collected >= target_count:
                                     break
+                                counters['pages_scanned'] += 1
+                                scrape_result = scraper.scrape_website(contact_url)
+                                signals = scrape_result.get('signals', {}) if isinstance(scrape_result, dict) else {}
+
+                                raw_emails = []
+                                if isinstance(scrape_result, dict):
+                                    raw_emails = scrape_result.get('raw_emails', []) or scrape_result.get('emails', []) or []
+                                    emails = scrape_result.get('emails', []) or []
+                                else:
+                                    raw_emails = scrape_result
+                                    emails = scrape_result
+
+                                raw_emails = list(dict.fromkeys(raw_emails))
+                                counters['emails_extracted'] += len(raw_emails)
+
+                                # Assertion: extraction should always be attempted
+                                assert counters['pages_scanned'] > 0, "pages_scanned should be positive"
                                 
-                                # Scrape emails
-                                emails = scraper.scrape_website(contact_url)
-                                print(f"[SCAN] Found {len(emails)} emails on {contact_url}")
-                                logger.info(f"Found {len(emails)} emails on {contact_url}")
-                                
-                                for email in emails:
-                                    if collected >= target_count:
-                                        break
-                                    
-                                    # Validate email
-                                    is_valid, reason = validator.validate(email)
-                                    
-                                    if is_valid:
-                                        email_data = {
+                                if counters['pages_scanned'] > 0 and counters['emails_extracted'] == 0:
+                                    logger.debug(f"Zero extraction on page #{counters['pages_scanned']}: {contact_url}")
+
+                                print(f"[SCAN] Extracted {len(raw_emails)} raw emails from {contact_url}")
+                                logger.info(f"[EXTRACT] {len(raw_emails)} raw emails from {contact_url}")
+
+                                for raw_email in raw_emails:
+                                    email = raw_email.strip().lower()
+
+                                    # Store raw immediately (non-blocking validation)
+                                    try:
+                                        db.add_raw_email({
                                             'email': email,
                                             'source_url': contact_url,
                                             'interests': [interest],
-                                            'is_verified': True
-                                        }
-                                        
-                                        if db.add_email(email_data):
-                                            collected += 1
-                                            scan_status['progress'] = collected
-                                            print(f"[SCAN] ✓ Collected: {email} ({collected}/{target_count})")
-                                            logger.info(f"✓ Collected: {email} ({collected}/{target_count})")
+                                        })
+                                    except Exception as db_err:
+                                        logger.debug(f"Raw email store issue: {db_err}")
+
+                                    is_valid, reason = validator.validate(
+                                        email,
+                                        strict=False,
+                                        require_personal=False,
+                                        allow_role_based=True,
+                                    )
+
+                                    if not is_valid and 'format' in reason.lower():
+                                        counters['emails_filtered'] += 1
+                                        logger.debug(f"[FILTER] Rejected {email}: {reason}")
+                                        continue
+
+                                    role = scorer.classify_role(email, signals)
+                                    lead_score = scorer.score(email, signals, role)
+                                    counters['emails_scored'] += 1
+
+                                    # Post-extraction agency detection (only affects scoring, not extraction)
+                                    if signals.get('agency_hits', 0) >= 2:
+                                        counters['emails_filtered'] += 1
+                                        logger.debug(f"[FILTER] {email} from agency/enterprise site (hits={signals.get('agency_hits')})")
+                                        continue
+
+                                    if role == 'rejected':
+                                        counters['emails_filtered'] += 1
+                                        continue
+
+                                    if lead_score < 10:
+                                        db.add_low_score_email({
+                                            'email': email,
+                                            'source_url': contact_url,
+                                            'interests': [interest],
+                                            'score': lead_score,
+                                            'role': role,
+                                            'is_valid': is_valid,
+                                        })
+                                        counters['emails_filtered'] += 1
+                                        continue
+
+                                    if role and not scorer.within_mix(role, role_counts, mix_targets):
+                                        counters['emails_filtered'] += 1
+                                        continue
+
+                                    email_data = {
+                                        'email': email,
+                                        'source_url': contact_url,
+                                        'interests': [interest],
+                                        'is_verified': is_valid,
+                                    }
+
+                                    if db.add_email(email_data):
+                                        collected += 1
+                                        counters['emails_collected'] += 1
+                                        if role:
+                                            role_counts[role] = role_counts.get(role, 0) + 1
+                                        scan_status['progress'] = collected
+                                        print(f"[COLLECT] ✓ {email} ({collected}/{target_count}) role={role} score={lead_score}")
+                                        logger.info(f"[COLLECT] Accepted: {email} ({collected}/{target_count}) role={role} score={lead_score}")
                                     else:
-                                        logger.debug(f"✗ Invalid: {email} - {reason}")
-                                
-                                time.sleep(1)  # Rate limiting
-                        
+                                        counters['emails_filtered'] += 1
+
+                                time.sleep(1)
+
                         except Exception as e:
                             logger.error(f"Error scraping {url}: {e}")
                             print(f"[SCAN ERROR] Scraping {url}: {e}")
                             continue
-                    
+
                 except Exception as e:
                     logger.error(f"Error with interest '{interest}': {e}")
                     print(f"[SCAN ERROR] Interest '{interest}': {e}")
                     continue
-            
+
+            if counters['pages_scanned'] > 0 and counters['emails_extracted'] == 0:
+                print("[SCAN WARNING] No emails extracted despite pages scanned. Treat as bug.")
+                logger.warning("No emails extracted despite pages scanned. Treat as bug.")
+
             scan_status['is_scanning'] = False
             print(f"[SCAN] Complete! Collected {collected} emails")
-            logger.info(f"Scan complete! Collected {collected} emails")
-            
+            logger.info(
+                f"Scan complete! Counters: pages_scanned={counters['pages_scanned']}, "
+                f"emails_extracted={counters['emails_extracted']}, "
+                f"emails_filtered={counters['emails_filtered']}, "
+                f"emails_scored={counters['emails_scored']}, "
+                f"emails_collected={counters['emails_collected']}"
+            )
+
         except Exception as e:
             scan_status['is_scanning'] = False
             print(f"[SCAN FATAL ERROR] {e}")
