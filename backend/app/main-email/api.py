@@ -139,32 +139,14 @@ async def start_scan(data: ScanRequest):
                     break
                 
                 try:
-                    # Search for relevant websites - targeting small businesses and startups
-                    query = f"small {interest} startup contact email"
+                    # Search for relevant websites
+                    query = f"{interest} contact email"
                     print(f"[SCAN] Searching for: {query}")
                     logger.info(f"Searching for: {query}")
                     
                     urls = scraper.search_google(query, num_results=30)
-                    
-                    # Filter out big company domains
-                    big_company_domains = [
-                        'microsoft', 'google', 'facebook', 'meta', 'amazon', 'apple',
-                        'oracle', 'salesforce', 'adobe', 'ibm', 'sap', 'cisco',
-                        'stripe', 'shopify', 'mailchimp', 'hubspot', 'zendesk',
-                        'atlassian', 'slack', 'notion', 'figma', 'canva', 'asana',
-                        'twilio', 'cloudflare', 'digitalocean', 'heroku', 'netlify'
-                    ]
-                    
-                    filtered_urls = []
-                    for url in urls:
-                        url_lower = url.lower()
-                        if not any(big_domain in url_lower for big_domain in big_company_domains):
-                            filtered_urls.append(url)
-                    
-                    print(f"[SCAN] Found {len(filtered_urls)} URLs after filtering out big companies")
-                    logger.info(f"Found {len(filtered_urls)} URLs to scrape (filtered from {len(urls)})")
-                    
-                    urls = filtered_urls
+                    print(f"[SCAN] Found {len(urls)} URLs to scrape")
+                    logger.info(f"Found {len(urls)} URLs to scrape")
                     
                     for url in urls:
                         if collected >= target_count:
