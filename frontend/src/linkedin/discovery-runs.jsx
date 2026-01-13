@@ -115,6 +115,10 @@ const DiscoveryRunsPage = () => {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
+  const handleStartDiscovery = () => {
+    alert('Starting new discovery run...');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
       {floatingIcons.map((item, idx) => {
@@ -307,6 +311,17 @@ const DiscoveryRunsPage = () => {
               ))}
             </div>
           </section>
+
+          {/* Start Discovery Button */}
+          <div className="flex justify-center mb-8">
+            <button
+              onClick={handleStartDiscovery}
+              className="px-8 py-4 bg-gradient-to-r from-yellow-400 to-pink-500 hover:from-yellow-500 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-3 text-lg"
+            >
+              <Rocket size={24} />
+              Start Discovery
+            </button>
+          </div>
 
           <footer className="mt-12 pt-8 border-t border-slate-700/50">
             <p className="text-sm text-slate-400">

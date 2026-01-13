@@ -220,17 +220,6 @@ async def start_scan(data: ScanRequest):
                     break
 
                 try:
-<<<<<<< HEAD
-                    # Search for relevant websites
-                    query = f"{interest} contact email"
-                    print(f"[SCAN] Searching for: {query}")
-                    logger.info(f"Searching for: {query}")
-                    
-                    urls = scraper.search_google(query, num_results=30)
-                    print(f"[SCAN] Found {len(urls)} URLs to scrape")
-                    logger.info(f"Found {len(urls)} URLs to scrape")
-                    
-=======
                     # Use site-finding queries (product-first)
                     query = f"{interest} saas startup site pricing"
                     print(f"[SCAN] Searching for: {query}")
@@ -265,7 +254,6 @@ async def start_scan(data: ScanRequest):
 
                     urls = filtered_urls
 
->>>>>>> 3a184d8561b71a85f42ac2b5763145af457890ef
                     for url in urls:
                         if collected >= target_count:
                             break
