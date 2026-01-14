@@ -1,240 +1,292 @@
-import sqlite3
+"""
+Database models and connection for email outreach system
+Uses PostgreSQL with SQLAlchemy ORM
+"""
+
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Enum
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
-import json
-import logging
+import os
+import enum
 
-logger = logging.getLogger(__name__)
+# Database connection
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/email_outreach")
+engine = create_engine(DATABASE_URL, echo=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-class Database:
-    def __init__(self, db_path='emails.db'):
-        self.db_path = db_path
-        self.init_db()
-    
-    def init_db(self):
-        """Initialize database tables"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS emails (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
-                name TEXT,
-                company TEXT,
-                source_url TEXT,
-                interests TEXT,
-                is_verified BOOLEAN DEFAULT 0,
-                is_sent BOOLEAN DEFAULT 0,
-                sent_date DATETIME,
-                created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
 
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS raw_emails (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT NOT NULL,
-                source_url TEXT,
-                interests TEXT,
-                created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(email, source_url)
-            )
-        ''')
+# Enums for status tracking
+class EmailStatus(str, enum.Enum):
+    SCRAPED = "scraped"
+    DRAFT = "draft"
+    QUEUED = "queued"
+    DELETED = "deleted"
 
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS low_score_emails (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT NOT NULL,
-                source_url TEXT,
-                interests TEXT,
-                score INTEGER,
-                role TEXT,
-                is_valid BOOLEAN DEFAULT 0,
-                created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(email, source_url)
-            )
-        ''')
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS campaigns (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                subject TEXT,
-                body TEXT,
-                sent_count INTEGER DEFAULT 0,
-                created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
-        logger.info("✓ Database initialized")
-    
-    def add_email(self, email_data):
-        """Add new email to database"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute('''
-                INSERT INTO emails (email, name, company, source_url, interests, is_verified)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                email_data.get('email'),
-                email_data.get('name'),
-                email_data.get('company'),
-                email_data.get('source_url'),
-                json.dumps(email_data.get('interests', [])),
-                email_data.get('is_verified', False)
-            ))
-            conn.commit()
-            return True
-        except sqlite3.IntegrityError:
-            return False  # Email already exists
-        finally:
-            conn.close()
 
-    def add_raw_email(self, email_data):
-        """Store raw extracted emails before validation/scoring."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+class CampaignStatus(str, enum.Enum):
+    DRAFT = "draft"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    COMPLETED = "completed"
 
-        try:
-            cursor.execute('''
-                INSERT OR IGNORE INTO raw_emails (email, source_url, interests)
-                VALUES (?, ?, ?)
-            ''', (
-                email_data.get('email'),
-                email_data.get('source_url'),
-                json.dumps(email_data.get('interests', [])),
-            ))
-            conn.commit()
-            return True
-        except Exception as exc:
-            logger.debug(f"Raw insert failed: {exc}")
-            return False
-        finally:
-            conn.close()
 
-    def add_low_score_email(self, email_data):
-        """Store low-score leads so discovery is never blocked."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+class ScanStatus(str, enum.Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
-        try:
-            cursor.execute('''
-                INSERT OR IGNORE INTO low_score_emails (email, source_url, interests, score, role, is_valid)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                email_data.get('email'),
-                email_data.get('source_url'),
-                json.dumps(email_data.get('interests', [])),
-                email_data.get('score'),
-                email_data.get('role'),
-                email_data.get('is_valid', False),
-            ))
-            conn.commit()
-            return True
-        except Exception as exc:
-            logger.debug(f"Low-score insert failed: {exc}")
-            return False
-        finally:
-            conn.close()
+
+class VerificationStatus(str, enum.Enum):
+    PENDING = "pending"
+    VALID = "valid"
+    INVALID = "invalid"
+    RISKY = "risky"
+
+
+class SendStatus(str, enum.Enum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    BOUNCED = "bounced"
+
+
+class Company(Base):
+    __tablename__ = "companies"
     
-    def get_all_emails(self):
-        """Get all emails from database"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM emails ORDER BY created_date DESC')
-        rows = cursor.fetchall()
-        conn.close()
-        
-        return [dict(row) for row in rows]
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    domain = Column(String(255), unique=True, nullable=False, index=True)
+    website = Column(String(500))
+    linkedin = Column(String(500))
+    company_type = Column(String(100))
+    status = Column(String(50), default="active")
+    last_contacted = Column(DateTime)
+    last_scanned = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    def get_email_by_id(self, email_id):
-        """Get email by ID"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT * FROM emails WHERE id = ?', (email_id,))
-        row = cursor.fetchone()
-        conn.close()
-        
-        return dict(row) if row else None
+    # Relationships
+    people = relationship("Person", back_populates="company", cascade="all, delete-orphan")
+    emails = relationship("Email", back_populates="company", cascade="all, delete-orphan")
+    scans = relationship("ScanJob", back_populates="company", cascade="all, delete-orphan")
+
+
+class Person(Base):
+    __tablename__ = "people"
     
-    def delete_email(self, email_id):
-        """Delete email by ID"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('DELETE FROM emails WHERE id = ?', (email_id,))
-        conn.commit()
-        conn.close()
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    role = Column(String(255), nullable=False, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    linkedin = Column(String(500))
+    created_at = Column(DateTime, default=datetime.utcnow)
     
-    def mark_as_verified(self, email):
-        """Mark email as verified"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('UPDATE emails SET is_verified = 1 WHERE email = ?', (email,))
-        conn.commit()
-        conn.close()
+    # Relationships
+    company = relationship("Company", back_populates="people")
+    emails = relationship("Email", back_populates="person")
+
+
+class Email(Base):
+    __tablename__ = "emails"
     
-    def get_unsent_emails(self, limit=50):
-        """Get emails that haven't been sent yet"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT * FROM emails 
-            WHERE is_sent = 0 AND is_verified = 1
-            LIMIT ?
-        ''', (limit,))
-        
-        results = cursor.fetchall()
-        conn.close()
-        
-        return results
+    id = Column(Integer, primary_key=True, index=True)
+    email_address = Column(String(255), unique=True, nullable=False, index=True)
+    person_name = Column(String(255))
+    role = Column(String(255))
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    person_id = Column(Integer, ForeignKey("people.id"))
+    scan_job_id = Column(Integer, ForeignKey("scan_jobs.id"))
     
-    def mark_as_sent(self, email):
-        """Mark email as sent"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            UPDATE emails 
-            SET is_sent = 1, sent_date = ?
-            WHERE email = ?
-        ''', (datetime.now(), email))
-        
-        conn.commit()
-        conn.close()
+    # Status tracking
+    status = Column(String(50), default=EmailStatus.SCRAPED, index=True)
+    verification_status = Column(String(50), default=VerificationStatus.PENDING, index=True)
     
-    def get_stats(self):
-        """Get database statistics"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT COUNT(*) FROM emails')
-        total = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM emails WHERE is_verified = 1')
-        verified = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM emails WHERE is_sent = 1')
-        sent = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM emails WHERE is_sent = 0 AND is_verified = 1')
-        pending = cursor.fetchone()[0]
-        
-        conn.close()
-        
-        return {
-            'totalEmails': total,
-            'verified': verified,
-            'sent': sent,
-            'pending': pending
-        }
+    # Quality metrics
+    quality_score = Column(Integer, default=0)
+    is_validated = Column(Boolean, default=False)
+    
+    # Verification details
+    mx_valid = Column(Boolean, default=False)
+    smtp_valid = Column(Boolean, default=False)
+    is_disposable = Column(Boolean, default=False)
+    is_role_email = Column(Boolean, default=False)
+    verification_error = Column(Text)
+    verified_at = Column(DateTime)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    company = relationship("Company", back_populates="emails")
+    person = relationship("Person", back_populates="emails")
+    scan_job = relationship("ScanJob", back_populates="emails")
+    send_logs = relationship("SendLog", back_populates="email")
+
+
+class ScanJob(Base):
+    __tablename__ = "scan_jobs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    status = Column(String(50), default=ScanStatus.PENDING, index=True)
+    
+    # Scan configuration
+    scan_website = Column(Boolean, default=True)
+    scan_linkedin = Column(Boolean, default=False)
+    max_pages = Column(Integer, default=5)
+    
+    # Results
+    emails_found = Column(Integer, default=0)
+    emails_valid = Column(Integer, default=0)
+    
+    # Progress tracking
+    progress_percentage = Column(Integer, default=0)
+    current_step = Column(String(255))
+    error_message = Column(Text)
+    
+    # Timestamps
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    company = relationship("Company", back_populates="scans")
+    emails = relationship("Email", back_populates="scan_job")
+
+
+class Campaign(Base):
+    __tablename__ = "campaigns"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    subject = Column(String(500), nullable=False)
+    body = Column(Text, nullable=False)
+    from_email = Column(String(255), nullable=False)
+    from_name = Column(String(255))
+    
+    # Campaign settings
+    daily_limit = Column(Integer, default=100)
+    status = Column(String(50), default=CampaignStatus.DRAFT, index=True)
+    
+    # Statistics
+    total_queued = Column(Integer, default=0)
+    total_sent = Column(Integer, default=0)
+    total_failed = Column(Integer, default=0)
+    total_bounced = Column(Integer, default=0)
+    
+    # Scheduling
+    last_run_at = Column(DateTime)
+    next_run_at = Column(DateTime)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    send_logs = relationship("SendLog", back_populates="campaign")
+    send_batches = relationship("SendBatch", back_populates="campaign")
+
+
+class SendBatch(Base):
+    __tablename__ = "send_batches"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False)
+    
+    # Batch details
+    status = Column(String(50), default="pending")
+    total_emails = Column(Integer, default=0)
+    sent_count = Column(Integer, default=0)
+    failed_count = Column(Integer, default=0)
+    
+    # Progress
+    progress_percentage = Column(Integer, default=0)
+    current_email_index = Column(Integer, default=0)
+    
+    # Timestamps
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    campaign = relationship("Campaign", back_populates="send_batches")
+    send_logs = relationship("SendLog", back_populates="batch")
+
+
+class SendLog(Base):
+    __tablename__ = "send_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email_id = Column(Integer, ForeignKey("emails.id"), nullable=False)
+    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False)
+    batch_id = Column(Integer, ForeignKey("send_batches.id"))
+    
+    # Send details
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String(50), default=SendStatus.PENDING, nullable=False, index=True)
+    error_message = Column(Text)
+    
+    # Email metadata
+    subject_sent = Column(String(500))
+    body_preview = Column(Text)
+    
+    # Relationships
+    email = relationship("Email", back_populates="send_logs")
+    campaign = relationship("Campaign", back_populates="send_logs")
+    batch = relationship("SendBatch", back_populates="send_logs")
+
+
+class DomainCooldown(Base):
+    __tablename__ = "domain_cooldowns"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String(255), unique=True, nullable=False, index=True)
+    last_contacted = Column(DateTime, nullable=False)
+    cooldown_days = Column(Integer, default=7)
+    contact_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EmailVerificationJob(Base):
+    __tablename__ = "email_verification_jobs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(String(50), default="pending", index=True)
+    
+    # Job configuration
+    email_ids = Column(Text)  # JSON array of email IDs
+    total_emails = Column(Integer, default=0)
+    verified_count = Column(Integer, default=0)
+    
+    # Progress
+    progress_percentage = Column(Integer, default=0)
+    current_email_index = Column(Integer, default=0)
+    
+    # Results
+    valid_count = Column(Integer, default=0)
+    invalid_count = Column(Integer, default=0)
+    risky_count = Column(Integer, default=0)
+    
+    # Timestamps
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+def init_db():
+    """Initialize database tables"""
+    Base.metadata.create_all(bind=engine)
+
+
+def get_db():
+    """Dependency for getting database session"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

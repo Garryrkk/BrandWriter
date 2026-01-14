@@ -1,642 +1,690 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, Search, Send, Settings, Database, AlertCircle, CheckCircle, Clock, Users, Eye, Trash2, Download, RefreshCw, Target, TrendingUp, FileText } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ChevronDown, Plus, Trash2, Eye, Check, AlertCircle, Search, Filter, Menu, X } from 'lucide-react';
 
-const EmailOutreachSystem = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [interests, setInterests] = useState(['AI', 'Tech']);
-  const [newInterest, setNewInterest] = useState('');
-  const [emailsPerDay, setEmailsPerDay] = useState(100);
-  const [sendLimit, setSendLimit] = useState(50);
-  const [emailTemplate, setEmailTemplate] = useState('');
-  const [gmailConfig, setGmailConfig] = useState({ email: '', appPassword: '' });
-  const [collectedEmails, setCollectedEmails] = useState([]);
-  const [stats, setStats] = useState({
-    totalEmails: 0,
-    verified: 0,
-    sent: 0,
-    pending: 0
-  });
-  const [isScanning, setIsScanning] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [logs, setLogs] = useState([]);
-  const [apiConnected, setApiConnected] = useState(false);
-  const [selectedEmails, setSelectedEmails] = useState([]);
+export default function EmailApp() {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedEmails, setSelectedEmails] = useState(new Set());
+  const [showQueueModal, setShowQueueModal] = useState(false);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [selectedEmailDetail, setSelectedEmailDetail] = useState(null);
+  const [showConfirmSend, setShowConfirmSend] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Use proxy endpoint instead of direct localhost:5000
-  const API_URL = '/email-api';
+  // Mock data
+  const [draftEmails] = useState([
+    { id: 1, email: 'john.smith@company1.com', name: 'John Smith', role: 'Manager', company: 'Tech Corp', quality: 92, lastSent: '5 days ago' },
+    { id: 2, email: 'sarah.jones@company2.com', name: 'Sarah Jones', role: 'Director', company: 'Innovation Inc', quality: 78, lastSent: '12 days ago' },
+    { id: 3, email: 'mike.brown@company3.com', name: 'Mike Brown', role: 'Executive', company: 'Global Solutions', quality: 45, lastSent: 'Never' },
+    { id: 4, email: 'alice.chen@company4.com', name: 'Alice Chen', role: 'Lead', company: 'Future Systems', quality: 85, lastSent: '3 days ago' },
+    { id: 5, email: 'david.lee@company5.com', name: 'David Lee', role: 'VP', company: 'Digital Labs', quality: 88, lastSent: '7 days ago' },
+  ]);
 
-  // Check API connection on mount
-  useEffect(() => {
-    checkApiConnection();
-    loadStats();
-    loadEmails();
-  }, []);
+  const [queuedEmails] = useState([
+    { id: 6, email: 'emma.wilson@company6.com', company: 'Cloud Ventures', lastSent: '10 days ago', cooldown: false, status: 'eligible' },
+    { id: 7, email: 'james.taylor@company7.com', company: 'Data Dynamics', lastSent: '2 days ago', cooldown: true, status: 'cooldown' },
+    { id: 8, email: 'lisa.martin@company8.com', company: 'AI Research', lastSent: '8 days ago', cooldown: false, status: 'eligible' },
+  ]);
 
-  const checkApiConnection = async () => {
-    try {
-      const response = await fetch(`${API_URL}/health`);
-      if (response.ok) {
-        setApiConnected(true);
-        addLog('Connected to backend API', 'success');
-      }
-    } catch (error) {
-      setApiConnected(false);
-      addLog('Backend API not running. Start the Flask server!', 'error');
+  const [campaigns] = useState([
+    { id: 1, name: 'Q1 Outreach', status: 'active', emailsSent: 245, created: '2025-01-10', from: 'noreply@company.com', subject: 'Exciting Partnership Opportunity' },
+    { id: 2, name: 'Product Launch', status: 'draft', emailsSent: 0, created: '2025-01-12', from: 'sales@company.com', subject: 'Introducing Our New Solution' },
+  ]);
+
+  const [batches] = useState([
+    { id: 'BATCH-001', campaign: 'Q1 Outreach', status: 'completed', progress: 100, sent: 83, failed: 0, started: '2025-01-13 10:30' },
+    { id: 'BATCH-002', campaign: 'Q1 Outreach', status: 'sending', progress: 63, sent: 42, failed: 2, started: '2025-01-14 09:15' },
+  ]);
+
+  const [companies] = useState([
+    { id: 1, name: 'Tech Corp', domain: 'techcorp.com', industry: 'Technology', emailsFound: 245, lastScan: '2025-01-12' },
+    { id: 2, name: 'Innovation Inc', domain: 'innovationinc.com', industry: 'Consulting', emailsFound: 128, lastScan: '2025-01-10' },
+  ]);
+
+  const [scans] = useState([
+    { id: 'SCAN-001', company: 'Tech Corp', status: 'completed', progress: 100, currentStep: 'Complete', started: '2025-01-12 10:30', pagesScanned: 15, emailsFound: 245, emailsAccepted: 220, emailsRejected: 25 },
+    { id: 'SCAN-002', company: 'Innovation Inc', status: 'scanning', progress: 63, currentStep: 'Scanning page 3/5', started: '2025-01-14 09:15', pagesScanned: 3, emailsFound: 85, emailsAccepted: 78, emailsRejected: 7 },
+  ]);
+
+  const getQualityColor = (score) => {
+    if (score >= 80) return 'bg-green-100 text-green-800';
+    if (score >= 60) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  const getQualityDot = (score) => {
+    if (score >= 80) return '🟢';
+    if (score >= 60) return '🟡';
+    return '🔴';
+  };
+
+  const toggleEmailSelect = (id) => {
+    const newSelected = new Set(selectedEmails);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedEmails(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedEmails.size === draftEmails.length) {
+      setSelectedEmails(new Set());
+    } else {
+      setSelectedEmails(new Set(draftEmails.map(e => e.id)));
     }
   };
 
-  const loadStats = async () => {
-    try {
-      const response = await fetch(`${API_URL}/stats`);
-      const data = await response.json();
-      setStats(data);
-    } catch (error) {
-      console.error('Failed to load stats:', error);
-    }
+  const handleViewValidation = (email) => {
+    setSelectedEmailDetail(email);
+    setShowValidationModal(true);
   };
 
-  const loadEmails = async () => {
-    try {
-      const response = await fetch(`${API_URL}/emails`);
-      const data = await response.json();
-      setCollectedEmails(data);
-    } catch (error) {
-      console.error('Failed to load emails:', error);
+  // SIDEBAR NAVIGATION
+  const Sidebar = () => (
+    <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gray-900 text-white transition-all duration-300 fixed h-full left-0 top-0 overflow-y-auto z-40`}>
+      <div className="p-4 flex items-center justify-between">
+        {sidebarOpen && <h1 className="text-xl font-bold">EmailApp</h1>}
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1 hover:bg-gray-800 rounded">
+          {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+
+      <nav className="mt-8 space-y-2 px-4">
+        {[
+          { id: 'overview', label: 'Overview', icon: '📊' },
+          { id: 'companies', label: 'Companies', icon: '🏢' },
+          { id: 'scans', label: 'Scans', icon: '🔍' },
+          { id: 'drafts', label: 'Draft Emails', icon: '📧' },
+          { id: 'queue', label: 'Send Queue', icon: '📤' },
+          { id: 'campaigns', label: 'Campaigns', icon: '📋' },
+          { id: 'batches', label: 'Send Batches', icon: '📊' },
+          { id: 'analytics', label: 'Analytics', icon: '📈' },
+          { id: 'settings', label: 'Settings', icon: '⚙️' },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${
+              activeTab === item.id ? 'bg-blue-600' : 'hover:bg-gray-800'
+            }`}
+          >
+            <span className="text-lg">{item.icon}</span>
+            {sidebarOpen && <span>{item.label}</span>}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+
+  // TOP BAR
+  const TopBar = () => (
+    <div className={`${sidebarOpen ? 'ml-64' : 'ml-20'} bg-white border-b border-gray-200 h-16 flex items-center justify-between px-8 sticky top-0 z-30 transition-all duration-300`}>
+      <div className="flex items-center gap-4">
+        <span className="text-sm font-semibold text-gray-700">Daily Send Counter:</span>
+        <span className="text-lg font-bold text-blue-600">37 / 100 sent today</span>
+      </div>
+      <div className="flex items-center gap-4">
+        <span className="text-sm font-semibold text-gray-700">Status:</span>
+        <span className="text-lg">🟢 Idle</span>
+      </div>
+      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">U</div>
+    </div>
+  );
+
+  // OVERVIEW DASHBOARD
+  const OverviewDashboard = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
+          <p className="text-gray-600 text-sm font-medium">Draft Emails</p>
+          <p className="text-3xl font-bold mt-2">{draftEmails.length}</p>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-purple-500">
+          <p className="text-gray-600 text-sm font-medium">Queued Emails</p>
+          <p className="text-3xl font-bold mt-2">{queuedEmails.length}</p>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+          <p className="text-gray-600 text-sm font-medium">Sent Today</p>
+          <p className="text-3xl font-bold mt-2">37</p>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500">
+          <p className="text-gray-600 text-sm font-medium">Active Campaign</p>
+          <p className="text-3xl font-bold mt-2">1</p>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+        <div className="space-y-3">
+          <div className="flex items-center text-sm text-gray-700 pb-3 border-b">
+            <span className="text-green-600 mr-3">✓</span>
+            Scan completed for example.com
+            <span className="text-gray-500 ml-auto">2 hours ago</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-700 pb-3 border-b">
+            <span className="text-blue-600 mr-3">📧</span>
+            Batch #12 sent (83/100)
+            <span className="text-gray-500 ml-auto">4 hours ago</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-700">
+            <span className="text-orange-600 mr-3">⚠</span>
+            3 domains currently in cooldown
+            <span className="text-gray-500 ml-auto">Now</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+        <p className="text-blue-900 text-sm"><strong>Tip:</strong> Your daily limit is 100. You've sent 37 today.</p>
+      </div>
+    </div>
+  );
+
+  // COMPANIES SCREEN
+  const CompaniesScreen = () => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Companies</h2>
+        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+          <Plus size={18} /> Add Company
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Company Name</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Domain</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Industry</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Emails Found</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Last Scan</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {companies.map((company) => (
+              <tr key={company.id} className="hover:bg-gray-50">
+                <td className="p-4 text-sm font-medium text-gray-900">{company.name}</td>
+                <td className="p-4 text-sm text-gray-700">{company.domain}</td>
+                <td className="p-4 text-sm text-gray-700">{company.industry}</td>
+                <td className="p-4 text-sm text-gray-700">{company.emailsFound}</td>
+                <td className="p-4 text-sm text-gray-700">{company.lastScan}</td>
+                <td className="p-4">
+                  <div className="flex gap-2">
+                    <button className="text-blue-600 hover:text-blue-900" title="Start Scan">
+                      <Search size={18} />
+                    </button>
+                    <button className="text-green-600 hover:text-green-900" title="View Scan History">
+                      <Eye size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // SCANS SCREEN
+  const ScansScreen = () => (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold mb-6">Scans</h2>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Scan ID</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Company</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Status</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Progress</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Current Step</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Started</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {scans.map((scan) => (
+              <tr key={scan.id} className="hover:bg-gray-50">
+                <td className="p-4 text-sm font-medium text-blue-600 cursor-pointer hover:underline">{scan.id}</td>
+                <td className="p-4 text-sm text-gray-700">{scan.company}</td>
+                <td className="p-4">
+                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${scan.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                    {scan.status.toUpperCase()}
+                  </span>
+                </td>
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-24 bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-600 h-2 rounded-full" style={{ width: `${scan.progress}%` }}></div>
+                    </div>
+                    <span className="text-sm text-gray-700">{scan.progress}%</span>
+                  </div>
+                </td>
+                <td className="p-4 text-sm text-gray-700">{scan.currentStep}</td>
+                <td className="p-4 text-sm text-gray-700">{scan.started}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // DRAFT EMAILS - CORE WORKFLOW
+  const DraftEmailsScreen = () => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Draft Emails</h2>
+        <div className="flex gap-2">
+          {selectedEmails.size > 0 && (
+            <>
+              <button onClick={() => setShowQueueModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                <Plus size={18} /> Queue Selected ({selectedEmails.size})
+              </button>
+              <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                <Trash2 size={18} /> Delete Selected
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="p-4 text-left">
+                <input type="checkbox" checked={selectedEmails.size === draftEmails.length} onChange={toggleSelectAll} className="cursor-pointer" />
+              </th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Email</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Name</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Role</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Company</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Quality</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Last Sent</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {draftEmails.map((email) => (
+              <tr key={email.id} className="hover:bg-gray-50">
+                <td className="p-4">
+                  <input type="checkbox" checked={selectedEmails.has(email.id)} onChange={() => toggleEmailSelect(email.id)} className="cursor-pointer" />
+                </td>
+                <td className="p-4 text-sm font-medium text-gray-900">{email.email}</td>
+                <td className="p-4 text-sm text-gray-700">{email.name}</td>
+                <td className="p-4 text-sm text-gray-700">{email.role}</td>
+                <td className="p-4 text-sm text-gray-700">{email.company}</td>
+                <td className="p-4">
+                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getQualityColor(email.quality)}`}>
+                    {getQualityDot(email.quality)} {email.quality}
+                  </span>
+                </td>
+                <td className="p-4 text-sm text-gray-700">{email.lastSent}</td>
+                <td className="p-4">
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowQueueModal(true)} className="text-blue-600 hover:text-blue-900" title="Queue">
+                      <Plus size={18} />
+                    </button>
+                    <button className="text-red-600 hover:text-red-900" title="Delete">
+                      <Trash2 size={18} />
+                    </button>
+                    <button onClick={() => handleViewValidation(email)} className="text-green-600 hover:text-green-900" title="View Validation">
+                      <Eye size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // SEND QUEUE
+  const SendQueueScreen = () => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold">Send Queue</h2>
+          <p className="text-gray-600 mt-1">Queued Emails: <span className="font-semibold">{queuedEmails.length}</span> | Eligible Today: <span className="font-semibold">58</span></p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Email</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Company</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Last Sent</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Cooldown Status</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {queuedEmails.map((email) => (
+              <tr key={email.id} className="hover:bg-gray-50">
+                <td className="p-4 text-sm font-medium text-gray-900">{email.email}</td>
+                <td className="p-4 text-sm text-gray-700">{email.company}</td>
+                <td className="p-4 text-sm text-gray-700">{email.lastSent}</td>
+                <td className="p-4">
+                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${email.cooldown ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                    {email.cooldown ? '🔴 In cooldown' : '🟢 Eligible'}
+                  </span>
+                </td>
+                <td className="p-4 text-sm text-gray-700 capitalize">{email.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <button onClick={() => setShowConfirmSend(true)} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg">
+        SEND TODAY'S BATCH
+      </button>
+
+      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+        <p className="text-blue-900 text-sm"><strong>Note:</strong> Sent emails automatically return to Drafts for reuse.</p>
+      </div>
+    </div>
+  );
+
+  // CAMPAIGNS
+  const CampaignsScreen = () => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Campaigns</h2>
+        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+          <Plus size={18} /> New Campaign
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {campaigns.map((campaign) => (
+          <div key={campaign.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">{campaign.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">Created: {campaign.created}</p>
+              </div>
+              <span className={`text-xs font-semibold px-3 py-1 rounded-full ${campaign.status === 'active' ? 'bg-green-100 text-green-800' : campaign.status === 'draft' ? 'bg-gray-100 text-gray-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                {campaign.status.toUpperCase()}
+              </span>
+            </div>
+            <div className="text-sm text-gray-700 mb-4">
+              <p><strong>From:</strong> {campaign.from}</p>
+              <p><strong>Subject:</strong> {campaign.subject}</p>
+              <p className="mt-2"><strong>Emails Sent:</strong> {campaign.emailsSent}</p>
+            </div>
+            <div className="flex gap-2">
+              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                {campaign.status === 'draft' ? '▶ Start' : campaign.status === 'active' ? '⏸ Pause' : '▶ Resume'}
+              </button>
+              <button className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm">✏ Edit</button>
+              <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">🧪 Test Email</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // SEND BATCHES
+  const SendBatchesScreen = () => (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold mb-6">Send Batches</h2>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Batch ID</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Campaign</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Status</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Progress</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Sent</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Failed</th>
+              <th className="p-4 text-left text-sm font-semibold text-gray-700">Started</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {batches.map((batch) => (
+              <tr key={batch.id} className="hover:bg-gray-50">
+                <td className="p-4 text-sm font-medium text-blue-600 cursor-pointer hover:underline">{batch.id}</td>
+                <td className="p-4 text-sm text-gray-700">{batch.campaign}</td>
+                <td className="p-4">
+                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${batch.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                    {batch.status.toUpperCase()}
+                  </span>
+                </td>
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-24 bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-600 h-2 rounded-full" style={{ width: `${batch.progress}%` }}></div>
+                    </div>
+                    <span className="text-sm text-gray-700">{batch.progress}%</span>
+                  </div>
+                </td>
+                <td className="p-4 text-sm text-gray-700">{batch.sent}</td>
+                <td className="p-4 text-sm text-red-600">{batch.failed}</td>
+                <td className="p-4 text-sm text-gray-700">{batch.started}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  // ANALYTICS
+  const AnalyticsScreen = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Analytics</h2>
+
+      <div className="grid grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-4">Emails Sent Per Day</h3>
+          <div className="space-y-2">
+            <div className="flex items-center">
+              <span className="w-20 text-sm">Mon</span>
+              <div className="flex-1 bg-gray-200 h-6 rounded relative">
+                <div className="bg-blue-600 h-6 rounded" style={{ width: '75%' }}></div>
+              </div>
+              <span className="w-12 text-right text-sm">75</span>
+            </div>
+            <div className="flex items-center">
+              <span className="w-20 text-sm">Tue</span>
+              <div className="flex-1 bg-gray-200 h-6 rounded relative">
+                <div className="bg-blue-600 h-6 rounded" style={{ width: '82%' }}></div>
+              </div>
+              <span className="w-12 text-right text-sm">82</span>
+            </div>
+            <div className="flex items-center">
+              <span className="w-20 text-sm">Wed</span>
+              <div className="flex-1 bg-gray-200 h-6 rounded relative">
+                <div className="bg-blue-600 h-6 rounded" style={{ width: '68%' }}></div>
+              </div>
+              <span className="w-12 text-right text-sm">68</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-4">Success vs Failure</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Successful</span>
+              <div className="flex-1 ml-4 bg-gray-200 h-6 rounded" style={{ width: '200px' }}>
+                <div className="bg-green-600 h-6 rounded" style={{ width: '92%' }}></div>
+              </div>
+              <span className="w-12 text-right text-sm">92%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Failed</span>
+              <div className="flex-1 ml-4 bg-gray-200 h-6 rounded" style={{ width: '200px' }}>
+                <div className="bg-red-600 h-6 rounded" style={{ width: '8%' }}></div>
+              </div>
+              <span className="w-12 text-right text-sm">8%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // SETTINGS
+  const SettingsScreen = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Settings</h2>
+
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-4">Account Settings</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Daily Send Limit</label>
+            <input type="number" defaultValue="100" className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Default From Email</label>
+            <input type="email" defaultValue="noreply@company.com" className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500" />
+          </div>
+          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // MODALS
+  const QueueModal = () => (
+    showQueueModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+          <h2 className="text-xl font-bold mb-4">Queue Emails</h2>
+          <p className="text-gray-600 mb-6">You are about to queue <strong>{selectedEmails.size || 1}</strong> email{selectedEmails.size !== 1 ? 's' : ''} for sending.</p>
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded mb-6 text-sm text-blue-900">
+            <strong>Note:</strong> These emails will be sent according to your daily limit and campaign schedule.
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setShowQueueModal(false)} className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">
+              Cancel
+            </button>
+            <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
+              Queue Emails
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  );
+
+  const ValidationModal = () => (
+    showValidationModal && selectedEmailDetail && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+          <h2 className="text-xl font-bold mb-4">Email Validation Details</h2>
+          <div className="space-y-4 mb-6">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-600">Email</p>
+              <p className="text-lg font-semibold">{selectedEmailDetail.email}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                <p className="text-sm text-gray-600">MX Records</p>
+                <p className="text-lg font-semibold text-green-700">✓ Valid</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                <p className="text-sm text-gray-600">SMTP Check</p>
+                <p className="text-lg font-semibold text-green-700">✓ Verified</p>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                <p className="text-sm text-gray-600">Role Confidence</p>
+                <p className="text-lg font-semibold text-blue-700">95%</p>
+              </div>
+              <div className="bg-gray-100 p-4 rounded-lg border-l-4 border-gray-500">
+                <p className="text-sm text-gray-600">Disposable Check</p>
+                <p className="text-lg font-semibold text-gray-700">✓ Not Disposable</p>
+              </div>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
+              <p className="text-sm text-gray-600">Quality Score</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex-1 bg-gray-200 h-4 rounded-full overflow-hidden">
+                  <div className="bg-yellow-500 h-4" style={{ width: '78%' }}></div>
+                </div>
+                <span className="text-lg font-semibold text-yellow-700">78</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setShowValidationModal(false)} className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">
+              Close
+            </button>
+            <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
+              Queue This Email
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  );
+
+  const ConfirmSendModal = () => (
+    showConfirmSend && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+          <div className="flex items-center gap-3 mb-4">
+            <AlertCircle size={28} className="text-orange-600" />
+            <h2 className="text-xl font-bold">Confirm Send</h2>
+          </div>
+          <p className="text-gray-600 mb-6">You are about to send <strong>58 emails</strong> today. This action cannot be undone.</p>
+          <div className="bg-orange-50 border border-orange-200 p-3 rounded mb-6 text-sm text-orange-900">
+            <strong>⚠ Warning:</strong> Make sure your campaign is configured correctly before sending.
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setShowConfirmSend(false)} className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">
+              Cancel
+            </button>
+            <button className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg">
+              Confirm Send
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  );
+
+  // MAIN CONTENT ROUTER
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'overview': return <OverviewDashboard />;
+      case 'companies': return <CompaniesScreen />;
+      case 'scans': return <ScansScreen />;
+      case 'drafts': return <DraftEmailsScreen />;
+      case 'queue': return <SendQueueScreen />;
+      case 'campaigns': return <CampaignsScreen />;
+      case 'batches': return <SendBatchesScreen />;
+      case 'analytics': return <AnalyticsScreen />;
+      case 'settings': return <SettingsScreen />;
+      default: return <OverviewDashboard />;
     }
-  };
-
-  const addInterest = () => {
-    if (newInterest && !interests.includes(newInterest)) {
-      setInterests([...interests, newInterest]);
-      setNewInterest('');
-    }
-  };
-
-  const removeInterest = (interest) => {
-    setInterests(interests.filter(i => i !== interest));
-  };
-
-  const addLog = (message, type = 'info') => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs(prev => [{ timestamp, message, type }, ...prev.slice(0, 99)]);
-  };
-
-  const startRealScan = async () => {
-    if (!apiConnected) {
-      addLog('Please start the backend server first!', 'error');
-      return;
-    }
-
-    setIsScanning(true);
-    addLog('Starting real email collection...', 'info');
-
-    try {
-      const response = await fetch(`${API_URL}/start-scan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          interests: interests,
-          target_count: emailsPerDay
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.status === 'scanning_started') {
-        addLog('Scan started successfully!', 'success');
-
-        // Poll for updates every 5 seconds
-        const pollInterval = setInterval(async () => {
-          await loadStats();
-          await loadEmails();
-
-          if (!isScanning) {
-            clearInterval(pollInterval);
-          }
-        }, 5000);
-
-        // Stop scanning after completion
-        setTimeout(() => {
-          setIsScanning(false);
-          addLog('Scan completed!', 'success');
-        }, 60000); // Stop after 1 minute for demo
-      }
-    } catch (error) {
-      addLog(`Scan failed: ${error.message}`, 'error');
-      setIsScanning(false);
-    }
-  };
-
-  const startRealSend = async () => {
-    if (!apiConnected) {
-      addLog('Please start the backend server first!', 'error');
-      return;
-    }
-
-    if (!gmailConfig.email || !gmailConfig.appPassword) {
-      addLog('Please configure Gmail credentials in Settings', 'error');
-      return;
-    }
-
-    if (!emailTemplate) {
-      addLog('Please create an email template first', 'error');
-      return;
-    }
-
-    setIsSending(true);
-    addLog('Starting email campaign...', 'info');
-
-    try {
-      const response = await fetch(`${API_URL}/send-campaign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject: 'Your Subject Here',
-          body: emailTemplate,
-          limit: sendLimit,
-          gmail: gmailConfig.email,
-          app_password: gmailConfig.appPassword
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.status === 'campaign_started') {
-        addLog('Email campaign started!', 'success');
-
-        // Poll for updates
-        const pollInterval = setInterval(async () => {
-          await loadStats();
-
-          if (!isSending) {
-            clearInterval(pollInterval);
-          }
-        }, 3000);
-
-        setTimeout(() => {
-          setIsSending(false);
-          addLog('Campaign completed!', 'success');
-        }, sendLimit * 2000);
-      }
-    } catch (error) {
-      addLog(`Campaign failed: ${error.message}`, 'error');
-      setIsSending(false);
-    }
-  };
-
-  const deleteEmail = async (emailId) => {
-    try {
-      await fetch(`${API_URL}/emails/${emailId}`, { method: 'DELETE' });
-      await loadEmails();
-      await loadStats();
-      addLog('Email deleted', 'success');
-    } catch (error) {
-      addLog('Failed to delete email', 'error');
-    }
-  };
-
-  const verifyEmail = async (emailId) => {
-    try {
-      const response = await fetch(`${API_URL}/verify-email/${emailId}`, {
-        method: 'POST'
-      });
-      const data = await response.json();
-      addLog(`Verification: ${data.message}`, data.is_valid ? 'success' : 'error');
-      await loadEmails();
-      await loadStats();
-    } catch (error) {
-      addLog('Failed to verify email', 'error');
-    }
-  };
-
-  const exportEmails = () => {
-    const csv = [
-      ['Email', 'Name', 'Company', 'Source', 'Verified', 'Sent'],
-      ...collectedEmails.map(e => [
-        e.email, e.name || '', e.company || '', e.source_url || '',
-        e.is_verified ? 'Yes' : 'No', e.is_sent ? 'Yes' : 'No'
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'collected_emails.csv';
-    a.click();
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Mail className="text-yellow-300" size={32} />
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-200 via-pink-200 to-yellow-200 bg-clip-text text-transparent">
-                Email Outreach
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              {!apiConnected && (
-                <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/50 rounded-lg px-4 py-2">
-                  <AlertCircle className="w-4 h-4 text-red-400" />
-                  <span className="text-red-300 text-sm font-medium">Backend Not Connected</span>
-                  <button
-                    onClick={checkApiConnection}
-                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 flex items-center gap-1 transition-all text-sm"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Retry</span>
-                  </button>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button
-                onClick={startRealScan}
-                disabled={isScanning || !apiConnected}
-                className="bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-yellow-500/50 disabled:bg-slate-600 disabled:text-slate-400 flex items-center space-x-2 font-semibold transition-all"
-              >
-                <Search className="w-4 h-4" />
-                <span>{isScanning ? 'Scanning...' : 'Start Scan'}</span>
-              </button>
-              <button
-                onClick={startRealSend}
-                disabled={isSending || stats.pending === 0 || !apiConnected}
-                className="bg-gradient-to-r from-pink-200 to-pink-300 text-slate-900 px-4 py-2 rounded-lg hover:shadow-lg hover:shadow-pink-500/50 disabled:bg-slate-600 disabled:text-slate-400 flex items-center space-x-2 font-semibold transition-all"
-              >
-                <Send className="w-4 h-4" />
-                <span>{isSending ? 'Sending...' : 'Send Emails'}</span>
-              </button>
-              <button
-                onClick={exportEmails}
-                disabled={collectedEmails.length === 0}
-                className="bg-slate-700/50 hover:bg-slate-700 text-white px-4 py-2 rounded-lg disabled:bg-slate-800 disabled:text-slate-600 flex items-center space-x-2 transition-all"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export</span>
-              </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Horizontal Navigation */}
-          <nav className="flex gap-2 overflow-x-auto pb-2">
-            {[
-              { id: 'dashboard', label: 'Dashboard', icon: TrendingUp },
-              { id: 'emails', label: 'Emails', icon: Mail },
-              { id: 'interests', label: 'Interests', icon: Target },
-              { id: 'template', label: 'Template', icon: FileText },
-              { id: 'settings', label: 'Settings', icon: Settings }
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg transition-all whitespace-nowrap ${
-                    activeTab === item.id
-                      ? 'bg-gradient-to-r from-yellow-200/20 to-pink-200/20 border-2 border-yellow-300/30'
-                      : 'bg-slate-700/30 hover:bg-slate-700/50 border-2 border-transparent'
-                  }`}
-                >
-                  <Icon size={18} className={activeTab === item.id ? 'text-yellow-300' : ''} />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="p-6 lg:p-8 relative">
-        <div className="max-w-7xl mx-auto">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg shadow border border-slate-700/50 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">Total Collected</p>
-                <p className="text-3xl font-bold text-yellow-300">{stats.totalEmails}</p>
-              </div>
-              <Database className="w-12 h-12 text-yellow-300/20" />
-            </div>
-          </div>
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg shadow border border-slate-700/50 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">Verified</p>
-                <p className="text-3xl font-bold text-green-400">{stats.verified}</p>
-              </div>
-              <CheckCircle className="w-12 h-12 text-green-400/20" />
-            </div>
-          </div>
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg shadow border border-slate-700/50 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">Sent Today</p>
-                <p className="text-3xl font-bold text-pink-300">{stats.sent}</p>
-              </div>
-              <Send className="w-12 h-12 text-pink-300/20" />
-            </div>
-          </div>
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg shadow border border-slate-700/50 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">Pending</p>
-                <p className="text-3xl font-bold text-orange-400">{stats.pending}</p>
-              </div>
-              <Clock className="w-12 h-12 text-orange-400/20" />
-            </div>
-          </div>
-        </div>
-
-        {/* Tab Content Container */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 p-6 mb-6">
-            {/* Dashboard Tab */}
-            {activeTab === 'dashboard' && (
-              <div>
-                <h2 className="text-xl font-bold mb-4 text-white">Activity Log</h2>
-                <div className="bg-slate-900/50 rounded-lg p-4 h-96 overflow-y-auto border border-slate-700/50">
-                  {logs.length === 0 ? (
-                    <p className="text-slate-500 text-center py-8">No activity yet. Start scanning to see logs.</p>
-                  ) : (
-                    logs.map((log, idx) => (
-                      <div key={idx} className="mb-2 flex items-start space-x-2">
-                        <span className="text-xs text-slate-500 whitespace-nowrap">{log.timestamp}</span>
-                        <span className={`text-sm ${
-                          log.type === 'success' ? 'text-green-400' :
-                          log.type === 'error' ? 'text-red-400' :
-                          'text-slate-300'
-                        }`}>
-                          {log.message}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Emails Tab */}
-            {activeTab === 'emails' && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white">Collected Emails</h2>
-                  <button
-                    onClick={loadEmails}
-                    className="bg-yellow-300 text-slate-900 px-3 py-1 rounded hover:bg-yellow-400 flex items-center space-x-1 font-semibold transition-all"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Refresh</span>
-                  </button>
-                </div>
-
-                {collectedEmails.length === 0 ? (
-                  <div className="text-center py-12 bg-slate-900/50 rounded-lg border border-slate-700/50">
-                    <Mail className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                    <p className="text-slate-400">No emails collected yet. Start scanning!</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-900/50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Email</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Name</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Company</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Source</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-slate-800/30 divide-y divide-slate-700/50">
-                        {collectedEmails.map((email, idx) => (
-                          <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
-                            <td className="px-4 py-3 text-sm text-white">{email.email}</td>
-                            <td className="px-4 py-3 text-sm text-slate-300">{email.name || '-'}</td>
-                            <td className="px-4 py-3 text-sm text-slate-300">{email.company || '-'}</td>
-                            <td className="px-4 py-3 text-sm text-yellow-300 truncate max-w-xs">
-                              <a href={email.source_url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                {email.source_url ? new URL(email.source_url).hostname : '-'}
-                              </a>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center space-x-2">
-                                {email.is_verified ? (
-                                  <span className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded border border-green-500/30">✓ Verified</span>
-                                ) : (
-                                  <span className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded border border-yellow-500/30">Unverified</span>
-                                )}
-                                {email.is_sent && (
-                                  <span className="px-2 py-1 text-xs bg-pink-500/20 text-pink-300 rounded border border-pink-500/30">Sent</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex space-x-2">
-                                {!email.is_verified && (
-                                  <button
-                                    onClick={() => verifyEmail(email.id)}
-                                    className="text-green-400 hover:text-green-300 transition-colors"
-                                    title="Verify"
-                                  >
-                                    <CheckCircle className="w-4 h-4" />
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => deleteEmail(email.id)}
-                                  className="text-red-400 hover:text-red-300 transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Interests Tab */}
-            {activeTab === 'interests' && (
-              <div>
-                <h2 className="text-xl font-bold mb-4 text-white">Target Interests</h2>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Add New Interest
-                  </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={newInterest}
-                      onChange={(e) => setNewInterest(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && addInterest()}
-                      placeholder="e.g., Machine Learning, SaaS, Startups"
-                      className="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:outline-none text-white placeholder-slate-400"
-                    />
-                    <button
-                      onClick={addInterest}
-                      className="bg-gradient-to-r from-yellow-200 to-yellow-300 text-slate-900 px-6 py-2 rounded-lg hover:shadow-lg hover:shadow-yellow-500/50 font-semibold transition-all"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {interests.map(interest => (
-                    <span
-                      key={interest}
-                      className="bg-yellow-300/20 text-yellow-300 px-4 py-2 rounded-full flex items-center space-x-2 border border-yellow-300/30"
-                    >
-                      <span>{interest}</span>
-                      <button
-                        onClick={() => removeInterest(interest)}
-                        className="text-yellow-300 hover:text-red-400 text-xl transition-colors"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                  <div className="flex items-start space-x-2">
-                    <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5" />
-                    <div>
-                      <p className="text-sm text-blue-300">
-                        The system will search for contacts interested in these topics across various platforms including company websites, professional networks, and public directories.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Template Tab */}
-            {activeTab === 'template' && (
-              <div>
-                <h2 className="text-xl font-bold mb-4 text-white">Email Template</h2>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Send Limit per Day
-                  </label>
-                  <input
-                    type="number"
-                    value={sendLimit}
-                    onChange={(e) => setSendLimit(parseInt(e.target.value))}
-                    min="1"
-                    max="500"
-                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:outline-none text-white"
-                  />
-                  <p className="text-xs text-slate-400 mt-1">Gmail limit: 500 emails/day (regular), 2000/day (Workspace)</p>
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Email Content
-                  </label>
-                  <textarea
-                    value={emailTemplate}
-                    onChange={(e) => setEmailTemplate(e.target.value)}
-                    placeholder={`Hi {{name}},
-
-I noticed your interest in {{interest}} and thought you might be interested in...
-
-Variables available: {{name}}, {{email}}, {{interest}}, {{company}}`}
-                    rows="12"
-                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:outline-none font-mono text-sm text-white placeholder-slate-400"
-                  />
-                </div>
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                  <div className="flex items-start space-x-2">
-                    <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5" />
-                    <div>
-                      <p className="text-sm text-yellow-300 font-medium">Legal Compliance Required</p>
-                      <p className="text-sm text-yellow-400 mt-1">
-                        • Include unsubscribe link in every email<br />
-                        • Add your physical address<br />
-                        • Ensure CAN-SPAM Act compliance<br />
-                        • Only contact people who expect your email
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Settings Tab */}
-            {activeTab === 'settings' && (
-              <div>
-                <h2 className="text-xl font-bold mb-4 text-white">Configuration</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Emails to Collect per Day
-                    </label>
-                    <input
-                      type="number"
-                      value={emailsPerDay}
-                      onChange={(e) => setEmailsPerDay(parseInt(e.target.value))}
-                      min="1"
-                      max="1000"
-                      className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:outline-none text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Gmail Address
-                    </label>
-                    <input
-                      type="email"
-                      value={gmailConfig.email}
-                      onChange={(e) => setGmailConfig({ ...gmailConfig, email: e.target.value })}
-                      placeholder="your-email@gmail.com"
-                      className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:outline-none text-white placeholder-slate-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Gmail App Password
-                    </label>
-                    <input
-                      type="password"
-                      value={gmailConfig.appPassword}
-                      onChange={(e) => setGmailConfig({ ...gmailConfig, appPassword: e.target.value })}
-                      placeholder="16-character app password"
-                      className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded-lg focus:ring-2 focus:ring-yellow-300 focus:outline-none text-white placeholder-slate-400"
-                    />
-                    <p className="text-xs text-slate-400 mt-1">
-                      Generate at: Google Account → Security → 2-Step Verification → App passwords
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-6 bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                  <div className="flex items-start space-x-2">
-                    <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
-                    <div>
-                      <p className="text-sm text-red-300 font-medium">Important Security Notice</p>
-                      <p className="text-sm text-red-400 mt-1">
-                        This is a UI demonstration. In production:<br />
-                        • Never store credentials in browser<br />
-                        • Use OAuth 2.0 authentication<br />
-                        • Store sensitive data server-side<br />
-                        • Implement proper encryption
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-        </div>
-        </div>
+    <div className="min-h-screen bg-gray-100">
+      <Sidebar />
+      <TopBar />
+      <main className={`${sidebarOpen ? 'ml-64' : 'ml-20'} mt-16 p-8 transition-all duration-300`}>
+        {renderContent()}
       </main>
+      <QueueModal />
+      <ValidationModal />
+      <ConfirmSendModal />
     </div>
   );
-};
-
-export default EmailOutreachSystem;
+}

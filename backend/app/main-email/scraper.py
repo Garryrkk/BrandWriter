@@ -1,428 +1,483 @@
+"""
+Email scraping module with scan job management
+Extracts emails from websites, LinkedIn, and other sources
+Tracks scan progress and status
+"""
+
+import re
 import requests
 from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
-import re
+from typing import List, Dict, Optional, Set
+from urllib.parse import urljoin, urlparse
 import time
-import logging
-import urllib.parse
-import random
-from urllib.parse import urlparse, urljoin
+import json
+from datetime import datetime
+from sqlalchemy.orm import Session
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from email_validator import (
+    validate_email_full, 
+    is_allowed_role, 
+    is_blocked_prefix
+)
+from database import (
+    Company, Email, ScanJob, ScanStatus,
+    EmailStatus, VerificationStatus
+)
+
+# User agent for requests
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+}
+
+# Pages to avoid (contact forms, legal, etc.)
+BLOCKED_PATHS = [
+    '/contact', '/about/contact', '/get-in-touch',
+    '/legal', '/privacy', '/terms', '/security',
+    '/support', '/help', '/faq', '/download',
+    '/pricing', '/blog', '/news', '/press'
+]
+
+
+class ScanJobManager:
+    """Manages scan jobs with progress tracking"""
+    
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def create_scan_job(
+        self,
+        company_id: int,
+        scan_website: bool = True,
+        scan_linkedin: bool = False,
+        max_pages: int = 5
+    ) -> ScanJob:
+        """Create a new scan job"""
+        scan_job = ScanJob(
+            company_id=company_id,
+            status=ScanStatus.PENDING,
+            scan_website=scan_website,
+            scan_linkedin=scan_linkedin,
+            max_pages=max_pages
+        )
+        self.db.add(scan_job)
+        self.db.commit()
+        self.db.refresh(scan_job)
+        return scan_job
+    
+    def update_scan_progress(
+        self,
+        scan_job_id: int,
+        progress: int,
+        current_step: str
+    ):
+        """Update scan job progress"""
+        scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
+        if scan_job:
+            scan_job.progress_percentage = progress
+            scan_job.current_step = current_step
+            self.db.commit()
+    
+    def start_scan_job(self, scan_job_id: int):
+        """Mark scan job as running"""
+        scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
+        if scan_job:
+            scan_job.status = ScanStatus.RUNNING
+            scan_job.started_at = datetime.utcnow()
+            self.db.commit()
+    
+    def complete_scan_job(
+        self,
+        scan_job_id: int,
+        emails_found: int,
+        emails_valid: int
+    ):
+        """Mark scan job as completed"""
+        scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
+        if scan_job:
+            scan_job.status = ScanStatus.COMPLETED
+            scan_job.completed_at = datetime.utcnow()
+            scan_job.emails_found = emails_found
+            scan_job.emails_valid = emails_valid
+            scan_job.progress_percentage = 100
+            self.db.commit()
+    
+    def fail_scan_job(self, scan_job_id: int, error_message: str):
+        """Mark scan job as failed"""
+        scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
+        if scan_job:
+            scan_job.status = ScanStatus.FAILED
+            scan_job.error_message = error_message
+            scan_job.completed_at = datetime.utcnow()
+            self.db.commit()
+    
+    def get_scan_status(self, scan_job_id: int) -> Dict:
+        """Get scan job status and progress"""
+        scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
+        if not scan_job:
+            return None
+        
+        return {
+            'id': scan_job.id,
+            'status': scan_job.status,
+            'progress_percentage': scan_job.progress_percentage,
+            'current_step': scan_job.current_step,
+            'emails_found': scan_job.emails_found,
+            'emails_valid': scan_job.emails_valid,
+            'error_message': scan_job.error_message,
+            'started_at': scan_job.started_at,
+            'completed_at': scan_job.completed_at
+        }
 
 
 class EmailScraper:
-    def __init__(self):
-        try:
-            self.ua = UserAgent()
-        except Exception:
-            self.ua = None
-        self.email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
+    """Scrapes emails from company websites and sources"""
+    
+    def __init__(self, db: Session, rate_limit: float = 2.0):
+        self.db = db
+        self.rate_limit = rate_limit
         self.session = requests.Session()
-        # Heuristics to keep us focused on small product startups
-        self.agency_keywords = [
-            'agency', 'consulting', 'consultancy', 'consultant', 'clients', 'services',
-            'service', 'studio', 'freelance', 'freelancer', 'coaching', 'coach', 'boutique'
-        ]
-        self.enterprise_keywords = [
-            'enterprise', 'fortune 500', 'public company', 'inc 5000', 'nyse', 'nasdaq',
-            'ipo', 'multinational', 'global leader'
-        ]
-        self.product_keywords = [
-            'platform', 'product', 'software', 'saas', 'users', 'workflow', 'data',
-            'app', 'application', 'api'
-        ]
-        self.title_keywords = [
-            'founder', 'co-founder', 'cofounder', 'cto', 'chief technology officer',
-            'head of engineering', 'lead engineer', 'principal engineer', 'staff engineer',
-            'vp engineering'
-        ]
-
-    def get_headers(self):
-        if self.ua:
-            try:
-                user_agent = self.ua.random
-            except Exception:
-                user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        else:
-            user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-
-        return {
-            'User-Agent': user_agent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-        }
-
-    def search_bing(self, query, num_results=20):
-        """Search Bing for URLs"""
-        urls = []
-        encoded_query = urllib.parse.quote_plus(query)
-
+        self.session.headers.update(HEADERS)
+        self.scan_manager = ScanJobManager(db)
+    
+    def _is_valid_url(self, url: str) -> bool:
+        """Check if URL should be scraped"""
+        parsed = urlparse(url)
+        path = parsed.path.lower()
+        
+        # Skip blocked paths
+        return not any(blocked in path for blocked in BLOCKED_PATHS)
+    
+    def _extract_emails_from_text(self, text: str) -> Set[str]:
+        """Extract email addresses from text using regex"""
+        # Email regex pattern
+        pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
+        emails = set(re.findall(pattern, text))
+        
+        # Filter out blocked prefixes immediately
+        valid_emails = set()
+        for email in emails:
+            if not is_blocked_prefix(email):
+                valid_emails.add(email.lower())
+        
+        return valid_emails
+    
+    def _fetch_page(self, url: str) -> Optional[str]:
+        """Fetch page content with rate limiting"""
         try:
-            search_url = f"https://www.bing.com/search?q={encoded_query}&count=50"
-            print(f"[SCRAPER] Searching Bing for: {query}")
-
-            response = self.session.get(search_url, headers=self.get_headers(), timeout=15)
-
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-
-                # Bing search results
-                for result in soup.find_all('li', class_='b_algo'):
-                    link = result.find('a')
-                    if link and link.get('href'):
-                        href = link['href']
-                        if href.startswith('http') and 'bing.com' not in href and 'microsoft.com' not in href:
-                            urls.append(href)
-
-                # Also try regular links
-                if len(urls) < 5:
-                    for link in soup.find_all('a', href=True):
-                        href = link['href']
-                        if href.startswith('http') and 'bing.com' not in href and 'microsoft.com' not in href and 'go.microsoft' not in href:
-                            if any(x in href for x in ['.com', '.org', '.io', '.co', '.net']):
-                                urls.append(href)
-
-                print(f"[SCRAPER] Bing found {len(urls)} URLs")
-            else:
-                print(f"[SCRAPER] Bing returned status {response.status_code}")
-
+            time.sleep(self.rate_limit)
+            response = self.session.get(url, timeout=10)
+            response.raise_for_status()
+            return response.text
         except Exception as e:
-            print(f"[SCRAPER] Bing search error: {e}")
-            logger.error(f"Bing search error: {e}")
-
-        return list(set(urls))[:num_results]
-
-    def search_duckduckgo_lite(self, query, num_results=20):
-        """Search DuckDuckGo Lite (text-only version)"""
-        urls = []
-        encoded_query = urllib.parse.quote_plus(query)
-
-        try:
-            search_url = f"https://lite.duckduckgo.com/lite/?q={encoded_query}"
-            print(f"[SCRAPER] Searching DuckDuckGo Lite for: {query}")
-
-            response = self.session.get(search_url, headers=self.get_headers(), timeout=15)
-
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-
-                for link in soup.find_all('a', href=True):
-                    href = link['href']
-                    if href.startswith('http') and 'duckduckgo.com' not in href:
-                        urls.append(href)
-
-                print(f"[SCRAPER] DuckDuckGo Lite found {len(urls)} URLs")
-            else:
-                print(f"[SCRAPER] DuckDuckGo Lite returned status {response.status_code}")
-
-        except Exception as e:
-            print(f"[SCRAPER] DuckDuckGo Lite error: {e}")
-
-        return list(set(urls))[:num_results]
-
-    def search_serp_html(self, query, num_results=20):
-        """Google-like SERP scraping via HTML (no API)."""
-        urls = []
-        encoded_query = urllib.parse.quote_plus(query)
-        serp_url = f"https://www.google.com/search?q={encoded_query}&num=30"
-        try:
-            resp = self.session.get(serp_url, headers=self.get_headers(), timeout=15)
-            if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                for a in soup.find_all('a', href=True):
-                    href = a['href']
-                    if href.startswith('/url?q='):
-                        candidate = href.split('/url?q=')[1].split('&')[0]
-                        if candidate.startswith('http'):
-                            urls.append(candidate)
-            print(f"[SCRAPER] SERP found {len(urls)} URLs")
-        except Exception as e:
-            print(f"[SCRAPER] SERP search error: {e}")
-        return list(set(urls))[:num_results]
-
-    def search_github(self, query, num_results=20):
-        """Lightweight GitHub code search for domains in READMEs."""
-        urls = []
-        encoded_query = urllib.parse.quote_plus(query + " site")
-        search_url = f"https://github.com/search?q={encoded_query}&type=code"
-        try:
-            resp = self.session.get(search_url, headers=self.get_headers(), timeout=15)
-            if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                for a in soup.find_all('a', href=True):
-                    text = a.get_text(strip=True)
-                    href = a['href']
-                    if text and '.' in text and len(text) < 60 and href.startswith('http'):
-                        urls.append(text)
-            print(f"[SCRAPER] GitHub search extracted {len(urls)} domain-like strings")
-        except Exception as e:
-            print(f"[SCRAPER] GitHub search error: {e}")
-        # Keep only http/https links
-        urls = [u for u in urls if u.startswith('http')]
-        return list(set(urls))[:num_results]
-
-    def search_duckduckgo_lite(self, query, num_results=20):
-        """Search DuckDuckGo Lite (text-only version)"""
-        urls = []
-        encoded_query = urllib.parse.quote_plus(query)
-
-        try:
-            search_url = f"https://lite.duckduckgo.com/lite/?q={encoded_query}"
-            print(f"[SCRAPER] Searching DuckDuckGo Lite for: {query}")
-
-            response = self.session.get(search_url, headers=self.get_headers(), timeout=15)
-
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-
-                # Find all links in results
-                for link in soup.find_all('a', href=True):
-                    href = link['href']
-                    if href.startswith('http') and 'duckduckgo.com' not in href:
-                        urls.append(href)
-
-                print(f"[SCRAPER] DuckDuckGo Lite found {len(urls)} URLs")
-            else:
-                print(f"[SCRAPER] DuckDuckGo Lite returned status {response.status_code}")
-
-        except Exception as e:
-            print(f"[SCRAPER] DuckDuckGo Lite error: {e}")
-
-        return list(set(urls))[:num_results]
-
-    def get_company_directories(self, interest):
-        """Fallback small startup sites (limited to 15% of leads)"""
-        startup_urls = [
-            'https://cal.com', 'https://supabase.com', 'https://modal.com', 'https://railway.app',
-            'https://render.com', 'https://fly.io', 'https://convex.dev', 'https://upstash.com',
-            'https://planetscale.com', 'https://qdrant.tech', 'https://weaviate.io', 'https://nhost.io'
-        ]
-        return startup_urls
-
-    def search_google(self, query, num_results=40):
-        """Discovery orchestrator: multi-source with fallback and minimum threshold."""
-        print(f"\n[SCRAPER] === Starting search for: {query} ===")
-        interest = query
-        results = []
-        minimum = max(10, num_results // 2)
-
-        sources = [
-            ('bing', lambda q: self.search_bing(q, num_results // 3)),
-            ('duckduckgo', lambda q: self.search_duckduckgo_lite(q, num_results // 3)),
-            ('serp', lambda q: self.search_serp_html(q, num_results // 3)),
-            ('github', lambda q: self.search_github(q, num_results // 3)),
-        ]
-
-        for source_name, source in sources:
-            try:
-                chunk = source(interest)
-                if not chunk:
-                    print(f"[SCRAPER] {source_name} returned 0 URLs, continuing")
-                results.extend(chunk)
-                if len(set(results)) >= minimum:
-                    break
-            except Exception as src_err:
-                logger.debug(f"Source {source_name} error: {src_err}")
+            print(f"Error fetching {url}: {e}")
+            return None
+    
+    def scrape_website(
+        self,
+        url: str,
+        company_id: int,
+        scan_job_id: int,
+        max_pages: int = 5
+    ) -> List[Dict]:
+        """
+        Scrape emails from website with progress tracking
+        Returns list of email data dictionaries
+        """
+        if not self._is_valid_url(url):
+            return []
+        
+        domain = urlparse(url).netloc
+        emails_found = []
+        visited_urls = set()
+        to_visit = [url]
+        
+        self.scan_manager.update_scan_progress(
+            scan_job_id,
+            10,
+            f"Starting website scan: {url}"
+        )
+        
+        page_count = 0
+        while to_visit and page_count < max_pages:
+            current_url = to_visit.pop(0)
+            
+            if current_url in visited_urls:
                 continue
-
-        # Fallback curated list if still low (will be capped later in API)
-        if len(set(results)) < minimum:
-            results.extend(self.get_company_directories(interest)[:10])
-
-        unique_urls = list(set(results))
-        random.shuffle(unique_urls)
-        print(f"[SCRAPER] Total unique URLs to scrape: {len(unique_urls)}")
-        return unique_urls[:num_results]
-
-    def scrape_website(self, url):
-        """Extract emails first, classify later. Always return raw extractions."""
-        emails = set()
-        raw_captures = set()
-        signals = {
-            'has_agency_keywords': False,
-            'has_product_keywords': False,
-            'title_hits': set(),
-            'text_length': 0,
-            'agency_hits': 0,
-        }
-
-        try:
-            print(f"[SCRAPER] Fetching: {url}")
-
-            response = self.session.get(url, headers=self.get_headers(), timeout=15, allow_redirects=True)
-
-            if response.status_code != 200:
-                print(f"[SCRAPER] Got status {response.status_code} for {url}")
-                print(f"[EXTRACT] 0 emails extracted from {url} (HTTP {response.status_code})")
-                return {'emails': [], 'raw_emails': [], 'signals': signals}
-
-            html = response.text
+            
+            visited_urls.add(current_url)
+            page_count += 1
+            
+            # Update progress
+            progress = 10 + int((page_count / max_pages) * 60)
+            self.scan_manager.update_scan_progress(
+                scan_job_id,
+                progress,
+                f"Scanning page {page_count}/{max_pages}: {current_url}"
+            )
+            
+            html = self._fetch_page(current_url)
+            
+            if not html:
+                continue
+            
             soup = BeautifulSoup(html, 'html.parser')
-            text = soup.get_text(separator=' ')
-            text_lower = text.lower()
-            signals['text_length'] = len(text_lower)
-            signals['agency_hits'] = sum(1 for k in self.agency_keywords + self.enterprise_keywords if k in text_lower)
-            if signals['agency_hits'] >= 2:
-                signals['has_agency_keywords'] = True
-            if any(k in text_lower for k in self.product_keywords):
-                signals['has_product_keywords'] = True
-            for title_kw in self.title_keywords:
-                if title_kw in text_lower:
-                    signals['title_hits'].add(title_kw)
-
-            # Method 1: Find emails in raw HTML
-            raw_emails = re.findall(self.email_pattern, html)
-
-            # Method 2: Find emails in visible text
-            text_emails = re.findall(self.email_pattern, text)
-
-            # Method 2b: Obfuscated patterns
-            obfuscated = re.findall(r"[A-Za-z0-9._%+-]+\s*\[at\]\s*[A-Za-z0-9.-]+\s*\[dot\]\s*[A-Za-z]{2,}", text_lower)
-            for ob in obfuscated:
-                cleaned = ob.replace('[at]', '@').replace('[dot]', '.').replace(' ', '')
-                raw_emails.append(cleaned)
-
-            # Method 3: Find mailto links
-            for link in soup.find_all('a', href=True):
-                href = link['href']
-                if 'mailto:' in href.lower():
-                    email = href.lower().replace('mailto:', '').split('?')[0].strip()
-                    if email and '@' in email:
-                        raw_emails.append(email)
-
-            # Method 4: Check onclick handlers and data attributes
-            for tag in soup.find_all(attrs=True):
-                for attr_value in tag.attrs.values():
-                    if isinstance(attr_value, str):
-                        attr_emails = re.findall(self.email_pattern, attr_value)
-                        raw_emails.extend(attr_emails)
-
-            # Method 5: Scan script tags for emails and JSON blobs
-            for script in soup.find_all('script'):
-                script_text = script.get_text() or ''
-                raw_emails.extend(re.findall(self.email_pattern, script_text))
-
-            # Combine all found emails (raw, before filtering)
-            all_found = set(raw_emails + text_emails)
-            raw_captures.update(all_found)
-            print(f"[EXTRACT] {len(raw_captures)} raw emails extracted from {url}")
-
-            # Filter out invalid/fake emails
-            excluded_patterns = [
-                'example.com', 'test.com', 'domain.com', 'email.com',
-                'yoursite.com', 'yourdomain.com', 'company.com', 'website.com',
-                'sentry.io', 'wixpress.com', 'placeholder', 'sample.com',
-                'localhost', '127.0.0.1', 'schema.org', 'w3.org',
-                '.png', '.jpg', '.gif', '.svg', '.webp', '.css', '.js',
-                'webpack', 'node_modules', 'jquery', 'bootstrap'
-            ]
-
-            for email in all_found:
-                email_clean = email.lower().strip()
-
-                # Skip invalid patterns
-                if any(excl in email_clean for excl in excluded_patterns):
-                    continue
-
-                # Skip if too short or too long
-                if len(email_clean) < 6 or len(email_clean) > 80:
-                    continue
-
-                # Must have @ and valid TLD
-                if '@' not in email_clean:
-                    continue
-
-                parts = email_clean.split('@')
-                if len(parts) != 2:
-                    continue
-
-                local, domain = parts
-                if not local or not domain:
-                    continue
-
-                # Domain must have a dot and valid TLD
-                if '.' not in domain:
-                    continue
-
-                tld = domain.split('.')[-1]
-                if len(tld) < 2 or len(tld) > 6 or not tld.isalpha():
-                    continue
-
-                emails.add(email_clean)
-
-            filtered_count = len(raw_captures) - len(emails)
-            if emails:
-                print(f"[FILTER] {len(emails)} emails passed basic validation (filtered {filtered_count}): {list(emails)[:3]}...")
-            else:
-                print(f"[FILTER] 0 emails passed validation (filtered {filtered_count} from {len(raw_captures)} raw)")
-
-        except requests.exceptions.Timeout:
-            print(f"[SCRAPER] Timeout for {url}")
-            print(f"[EXTRACT] 0 emails extracted from {url} (timeout)")
-        except requests.exceptions.ConnectionError:
-            print(f"[SCRAPER] Connection error for {url}")
-            print(f"[EXTRACT] 0 emails extracted from {url} (connection error)")
-        except Exception as e:
-            print(f"[SCRAPER] Error scraping {url}: {str(e)[:50]}")
-            print(f"[EXTRACT] 0 emails extracted from {url} (error)")
-
-        return {
-            'emails': list(emails),
-            'raw_emails': list(raw_captures),
-            'signals': signals,
-        }
-
-    def find_contact_pages(self, base_url):
-        """Find homepage + key subpages even if unlinked; include sitemap hints."""
-        contact_keywords = ['contact', 'about', 'team', 'support', 'help', 'reach', 'connect', 'founders', 'company']
-        forced_paths = ['/about', '/company', '/team', '/contact', '/privacy', '/terms', '/docs', '/blog']
-        urls_to_check = [base_url]
-
+            
+            # Extract emails from text
+            emails = self._extract_emails_from_text(soup.get_text())
+            
+            for email in emails:
+                # Only keep emails from same domain
+                if domain in email:
+                    emails_found.append({
+                        'email': email,
+                        'source': current_url,
+                        'domain': domain
+                    })
+            
+            # Find more pages on same domain
+            if page_count < max_pages:
+                for link in soup.find_all('a', href=True):
+                    href = link['href']
+                    full_url = urljoin(current_url, href)
+                    
+                    # Only visit same domain
+                    if domain in full_url and self._is_valid_url(full_url):
+                        if full_url not in visited_urls and len(to_visit) < 20:
+                            to_visit.append(full_url)
+        
+        return emails_found
+    
+    def enrich_email_with_role(self, email: str, website: str) -> Optional[str]:
+        """
+        Try to find role/title associated with email
+        Returns role if found
+        """
+        html = self._fetch_page(website)
+        if not html:
+            return None
+        
+        soup = BeautifulSoup(html, 'html.parser')
+        text = soup.get_text().lower()
+        
+        # Look for email near role keywords
+        email_index = text.find(email.lower())
+        if email_index == -1:
+            return None
+        
+        # Get context around email (500 chars before and after)
+        context = text[max(0, email_index-500):email_index+500]
+        
+        # Common role patterns
+        role_patterns = [
+            r'(ceo|cto|founder|co-founder|chief)',
+            r'(head of \w+)',
+            r'(director of \w+)',
+            r'(vp of \w+)',
+            r'(engineering manager)',
+            r'(product manager)',
+            r'(staff engineer)'
+        ]
+        
+        for pattern in role_patterns:
+            match = re.search(pattern, context)
+            if match:
+                role = match.group(0)
+                if is_allowed_role(role):
+                    return role.title()
+        
+        return None
+    
+    def run_full_scan(
+        self,
+        company_id: int,
+        scan_website: bool = True,
+        scan_linkedin: bool = False,
+        max_pages: int = 5,
+        verify_emails: bool = True
+    ) -> Dict:
+        """
+        Run complete scan job for a company
+        Returns scan results
+        """
+        # Get company
+        company = self.db.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            return {'error': 'Company not found'}
+        
+        # Create scan job
+        scan_job = self.scan_manager.create_scan_job(
+            company_id=company_id,
+            scan_website=scan_website,
+            scan_linkedin=scan_linkedin,
+            max_pages=max_pages
+        )
+        
         try:
-            response = self.session.get(base_url, headers=self.get_headers(), timeout=10, allow_redirects=True)
-            soup = BeautifulSoup(response.text, 'html.parser')
-
-            from urllib.parse import urlparse, urljoin
-            base_parsed = urlparse(base_url)
-            base_domain = base_parsed.netloc
-
-            for link in soup.find_all('a', href=True):
-                href = link.get('href', '').lower()
-
-                if any(keyword in href for keyword in contact_keywords):
-                    full_url = urljoin(base_url, link['href'])
-
-                    url_parsed = urlparse(full_url)
-                    if base_domain in url_parsed.netloc:
-                        urls_to_check.append(full_url)
-
-            # Always force-scan key pages even if not linked
-            for pattern in forced_paths:
-                potential_url = urljoin(base_url, pattern)
-                urls_to_check.append(potential_url)
-
-            # Probe sitemap.xml for extra internal links
-            try:
-                sitemap_url = urljoin(base_url, '/sitemap.xml')
-                sm_resp = self.session.get(sitemap_url, headers=self.get_headers(), timeout=8)
-                if sm_resp.status_code == 200:
-                    sm_soup = BeautifulSoup(sm_resp.text, 'xml')
-                    for loc in sm_soup.find_all('loc'):
-                        href = loc.get_text(strip=True)
-                        if base_domain in href:
-                            if any(k in href.lower() for k in contact_keywords + ['privacy', 'terms', 'docs', 'blog']):
-                                urls_to_check.append(href)
-            except Exception:
+            # Start scan
+            self.scan_manager.start_scan_job(scan_job.id)
+            
+            all_emails = []
+            
+            # Scrape website
+            if scan_website and company.website:
+                self.scan_manager.update_scan_progress(
+                    scan_job.id,
+                    5,
+                    "Starting website scan"
+                )
+                website_emails = self.scrape_website(
+                    company.website,
+                    company_id,
+                    scan_job.id,
+                    max_pages
+                )
+                all_emails.extend(website_emails)
+            
+            # Scrape LinkedIn (placeholder)
+            if scan_linkedin and company.linkedin:
+                self.scan_manager.update_scan_progress(
+                    scan_job.id,
+                    70,
+                    "Starting LinkedIn scan"
+                )
+                # LinkedIn scraping would go here
                 pass
-
+            
+            # Deduplicate
+            self.scan_manager.update_scan_progress(
+                scan_job.id,
+                80,
+                "Deduplicating emails"
+            )
+            
+            unique_emails = {}
+            for email_data in all_emails:
+                email = email_data['email']
+                if email not in unique_emails:
+                    unique_emails[email] = email_data
+            
+            # Validate and save emails
+            self.scan_manager.update_scan_progress(
+                scan_job.id,
+                85,
+                "Validating emails"
+            )
+            
+            emails_saved = 0
+            emails_valid = 0
+            
+            for idx, (email, email_data) in enumerate(unique_emails.items()):
+                # Check if email already exists
+                existing = self.db.query(Email).filter(
+                    Email.email_address == email
+                ).first()
+                
+                if existing:
+                    continue
+                
+                # Validate email
+                validation = validate_email_full(
+                    email,
+                    check_mx=verify_emails,
+                    check_smtp=False
+                )
+                
+                if not validation['is_valid']:
+                    continue
+                
+                # Try to enrich with role
+                role = None
+                if company.website:
+                    role = self.enrich_email_with_role(email, company.website)
+                
+                # Save email
+                db_email = Email(
+                    email_address=email,
+                    company_id=company_id,
+                    scan_job_id=scan_job.id,
+                    status=EmailStatus.SCRAPED,
+                    verification_status=(
+                        VerificationStatus.VALID if validation['is_valid']
+                        else VerificationStatus.INVALID
+                    ),
+                    quality_score=validation['quality_score'],
+                    is_validated=verify_emails,
+                    mx_valid=validation['mx_valid'],
+                    is_role_email=validation['is_role_email'],
+                    is_disposable=validation['is_disposable'],
+                    role=role,
+                    verified_at=datetime.utcnow() if verify_emails else None
+                )
+                
+                self.db.add(db_email)
+                emails_saved += 1
+                
+                if validation['is_valid']:
+                    emails_valid += 1
+                
+                # Update progress periodically
+                if idx % 10 == 0:
+                    progress = 85 + int((idx / len(unique_emails)) * 10)
+                    self.scan_manager.update_scan_progress(
+                        scan_job.id,
+                        progress,
+                        f"Validated {idx}/{len(unique_emails)} emails"
+                    )
+            
+            self.db.commit()
+            
+            # Update company last_scanned
+            company.last_scanned = datetime.utcnow()
+            self.db.commit()
+            
+            # Complete scan job
+            self.scan_manager.complete_scan_job(
+                scan_job.id,
+                emails_found=len(unique_emails),
+                emails_valid=emails_valid
+            )
+            
+            return {
+                'scan_job_id': scan_job.id,
+                'status': 'completed',
+                'emails_found': len(unique_emails),
+                'emails_saved': emails_saved,
+                'emails_valid': emails_valid
+            }
+            
         except Exception as e:
-            print(f"[SCRAPER] Error finding contact pages: {e}")
+            # Fail scan job
+            self.scan_manager.fail_scan_job(scan_job.id, str(e))
+            return {
+                'scan_job_id': scan_job.id,
+                'status': 'failed',
+                'error': str(e)
+            }
 
-        unique = list(dict.fromkeys(urls_to_check))[:15]
-        print(f"[SCRAPER] Found {len(unique)} pages to check for {base_url}")
-        return unique
+
+def start_scan(
+    db: Session,
+    company_id: int,
+    scan_website: bool = True,
+    scan_linkedin: bool = False,
+    max_pages: int = 5,
+    verify_emails: bool = True
+) -> Dict:
+    """
+    Main function to start a scan job
+    Can be called from API or background task
+    """
+    scraper = EmailScraper(db)
+    return scraper.run_full_scan(
+        company_id=company_id,
+        scan_website=scan_website,
+        scan_linkedin=scan_linkedin,
+        max_pages=max_pages,
+        verify_emails=verify_emails
+    )
+
+
+def get_scan_status(db: Session, scan_job_id: int) -> Optional[Dict]:
+    """Get status of a scan job"""
+    manager = ScanJobManager(db)
+    return manager.get_scan_status(scan_job_id)
