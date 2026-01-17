@@ -14,10 +14,10 @@ import json
 from database import (
     get_db, init_db, Company, Person, Email, Campaign, SendLog,
     ScanJob, SendBatch, EmailVerificationJob,
-    EmailStatus, CampaignStatus, ScanStatus, VerificationStatus
+    EmailStatus, CampaignStatus, ScanStatus, VerificationStatus, SendStatus
 )
 from scraper import start_scan, get_scan_status
-from email_validator import validate_email_full, is_allowed_role, batch_validate_emails
+from email_validation import validate_email_full, is_allowed_role, batch_validate_emails
 from email_sender import (
     start_campaign, send_campaign_now, get_send_batch_status,
     finalize_campaign_run, CampaignManager
@@ -219,21 +219,65 @@ async def start_scan_job(
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     
-    # Run scan in background
-    background_tasks.add_task(
-        start_scan,
-        db,
-        scan_request.company_id,
-        scan_request.scan_website,
-        scan_request.scan_linkedin,
-        scan_request.max_pages,
-        scan_request.verify_emails
-    )
+    # Run scan in background with its own session
+    def run_scan_with_new_session():
+        from database import SessionLocal
+        scan_db = SessionLocal()
+        try:
+            start_scan(
+                scan_db,
+                scan_request.company_id,
+                scan_request.scan_website,
+                scan_request.scan_linkedin,
+                scan_request.max_pages,
+                scan_request.verify_emails
+            )
+        finally:
+            scan_db.close()
+    
+    background_tasks.add_task(run_scan_with_new_session)
     
     return {
         "message": "Scan job started",
         "company_id": scan_request.company_id,
         "company_name": company.name
+    }
+
+
+@app.post("/scans/all")
+async def scan_all_companies(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Start scan jobs for all companies that haven't been scanned yet or recently"""
+    companies = db.query(Company).filter(Company.status == 'active').all()
+    
+    # Filter to companies not scanned recently (or never)
+    from datetime import datetime, timedelta
+    cutoff = datetime.utcnow() - timedelta(hours=24)
+    to_scan = [c for c in companies if not c.last_scanned or c.last_scanned < cutoff]
+    
+    if not to_scan:
+        return {"message": "All companies have been scanned recently", "count": 0}
+    
+    def run_all_scans():
+        from database import SessionLocal
+        import time
+        scan_db = SessionLocal()
+        try:
+            for company in to_scan:
+                print(f"[SCAN ALL] Starting scan for {company.name}")
+                start_scan(scan_db, company.id, scan_website=True, max_pages=10)
+                time.sleep(1)  # Small delay between scans
+        finally:
+            scan_db.close()
+    
+    background_tasks.add_task(run_all_scans)
+    
+    return {
+        "message": f"Started scanning {len(to_scan)} companies",
+        "count": len(to_scan),
+        "companies": [c.name for c in to_scan]
     }
 
 
@@ -321,6 +365,82 @@ async def create_email(email: EmailCreate, db: Session = Depends(get_db)):
         "email": db_email.email_address,
         "status": db_email.status,
         "quality_score": db_email.quality_score
+    }
+
+
+class BulkEmailImport(BaseModel):
+    emails: List[dict]  # List of {email, name, role, company_name, domain}
+    company_id: Optional[int] = None  # If provided, assign all to this company
+
+
+@app.post("/emails/import")
+async def import_emails_bulk(data: BulkEmailImport, db: Session = Depends(get_db)):
+    """
+    Bulk import emails - for importing from CSV, Apollo, Hunter, etc.
+    Each email should have: email, name (optional), role (optional), company_name (optional)
+    """
+    imported = 0
+    skipped = 0
+    errors = []
+    
+    for item in data.emails:
+        email_address = item.get('email', '').strip().lower()
+        if not email_address or '@' not in email_address:
+            errors.append(f"Invalid email format: {email_address}")
+            continue
+        
+        # Check if exists
+        existing = db.query(Email).filter(Email.email_address == email_address).first()
+        if existing:
+            skipped += 1
+            continue
+        
+        # Validate
+        validation = validate_email_full(email_address, check_mx=False)
+        if not validation['is_valid']:
+            errors.append(f"Invalid: {email_address}")
+            continue
+        
+        # Get or create company
+        company_id = data.company_id
+        if not company_id and item.get('company_name'):
+            domain = item.get('domain') or email_address.split('@')[1]
+            company = db.query(Company).filter(Company.domain == domain).first()
+            if not company:
+                company = Company(
+                    name=item.get('company_name', domain),
+                    domain=domain,
+                    website=f"https://{domain}"
+                )
+                db.add(company)
+                db.commit()
+                db.refresh(company)
+            company_id = company.id
+        
+        # Create email
+        db_email = Email(
+            email_address=email_address,
+            person_name=item.get('name'),
+            role=item.get('role'),
+            company_id=company_id,
+            quality_score=validation.get('quality_score', 75),
+            is_validated=True,
+            mx_valid=True,
+            is_role_email=validation.get('is_role_email', False),
+            is_disposable=False,
+            verification_status=VerificationStatus.VALID,
+            status=EmailStatus.DRAFT
+        )
+        db.add(db_email)
+        imported += 1
+    
+    db.commit()
+    
+    return {
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors[:10] if len(errors) > 10 else errors,
+        "total_errors": len(errors)
     }
 
 
@@ -714,6 +834,43 @@ async def get_batch_status(batch_id: int, db: Session = Depends(get_db)):
 # Statistics Endpoints
 # ============================================================================
 
+@app.get("/api/stats")
+async def get_stats(db: Session = Depends(get_db)):
+    """Get statistics for frontend - simplified format"""
+    try:
+        total_emails = db.query(Email).count()
+        
+        verified = db.query(Email).filter(
+            Email.verification_status == VerificationStatus.VALID
+        ).count()
+        
+        try:
+            sent = db.query(SendLog).filter(
+                SendLog.status == SendStatus.SENT
+            ).count()
+        except Exception:
+            sent = 0
+        
+        pending = db.query(Email).filter(
+            Email.status.in_([EmailStatus.DRAFT, EmailStatus.QUEUED])
+        ).count()
+        
+        return {
+            "totalEmails": total_emails,
+            "verified": verified,
+            "sent": sent,
+            "pending": pending
+        }
+    except Exception as e:
+        # Return default values if database is not initialized
+        return {
+            "totalEmails": 0,
+            "verified": 0,
+            "sent": 0,
+            "pending": 0
+        }
+
+
 @app.get("/stats/overview")
 async def get_overview_stats(db: Session = Depends(get_db)):
     """Get overall system statistics"""
@@ -770,4 +927,4 @@ async def reset_email_queue(db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)

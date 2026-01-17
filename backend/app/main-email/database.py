@@ -10,9 +10,13 @@ from datetime import datetime
 import os
 import enum
 
-# Database connection
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/email_outreach")
-engine = create_engine(DATABASE_URL, echo=True)
+# Database connection - Use SQLite for simplicity
+# Use absolute path to project root so the same DB is used regardless of where we run from
+import pathlib
+PROJECT_ROOT = pathlib.Path(__file__).parent.parent.parent.parent  # Go up to BrandWriter-main
+DATABASE_PATH = PROJECT_ROOT / "emails.db"
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATABASE_PATH}")
+engine = create_engine(DATABASE_URL, echo=True, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

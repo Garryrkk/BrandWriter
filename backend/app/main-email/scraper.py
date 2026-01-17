@@ -1,7 +1,7 @@
 """
-Email scraping module with scan job management
-Extracts emails from websites, LinkedIn, and other sources
-Tracks scan progress and status
+Email scraping module - REAL EMAIL DISCOVERY
+Scrapes actual emails from company websites, contact pages, and team pages
+Focused on small businesses and startups
 """
 
 import re
@@ -10,31 +10,72 @@ from bs4 import BeautifulSoup
 from typing import List, Dict, Optional, Set
 from urllib.parse import urljoin, urlparse
 import time
-import json
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from email_validator import (
+from email_validation import (
     validate_email_full, 
     is_allowed_role, 
-    is_blocked_prefix
+    is_blocked_prefix,
+    is_role_email
 )
 from database import (
     Company, Email, ScanJob, ScanStatus,
     EmailStatus, VerificationStatus
 )
 
-# User agent for requests
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-}
+# User agents to rotate
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+]
 
-# Pages to avoid (contact forms, legal, etc.)
-BLOCKED_PATHS = [
-    '/contact', '/about/contact', '/get-in-touch',
-    '/legal', '/privacy', '/terms', '/security',
-    '/support', '/help', '/faq', '/download',
-    '/pricing', '/blog', '/news', '/press'
+# Pages to skip
+BLOCKED_PATHS = ['/legal', '/privacy', '/terms', '/security', '/download', '/pricing', '/login', '/signup', '/cart']
+
+# High-priority pages likely to contain emails
+PRIORITY_PATHS = [
+    '/contact', '/contact-us', '/contactus',
+    '/about', '/about-us', '/aboutus',
+    '/team', '/our-team', '/the-team',
+    '/people', '/staff', '/leadership',
+    '/company', '/who-we-are',
+    '/support', '/help',
+    '/careers', '/jobs',
+]
+
+# Email regex - comprehensive pattern
+EMAIL_REGEX = re.compile(
+    r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b',
+    re.IGNORECASE
+)
+
+# Blocked email patterns (big companies, not real business emails)
+BLOCKED_EMAIL_PATTERNS = [
+    r'example\.com$',
+    r'test\.com$',
+    r'localhost$',
+    r'email\.com$',
+    r'domain\.com$',
+    r'yourcompany\.com$',
+    r'company\.com$',
+    r'sentry\.io$',
+    r'wixpress\.com$',
+    r'schema\.org$',
+    r'w3\.org$',
+    r'googleapis\.com$',
+    r'google\.com$',
+    r'facebook\.com$',
+    r'twitter\.com$',
+    r'linkedin\.com$',
+    r'microsoft\.com$',
+    r'apple\.com$',
+    r'amazon\.com$',
+    r'cloudflare\.com$',
+    r'mailchimp\.com$',
+    r'hubspot\.com$',
+    r'salesforce\.com$',
 ]
 
 
@@ -44,14 +85,8 @@ class ScanJobManager:
     def __init__(self, db: Session):
         self.db = db
     
-    def create_scan_job(
-        self,
-        company_id: int,
-        scan_website: bool = True,
-        scan_linkedin: bool = False,
-        max_pages: int = 5
-    ) -> ScanJob:
-        """Create a new scan job"""
+    def create_scan_job(self, company_id: int, scan_website: bool = True, 
+                        scan_linkedin: bool = False, max_pages: int = 20) -> ScanJob:
         scan_job = ScanJob(
             company_id=company_id,
             status=ScanStatus.PENDING,
@@ -64,13 +99,7 @@ class ScanJobManager:
         self.db.refresh(scan_job)
         return scan_job
     
-    def update_scan_progress(
-        self,
-        scan_job_id: int,
-        progress: int,
-        current_step: str
-    ):
-        """Update scan job progress"""
+    def update_scan_progress(self, scan_job_id: int, progress: int, current_step: str):
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if scan_job:
             scan_job.progress_percentage = progress
@@ -78,20 +107,13 @@ class ScanJobManager:
             self.db.commit()
     
     def start_scan_job(self, scan_job_id: int):
-        """Mark scan job as running"""
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if scan_job:
             scan_job.status = ScanStatus.RUNNING
             scan_job.started_at = datetime.utcnow()
             self.db.commit()
     
-    def complete_scan_job(
-        self,
-        scan_job_id: int,
-        emails_found: int,
-        emails_valid: int
-    ):
-        """Mark scan job as completed"""
+    def complete_scan_job(self, scan_job_id: int, emails_found: int, emails_valid: int):
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if scan_job:
             scan_job.status = ScanStatus.COMPLETED
@@ -102,7 +124,6 @@ class ScanJobManager:
             self.db.commit()
     
     def fail_scan_job(self, scan_job_id: int, error_message: str):
-        """Mark scan job as failed"""
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if scan_job:
             scan_job.status = ScanStatus.FAILED
@@ -110,12 +131,10 @@ class ScanJobManager:
             scan_job.completed_at = datetime.utcnow()
             self.db.commit()
     
-    def get_scan_status(self, scan_job_id: int) -> Dict:
-        """Get scan job status and progress"""
+    def get_scan_status(self, scan_job_id: int) -> Optional[Dict]:
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if not scan_job:
             return None
-        
         return {
             'id': scan_job.id,
             'status': scan_job.status,
@@ -124,78 +143,154 @@ class ScanJobManager:
             'emails_found': scan_job.emails_found,
             'emails_valid': scan_job.emails_valid,
             'error_message': scan_job.error_message,
-            'started_at': scan_job.started_at,
-            'completed_at': scan_job.completed_at
         }
 
 
 class EmailScraper:
-    """Scrapes emails from company websites and sources"""
+    """Real email scraper for small business websites"""
     
-    def __init__(self, db: Session, rate_limit: float = 2.0):
+    def __init__(self, db: Session, rate_limit: float = 1.0):
         self.db = db
         self.rate_limit = rate_limit
         self.session = requests.Session()
-        self.session.headers.update(HEADERS)
         self.scan_manager = ScanJobManager(db)
+        self.ua_index = 0
+    
+    def _get_headers(self) -> Dict:
+        """Rotate user agents"""
+        self.ua_index = (self.ua_index + 1) % len(USER_AGENTS)
+        return {
+            'User-Agent': USER_AGENTS[self.ua_index],
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+        }
     
     def _is_valid_url(self, url: str) -> bool:
-        """Check if URL should be scraped"""
         parsed = urlparse(url)
         path = parsed.path.lower()
-        
-        # Skip blocked paths
         return not any(blocked in path for blocked in BLOCKED_PATHS)
     
-    def _extract_emails_from_text(self, text: str) -> Set[str]:
-        """Extract email addresses from text using regex"""
-        # Email regex pattern
-        pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
-        emails = set(re.findall(pattern, text))
+    def _is_valid_email(self, email: str, company_domain: str) -> bool:
+        """Check if email is valid and belongs to company domain"""
+        email = email.lower().strip()
         
-        # Filter out blocked prefixes immediately
-        valid_emails = set()
-        for email in emails:
-            if not is_blocked_prefix(email):
-                valid_emails.add(email.lower())
+        # Skip if blocked pattern
+        for pattern in BLOCKED_EMAIL_PATTERNS:
+            if re.search(pattern, email):
+                return False
         
-        return valid_emails
+        # Skip common invalid prefixes
+        if is_blocked_prefix(email):
+            return False
+        
+        # Get email domain
+        if '@' not in email:
+            return False
+        email_domain = email.split('@')[1]
+        
+        # Clean company domain
+        company_domain_clean = company_domain.replace('www.', '').lower()
+        
+        # Must match company domain (or subdomain)
+        if company_domain_clean not in email_domain and email_domain not in company_domain_clean:
+            return False
+        
+        return True
+    
+    def _extract_emails_from_html(self, html: str, company_domain: str) -> Set[str]:
+        """Extract valid emails from HTML content"""
+        emails = set()
+        
+        # Find all email-like strings
+        found = EMAIL_REGEX.findall(html)
+        
+        for email in found:
+            email = email.lower().strip()
+            if self._is_valid_email(email, company_domain):
+                emails.add(email)
+        
+        # Also check for mailto: links
+        soup = BeautifulSoup(html, 'html.parser')
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            if href.startswith('mailto:'):
+                email = href.replace('mailto:', '').split('?')[0].lower().strip()
+                if self._is_valid_email(email, company_domain):
+                    emails.add(email)
+        
+        return emails
+    
+    def _extract_person_info(self, html: str, email: str) -> Dict:
+        """Try to extract name/role near the email"""
+        soup = BeautifulSoup(html, 'html.parser')
+        text = soup.get_text()
+        
+        # Find email position
+        email_pos = text.lower().find(email.lower())
+        if email_pos == -1:
+            return {'name': None, 'role': None}
+        
+        # Get context (300 chars before and after)
+        context = text[max(0, email_pos-300):email_pos+300]
+        
+        # Try to find a name pattern near email
+        name_pattern = r'\b([A-Z][a-z]+ [A-Z][a-z]+)\b'
+        names = re.findall(name_pattern, context)
+        
+        # Try to find role keywords
+        role_keywords = [
+            'CEO', 'CTO', 'CFO', 'COO', 'Founder', 'Co-Founder',
+            'Director', 'Manager', 'Head of', 'VP', 'President',
+            'Owner', 'Partner', 'Lead', 'Engineer', 'Designer',
+            'Developer', 'Sales', 'Marketing', 'Support'
+        ]
+        
+        found_role = None
+        for keyword in role_keywords:
+            if keyword.lower() in context.lower():
+                found_role = keyword
+                break
+        
+        return {
+            'name': names[0] if names else None,
+            'role': found_role
+        }
     
     def _fetch_page(self, url: str) -> Optional[str]:
-        """Fetch page content with rate limiting"""
+        """Fetch page with rate limiting"""
         try:
             time.sleep(self.rate_limit)
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, headers=self._get_headers(), timeout=15, allow_redirects=True)
             response.raise_for_status()
             return response.text
         except Exception as e:
-            print(f"Error fetching {url}: {e}")
+            print(f"[SCRAPER] Error fetching {url}: {e}")
             return None
     
-    def scrape_website(
-        self,
-        url: str,
-        company_id: int,
-        scan_job_id: int,
-        max_pages: int = 5
-    ) -> List[Dict]:
-        """
-        Scrape emails from website with progress tracking
-        Returns list of email data dictionaries
-        """
-        if not self._is_valid_url(url):
+    def scrape_website(self, url: str, company_domain: str, scan_job_id: int, max_pages: int = 20) -> List[Dict]:
+        """Scrape emails from a website - focuses on real email discovery"""
+        
+        if not url:
             return []
         
-        domain = urlparse(url).netloc
-        emails_found = []
-        visited_urls = set()
-        to_visit = [url]
+        parsed = urlparse(url)
+        base_url = f"{parsed.scheme}://{parsed.netloc}"
+        domain = parsed.netloc.replace('www.', '')
         
-        self.scan_manager.update_scan_progress(
-            scan_job_id,
-            10,
-            f"Starting website scan: {url}"
-        )
+        emails_found = {}
+        visited_urls = set()
+        
+        # Build URL queue - priority pages first
+        to_visit = [url]
+        for path in PRIORITY_PATHS:
+            priority_url = f"{base_url}{path}"
+            if priority_url not in to_visit:
+                to_visit.append(priority_url)
+        
+        print(f"[SCRAPER] Starting real email scan of {url}")
+        print(f"[SCRAPER] Will check up to {max_pages} pages")
+        
+        self.scan_manager.update_scan_progress(scan_job_id, 5, f"Starting scan: {url}")
         
         page_count = 0
         while to_visit and page_count < max_pages:
@@ -208,98 +303,51 @@ class EmailScraper:
             page_count += 1
             
             # Update progress
-            progress = 10 + int((page_count / max_pages) * 60)
+            progress = 5 + int((page_count / max_pages) * 70)
             self.scan_manager.update_scan_progress(
-                scan_job_id,
-                progress,
-                f"Scanning page {page_count}/{max_pages}: {current_url}"
+                scan_job_id, progress,
+                f"Scanning page {page_count}/{max_pages}: {current_url[:60]}..."
             )
             
             html = self._fetch_page(current_url)
-            
             if not html:
                 continue
             
-            soup = BeautifulSoup(html, 'html.parser')
+            # Extract emails
+            page_emails = self._extract_emails_from_html(html, company_domain)
+            print(f"[SCRAPER] Found {len(page_emails)} emails on {current_url}")
             
-            # Extract emails from text
-            emails = self._extract_emails_from_text(soup.get_text())
-            
-            for email in emails:
-                # Only keep emails from same domain
-                if domain in email:
-                    emails_found.append({
+            for email in page_emails:
+                if email not in emails_found:
+                    person_info = self._extract_person_info(html, email)
+                    emails_found[email] = {
                         'email': email,
                         'source': current_url,
-                        'domain': domain
-                    })
+                        'name': person_info['name'],
+                        'role': person_info['role'],
+                    }
+                    print(f"[SCRAPER] ✓ Found: {email} ({person_info['name'] or 'Unknown'})")
             
-            # Find more pages on same domain
+            # Find more pages to crawl (same domain only)
             if page_count < max_pages:
+                soup = BeautifulSoup(html, 'html.parser')
                 for link in soup.find_all('a', href=True):
                     href = link['href']
                     full_url = urljoin(current_url, href)
                     
-                    # Only visit same domain
+                    # Only same domain, valid URLs
                     if domain in full_url and self._is_valid_url(full_url):
-                        if full_url not in visited_urls and len(to_visit) < 20:
+                        if full_url not in visited_urls and full_url not in to_visit:
                             to_visit.append(full_url)
         
-        return emails_found
+        print(f"[SCRAPER] Scan complete. Found {len(emails_found)} unique emails")
+        return list(emails_found.values())
     
-    def enrich_email_with_role(self, email: str, website: str) -> Optional[str]:
-        """
-        Try to find role/title associated with email
-        Returns role if found
-        """
-        html = self._fetch_page(website)
-        if not html:
-            return None
+    def run_full_scan(self, company_id: int, scan_website: bool = True,
+                      scan_linkedin: bool = False, max_pages: int = 20,
+                      verify_emails: bool = True) -> Dict:
+        """Run complete scan for a company"""
         
-        soup = BeautifulSoup(html, 'html.parser')
-        text = soup.get_text().lower()
-        
-        # Look for email near role keywords
-        email_index = text.find(email.lower())
-        if email_index == -1:
-            return None
-        
-        # Get context around email (500 chars before and after)
-        context = text[max(0, email_index-500):email_index+500]
-        
-        # Common role patterns
-        role_patterns = [
-            r'(ceo|cto|founder|co-founder|chief)',
-            r'(head of \w+)',
-            r'(director of \w+)',
-            r'(vp of \w+)',
-            r'(engineering manager)',
-            r'(product manager)',
-            r'(staff engineer)'
-        ]
-        
-        for pattern in role_patterns:
-            match = re.search(pattern, context)
-            if match:
-                role = match.group(0)
-                if is_allowed_role(role):
-                    return role.title()
-        
-        return None
-    
-    def run_full_scan(
-        self,
-        company_id: int,
-        scan_website: bool = True,
-        scan_linkedin: bool = False,
-        max_pages: int = 5,
-        verify_emails: bool = True
-    ) -> Dict:
-        """
-        Run complete scan job for a company
-        Returns scan results
-        """
-        # Get company
         company = self.db.query(Company).filter(Company.id == company_id).first()
         if not company:
             return {'error': 'Company not found'}
@@ -313,140 +361,83 @@ class EmailScraper:
         )
         
         try:
-            # Start scan
             self.scan_manager.start_scan_job(scan_job.id)
             
             all_emails = []
             
             # Scrape website
             if scan_website and company.website:
-                self.scan_manager.update_scan_progress(
-                    scan_job.id,
-                    5,
-                    "Starting website scan"
-                )
+                self.scan_manager.update_scan_progress(scan_job.id, 5, "Starting website scan")
                 website_emails = self.scrape_website(
                     company.website,
-                    company_id,
+                    company.domain,
                     scan_job.id,
                     max_pages
                 )
                 all_emails.extend(website_emails)
             
-            # Scrape LinkedIn (placeholder)
-            if scan_linkedin and company.linkedin:
-                self.scan_manager.update_scan_progress(
-                    scan_job.id,
-                    70,
-                    "Starting LinkedIn scan"
-                )
-                # LinkedIn scraping would go here
-                pass
-            
-            # Deduplicate
-            self.scan_manager.update_scan_progress(
-                scan_job.id,
-                80,
-                "Deduplicating emails"
-            )
-            
-            unique_emails = {}
-            for email_data in all_emails:
-                email = email_data['email']
-                if email not in unique_emails:
-                    unique_emails[email] = email_data
-            
-            # Validate and save emails
-            self.scan_manager.update_scan_progress(
-                scan_job.id,
-                85,
-                "Validating emails"
-            )
+            # Validate and save
+            self.scan_manager.update_scan_progress(scan_job.id, 80, f"Validating {len(all_emails)} emails...")
             
             emails_saved = 0
             emails_valid = 0
             
-            for idx, (email, email_data) in enumerate(unique_emails.items()):
-                # Check if email already exists
-                existing = self.db.query(Email).filter(
-                    Email.email_address == email
-                ).first()
+            for email_data in all_emails:
+                email = email_data['email']
                 
+                # Check if exists
+                existing = self.db.query(Email).filter(Email.email_address == email).first()
                 if existing:
                     continue
                 
-                # Validate email
-                validation = validate_email_full(
-                    email,
-                    check_mx=verify_emails,
-                    check_smtp=False
-                )
+                # Validate
+                validation = validate_email_full(email, check_mx=verify_emails, check_smtp=False)
                 
                 if not validation['is_valid']:
+                    print(f"[SCRAPER] ✗ Invalid: {email}")
                     continue
                 
-                # Try to enrich with role
-                role = None
-                if company.website:
-                    role = self.enrich_email_with_role(email, company.website)
-                
-                # Save email
+                # Save
                 db_email = Email(
                     email_address=email,
+                    person_name=email_data.get('name'),
                     company_id=company_id,
                     scan_job_id=scan_job.id,
-                    status=EmailStatus.SCRAPED,
-                    verification_status=(
-                        VerificationStatus.VALID if validation['is_valid']
-                        else VerificationStatus.INVALID
-                    ),
+                    status=EmailStatus.DRAFT,
+                    verification_status=VerificationStatus.VALID if validation['is_valid'] else VerificationStatus.INVALID,
                     quality_score=validation['quality_score'],
                     is_validated=verify_emails,
                     mx_valid=validation['mx_valid'],
                     is_role_email=validation['is_role_email'],
                     is_disposable=validation['is_disposable'],
-                    role=role,
+                    role=email_data.get('role'),
                     verified_at=datetime.utcnow() if verify_emails else None
                 )
                 
                 self.db.add(db_email)
                 emails_saved += 1
-                
                 if validation['is_valid']:
                     emails_valid += 1
-                
-                # Update progress periodically
-                if idx % 10 == 0:
-                    progress = 85 + int((idx / len(unique_emails)) * 10)
-                    self.scan_manager.update_scan_progress(
-                        scan_job.id,
-                        progress,
-                        f"Validated {idx}/{len(unique_emails)} emails"
-                    )
             
             self.db.commit()
             
-            # Update company last_scanned
+            # Update company
             company.last_scanned = datetime.utcnow()
             self.db.commit()
             
-            # Complete scan job
-            self.scan_manager.complete_scan_job(
-                scan_job.id,
-                emails_found=len(unique_emails),
-                emails_valid=emails_valid
-            )
+            # Complete
+            self.scan_manager.complete_scan_job(scan_job.id, len(all_emails), emails_valid)
             
             return {
                 'scan_job_id': scan_job.id,
                 'status': 'completed',
-                'emails_found': len(unique_emails),
+                'emails_found': len(all_emails),
                 'emails_saved': emails_saved,
                 'emails_valid': emails_valid
             }
             
         except Exception as e:
-            # Fail scan job
+            print(f"[SCRAPER] Error: {e}")
             self.scan_manager.fail_scan_job(scan_job.id, str(e))
             return {
                 'scan_job_id': scan_job.id,
@@ -455,18 +446,10 @@ class EmailScraper:
             }
 
 
-def start_scan(
-    db: Session,
-    company_id: int,
-    scan_website: bool = True,
-    scan_linkedin: bool = False,
-    max_pages: int = 5,
-    verify_emails: bool = True
-) -> Dict:
-    """
-    Main function to start a scan job
-    Can be called from API or background task
-    """
+def start_scan(db: Session, company_id: int, scan_website: bool = True,
+               scan_linkedin: bool = False, max_pages: int = 20,
+               verify_emails: bool = True) -> Dict:
+    """Main function to start a scan job"""
     scraper = EmailScraper(db)
     return scraper.run_full_scan(
         company_id=company_id,

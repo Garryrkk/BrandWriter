@@ -18,7 +18,11 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/email-api/, '/api'),
+        // Route stats to /api/stats and everything else straight through
+        rewrite: (path) => {
+          if (path.startsWith('/email-api/stats')) return '/api/stats'
+          return path.replace(/^\/email-api/, '')
+        },
       },
       // Health check for main backend
       '/health': {

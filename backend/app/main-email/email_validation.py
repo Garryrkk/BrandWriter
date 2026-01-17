@@ -11,15 +11,24 @@ import socket
 from typing import Tuple, Optional, Dict
 from email.utils import parseaddr
 
-# Blocked email prefixes (hard stop)
+# Blocked email prefixes (hard stop) - Only block truly useless emails
+# NOTE: We ALLOW sales, marketing, contact, info, etc. because those are what companies publicly share
 BLOCKED_PREFIXES = [
+    "noreply", "no-reply", "no_reply",
+    "donotreply", "do-not-reply",
+    "bounce", "mailer-daemon",
+    "unsubscribe", "notifications",
+    "automated", "system", "robot"
+]
+
+# Role prefixes - not blocked but flagged (still useful for outreach)
+ROLE_PREFIXES = [
     "info", "support", "help", "hello",
-    "noreply", "no-reply", "privacy",
-    "security", "abuse", "careers",
-    "jobs", "admin", "webmaster",
-    "legal", "partnerships", "contact",
-    "sales", "billing", "finance",
-    "marketing", "hr", "recruiting"
+    "privacy", "security", "abuse",
+    "careers", "jobs", "admin",
+    "webmaster", "legal", "partnerships",
+    "contact", "sales", "billing",
+    "finance", "marketing", "hr", "recruiting"
 ]
 
 # Allowed top-level domains (heuristic, not decisive)
@@ -63,7 +72,16 @@ def is_blocked_prefix(email: str) -> bool:
     Returns True if blocked (should be discarded)
     """
     local_part = email.split("@")[0].lower()
-    return any(local_part.startswith(prefix) for prefix in BLOCKED_PREFIXES)
+    return any(local_part == prefix or local_part.startswith(prefix + ".") for prefix in BLOCKED_PREFIXES)
+
+
+def is_role_email(email: str) -> bool:
+    """
+    Check if email is a role-based email (info@, sales@, etc.)
+    These are still valid and useful, just flagged
+    """
+    local_part = email.split("@")[0].lower()
+    return any(local_part == prefix or local_part.startswith(prefix) for prefix in ROLE_PREFIXES)
 
 
 def is_disposable_email(email: str) -> bool:
@@ -238,11 +256,16 @@ def validate_email_full(
         result['reason'] = "Invalid email format"
         return result
     
-    # Blocked prefix check
+    # Blocked prefix check (only truly useless emails)
     if is_blocked_prefix(email):
         result['is_role_email'] = True
-        result['reason'] = "Blocked prefix (inbox/role email)"
+        result['reason'] = "Blocked prefix (noreply/automated)"
         return result
+    
+    # Role email check (these are still valid, just flagged)
+    if is_role_email(email):
+        result['is_role_email'] = True
+        # Don't return here - role emails are still valid!
     
     # Disposable email check
     if is_disposable_email(email):
@@ -295,7 +318,8 @@ def validate_email_full(
     
     result['quality_score'] = quality_score
     
-    if quality_score < 40:
+    # Lower threshold - role emails start at 50 so they should pass
+    if quality_score < 20:
         result['reason'] = "Quality score too low"
         result['verification_status'] = 'invalid'
         return result

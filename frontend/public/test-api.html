@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        pre { background: #f5f5f5; padding: 10px; overflow: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Email API Test Page</h1>
+    
+    <h2>Test Results:</h2>
+    <div id="results"></div>
+    
+    <h2>Actions:</h2>
+    <button onclick="testEmails()">Test /email-api/emails/</button>
+    <button onclick="testCompanies()">Test /email-api/companies/</button>
+    <button onclick="testStats()">Test /email-api/stats</button>
+    
+    <h2>Response:</h2>
+    <pre id="response">Click a button to test...</pre>
+
+    <script>
+        async function testEmails() {
+            const res = document.getElementById('response');
+            const results = document.getElementById('results');
+            try {
+                res.textContent = 'Loading...';
+                const response = await fetch('/email-api/emails/');
+                const data = await response.json();
+                res.textContent = JSON.stringify(data, null, 2);
+                results.innerHTML = `<p class="success">✅ Found ${data.length} emails!</p>`;
+            } catch (error) {
+                res.textContent = 'ERROR: ' + error.message;
+                results.innerHTML = `<p class="error">❌ Failed: ${error.message}</p>`;
+            }
+        }
+        
+        async function testCompanies() {
+            const res = document.getElementById('response');
+            const results = document.getElementById('results');
+            try {
+                res.textContent = 'Loading...';
+                const response = await fetch('/email-api/companies/');
+                const data = await response.json();
+                res.textContent = JSON.stringify(data, null, 2);
+                results.innerHTML = `<p class="success">✅ Found ${data.length} companies!</p>`;
+            } catch (error) {
+                res.textContent = 'ERROR: ' + error.message;
+                results.innerHTML = `<p class="error">❌ Failed: ${error.message}</p>`;
+            }
+        }
+        
+        async function testStats() {
+            const res = document.getElementById('response');
+            const results = document.getElementById('results');
+            try {
+                res.textContent = 'Loading...';
+                const response = await fetch('/email-api/stats');
+                const data = await response.json();
+                res.textContent = JSON.stringify(data, null, 2);
+                results.innerHTML = `<p class="success">✅ Stats loaded!</p>`;
+            } catch (error) {
+                res.textContent = 'ERROR: ' + error.message;
+                results.innerHTML = `<p class="error">❌ Failed: ${error.message}</p>`;
+            }
+        }
+        
+        // Auto-test on load
+        testEmails();
+    </script>
+</body>
+</html>
