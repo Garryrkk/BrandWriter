@@ -479,6 +479,42 @@ async def list_emails(
     } for e in emails]
 
 
+@app.delete("/emails/{email_id}")
+async def delete_email(email_id: int, db: Session = Depends(get_db)):
+    """Delete a single email"""
+    email = db.query(Email).filter(Email.id == email_id).first()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+    
+    db.delete(email)
+    db.commit()
+    
+    return {"message": "Email deleted", "id": email_id}
+
+
+@app.post("/emails/delete-bulk")
+async def delete_emails_bulk(request: EmailQueueRequest, db: Session = Depends(get_db)):
+    """Delete multiple emails"""
+    deleted_count = 0
+    not_found = 0
+    
+    for email_id in request.email_ids:
+        email = db.query(Email).filter(Email.id == email_id).first()
+        if email:
+            db.delete(email)
+            deleted_count += 1
+        else:
+            not_found += 1
+    
+    db.commit()
+    
+    return {
+        "deleted": deleted_count,
+        "not_found": not_found,
+        "total": len(request.email_ids)
+    }
+
+
 @app.post("/emails/queue")
 async def queue_emails(request: EmailQueueRequest, db: Session = Depends(get_db)):
     """Queue emails for sending"""

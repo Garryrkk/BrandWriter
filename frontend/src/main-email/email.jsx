@@ -262,6 +262,61 @@ export default function EmailApp() {
     }
   };
 
+  // Delete a single email
+  const handleDeleteEmail = async (emailId) => {
+    if (!window.confirm('Are you sure you want to delete this email?')) {
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/emails/${emailId}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setDraftEmails(prev => prev.filter(e => e.id !== emailId));
+        setSelectedEmails(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(emailId);
+          return newSet;
+        });
+        fetchStats();
+      } else {
+        const error = await response.text();
+        alert(`Failed to delete email: ${error}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete email:', error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  // Delete multiple emails
+  const handleDeleteSelected = async () => {
+    if (selectedEmails.size === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedEmails.size} emails?`)) {
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/emails/delete-bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email_ids: Array.from(selectedEmails) }),
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setDraftEmails(prev => prev.filter(e => !selectedEmails.has(e.id)));
+        setSelectedEmails(new Set());
+        fetchStats();
+        alert(`Deleted ${result.deleted} emails`);
+      } else {
+        const error = await response.text();
+        alert(`Failed to delete emails: ${error}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete emails:', error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
   // NAVBAR NAVIGATION
   const Navbar = () => (
     <nav className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white shadow-lg sticky top-0 z-50 border-b border-gray-700">
@@ -497,7 +552,7 @@ export default function EmailApp() {
               <button onClick={() => setShowQueueModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                 <Plus size={18} /> Queue Selected ({selectedEmails.size})
               </button>
-              <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+              <button onClick={handleDeleteSelected} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                 <Trash2 size={18} /> Delete Selected
               </button>
             </>
@@ -552,7 +607,7 @@ export default function EmailApp() {
                     <button onClick={() => setShowQueueModal(true)} className="text-blue-600 hover:text-blue-900" title="Queue">
                       <Plus size={18} />
                     </button>
-                    <button className="text-red-600 hover:text-red-900" title="Delete">
+                    <button onClick={() => handleDeleteEmail(email.id)} className="text-red-600 hover:text-red-900" title="Delete">
                       <Trash2 size={18} />
                     </button>
                     <button onClick={() => handleViewValidation(email)} className="text-green-600 hover:text-green-900" title="View Validation">
