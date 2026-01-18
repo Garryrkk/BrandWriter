@@ -31,8 +31,15 @@ const api = {
   },
 
   scanCompany: async (companyId, params = {}) => {
-    const res = await fetch(`${API_BASE_URL}/companies/${companyId}/scan?scan_website=${params.scan_website ?? true}&scan_linkedin=${params.scan_linkedin ?? false}&max_pages=${params.max_pages ?? 5}&verify_emails=${params.verify_emails ?? true}`, {
-      method: 'POST'
+    const res = await fetch(`${API_BASE_URL}/companies/${companyId}/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scan_website: params.scan_website ?? true,
+        scan_linkedin: params.scan_linkedin ?? false,
+        max_pages: params.max_pages ?? 5,
+        verify_emails: params.verify_emails ?? true
+      })
     });
     return res.json();
   },
@@ -192,7 +199,8 @@ const api = {
 
 const App = () => {
   const [activeScreen, setActiveScreen] = useState('companies');
-const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For mobile menu only  const [companies, setCompanies] = useState([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // For mobile menu only
+  const [companies, setCompanies] = useState([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState(null);
   const [scanProgress, setScanProgress] = useState(null);
   const [currentScanJobId, setCurrentScanJobId] = useState(null);

@@ -582,7 +582,8 @@ class EmailScraper:
         scan_website: bool = True,
         scan_linkedin: bool = False,
         max_pages: int = 5,
-        verify_emails: bool = True
+        verify_emails: bool = True,
+        scan_job_id: Optional[int] = None
     ) -> Dict:
         """
         Run complete scan job
@@ -593,12 +594,23 @@ class EmailScraper:
         if not company:
             return {'error': 'Company not found'}
         
-        scan_job = self.scan_manager.create_scan_job(
-            company_id=company_id,
-            scan_website=scan_website,
-            scan_linkedin=scan_linkedin,
-            max_pages=max_pages
-        )
+        # Use existing scan job if provided, otherwise create new one
+        if scan_job_id:
+            scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
+            if not scan_job:
+                scan_job = self.scan_manager.create_scan_job(
+                    company_id=company_id,
+                    scan_website=scan_website,
+                    scan_linkedin=scan_linkedin,
+                    max_pages=max_pages
+                )
+        else:
+            scan_job = self.scan_manager.create_scan_job(
+                company_id=company_id,
+                scan_website=scan_website,
+                scan_linkedin=scan_linkedin,
+                max_pages=max_pages
+            )
         
         try:
             self.scan_manager.start_scan_job(scan_job.id)
@@ -820,7 +832,8 @@ def start_scan(
     scan_website: bool = True,
     scan_linkedin: bool = False,
     max_pages: int = 5,
-    verify_emails: bool = True
+    verify_emails: bool = True,
+    scan_job_id: Optional[int] = None
 ) -> Dict:
     """
     Main function to start a scan job
@@ -832,7 +845,8 @@ def start_scan(
         scan_website=scan_website,
         scan_linkedin=scan_linkedin,
         max_pages=max_pages,
-        verify_emails=verify_emails
+        verify_emails=verify_emails,
+        scan_job_id=scan_job_id
     )
 
 

@@ -1,6 +1,6 @@
 """
 Database models and connection for email outreach system
-Uses PostgreSQL with SQLAlchemy ORM
+Uses SQLite with SQLAlchemy ORM
 """
 
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Enum, Float
@@ -10,9 +10,9 @@ from datetime import datetime
 import os
 import enum
 
-# Database connection
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:garima123@localhost:5432/brandwriter")
-engine = create_engine(DATABASE_URL, echo=True)
+# Database connection - Use SQLite for simplicity
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///C:/Users/Crazy/Documents/CODES/BrandWriter-main/emails.db")
+engine = create_engine(DATABASE_URL, echo=False, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
