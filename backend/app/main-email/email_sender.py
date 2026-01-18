@@ -266,13 +266,15 @@ class EmailCampaignSender:
         """
         personalized = template
         
-        if email_record.person_name:
-            first_name = email_record.person_name.split()[0]
+        # Get person data
+        if email_record.person:
+            # Extract first name from full name
+            first_name = email_record.person.full_name.split()[0]
             personalized = personalized.replace('{{name}}', first_name)
-            personalized = personalized.replace('{{full_name}}', email_record.person_name)
-        
-        if email_record.role:
-            personalized = personalized.replace('{{role}}', email_record.role)
+            personalized = personalized.replace('{{full_name}}', email_record.person.full_name)
+            
+            if email_record.person.role:
+                personalized = personalized.replace('{{role}}', email_record.person.role)
         
         if email_record.company:
             personalized = personalized.replace('{{company}}', email_record.company.name)
@@ -352,6 +354,8 @@ class EmailCampaignSender:
                 # Update domain cooldown
                 domain = email_record.email_address.split('@')[1]
                 self.update_domain_cooldown(domain)
+                # Update email last_sent_at
+                email_record.last_sent_at = datetime.utcnow()
             elif result.get('status') == SendStatus.BOUNCED:
                 send_status = SendStatus.BOUNCED
                 stats['bounced'] += 1

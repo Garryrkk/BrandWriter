@@ -1,6 +1,7 @@
 """
 FastAPI REST API for email outreach system
 Complete API with scan management, verification, and campaign sending
+Frontend only sees: discovered + validated emails
 """
 
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
@@ -14,10 +15,10 @@ import json
 from database import (
     get_db, init_db, Company, Person, Email, Campaign, SendLog,
     ScanJob, SendBatch, EmailVerificationJob,
-    EmailStatus, CampaignStatus, ScanStatus, VerificationStatus, SendStatus
+    EmailStatus, EmailDiscoveryStatus, CampaignStatus, ScanStatus, VerificationStatus, SendStatus
 )
 from scraper import start_scan, get_scan_status
-from email_validation import validate_email_full, is_allowed_role, batch_validate_emails
+from email_validator import validate_email_full, is_allowed_role, batch_validate_emails
 from email_sender import (
     start_campaign, send_campaign_now, get_send_batch_status,
     finalize_campaign_run, CampaignManager
@@ -52,19 +53,20 @@ class CompanyCreate(BaseModel):
     company_type: Optional[str] = None
 
 
-class ScanJobCreate(BaseModel):
-    company_id: int
+# ✅ FIX 1: Add ScanRequest model for JSON body
+class ScanRequest(BaseModel):
     scan_website: bool = True
     scan_linkedin: bool = False
     max_pages: int = 5
     verify_emails: bool = True
 
 
-class EmailCreate(BaseModel):
-    email_address: EmailStr
-    person_name: Optional[str] = None
-    role: Optional[str] = None
+class ScanJobCreate(BaseModel):
     company_id: int
+    scan_website: bool = True
+    scan_linkedin: bool = False
+    max_pages: int = 5
+    verify_emails: bool = True
 
 
 class EmailQueueRequest(BaseModel):
@@ -92,14 +94,28 @@ class CampaignSendRequest(BaseModel):
 
 
 # Response models
+class PersonResponse(BaseModel):
+    id: int
+    full_name: str
+    role: Optional[str]
+    role_confidence: Optional[float]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 class EmailResponse(BaseModel):
     id: int
     email_address: str
-    person_name: Optional[str]
-    role: Optional[str]
+    person: Optional[PersonResponse]
     status: str
     verification_status: str
     quality_score: int
+    confidence_score: float
+    confidence_level: str
+    source_type: str
+    discovery_method: str
     created_at: datetime
     
     class Config:
@@ -166,6 +182,31 @@ async def create_company(company: CompanyCreate, db: Session = Depends(get_db)):
     }
 
 
+# ✅ FIX 4: Add endpoint to check if company exists by domain
+@app.get("/companies/by-domain/{domain}")
+async def get_company_by_domain(domain: str, db: Session = Depends(get_db)):
+    """Get company by domain (returns null if not found)"""
+    company = db.query(Company).filter(Company.domain == domain).first()
+    if not company:
+        return None
+    
+    # Only count validated emails
+    validated_emails = db.query(Email).filter(
+        Email.company_id == company.id,
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).count()
+    
+    return {
+        "id": company.id,
+        "name": company.name,
+        "domain": company.domain,
+        "website": company.website,
+        "linkedin": company.linkedin,
+        "status": company.status,
+        "email_count": validated_emails
+    }
+
+
 @app.get("/companies/")
 async def list_companies(
     skip: int = 0,
@@ -174,14 +215,26 @@ async def list_companies(
 ):
     """List all companies"""
     companies = db.query(Company).offset(skip).limit(limit).all()
-    return [{
-        "id": c.id,
-        "name": c.name,
-        "domain": c.domain,
-        "status": c.status,
-        "last_scanned": c.last_scanned,
-        "email_count": len(c.emails)
-    } for c in companies]
+    
+    result = []
+    for c in companies:
+        # Only count validated emails
+        validated_emails = db.query(Email).filter(
+            Email.company_id == c.id,
+            Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+        ).count()
+        
+        result.append({
+            "id": c.id,
+            "name": c.name,
+            "domain": c.domain,
+            "status": c.status,
+            "last_scanned": c.last_scanned,
+            "people_count": len(c.people),
+            "email_count": validated_emails
+        })
+    
+    return result
 
 
 @app.get("/companies/{company_id}")
@@ -191,6 +244,12 @@ async def get_company(company_id: int, db: Session = Depends(get_db)):
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     
+    # Only count validated emails
+    validated_emails = db.query(Email).filter(
+        Email.company_id == company_id,
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).count()
+    
     return {
         "id": company.id,
         "name": company.name,
@@ -199,85 +258,61 @@ async def get_company(company_id: int, db: Session = Depends(get_db)):
         "linkedin": company.linkedin,
         "status": company.status,
         "last_scanned": company.last_scanned,
-        "email_count": len(company.emails),
+        "people_count": len(company.people),
+        "email_count": validated_emails,
         "created_at": company.created_at
     }
 
 
 # ============================================================================
-# Scan Job Endpoints
+# Scan Job Endpoints (PRIMARY USER FLOW)
 # ============================================================================
 
-@app.post("/scans/start")
-async def start_scan_job(
-    scan_request: ScanJobCreate,
+# ✅ FIX 2 & 3: Accept JSON body and return scan_job_id
+@app.post("/companies/{company_id}/scan")
+async def scan_company(
+    company_id: int,
+    scan_request: ScanRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """Start a new scan job for a company"""
-    company = db.query(Company).filter(Company.id == scan_request.company_id).first()
+    """
+    PRIMARY ENDPOINT: Scan company to discover people and emails
+    This triggers the full pipeline: Company → People → Roles → Emails → Drafts
+    Accepts JSON body instead of query parameters
+    """
+    company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     
-    # Run scan in background with its own session
-    def run_scan_with_new_session():
-        from database import SessionLocal
-        scan_db = SessionLocal()
-        try:
-            start_scan(
-                scan_db,
-                scan_request.company_id,
-                scan_request.scan_website,
-                scan_request.scan_linkedin,
-                scan_request.max_pages,
-                scan_request.verify_emails
-            )
-        finally:
-            scan_db.close()
+    # Create scan job first to get ID
+    scan_job = ScanJob(
+        company_id=company_id,
+        status=ScanStatus.PENDING,
+        progress_percentage=0
+    )
+    db.add(scan_job)
+    db.commit()
+    db.refresh(scan_job)
     
-    background_tasks.add_task(run_scan_with_new_session)
-    
-    return {
-        "message": "Scan job started",
-        "company_id": scan_request.company_id,
-        "company_name": company.name
-    }
-
-
-@app.post("/scans/all")
-async def scan_all_companies(
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    """Start scan jobs for all companies that haven't been scanned yet or recently"""
-    companies = db.query(Company).filter(Company.status == 'active').all()
-    
-    # Filter to companies not scanned recently (or never)
-    from datetime import datetime, timedelta
-    cutoff = datetime.utcnow() - timedelta(hours=24)
-    to_scan = [c for c in companies if not c.last_scanned or c.last_scanned < cutoff]
-    
-    if not to_scan:
-        return {"message": "All companies have been scanned recently", "count": 0}
-    
-    def run_all_scans():
-        from database import SessionLocal
-        import time
-        scan_db = SessionLocal()
-        try:
-            for company in to_scan:
-                print(f"[SCAN ALL] Starting scan for {company.name}")
-                start_scan(scan_db, company.id, scan_website=True, max_pages=10)
-                time.sleep(1)  # Small delay between scans
-        finally:
-            scan_db.close()
-    
-    background_tasks.add_task(run_all_scans)
+    # Run scan in background, passing the scan_job_id
+    background_tasks.add_task(
+        start_scan,
+        db,
+        company_id,
+        scan_request.scan_website,
+        scan_request.scan_linkedin,
+        scan_request.max_pages,
+        scan_request.verify_emails,
+        scan_job.id  # Pass scan job ID to track progress
+    )
     
     return {
-        "message": f"Started scanning {len(to_scan)} companies",
-        "count": len(to_scan),
-        "companies": [c.name for c in to_scan]
+        "status": "started",
+        "scan_job_id": scan_job.id,
+        "company_id": company_id,
+        "company_name": company.name,
+        "message": "System will discover people, filter decision-makers, and create email drafts"
     }
 
 
@@ -306,223 +341,161 @@ async def get_company_scans(
         "id": scan.id,
         "status": scan.status,
         "progress_percentage": scan.progress_percentage,
-        "emails_found": scan.emails_found,
-        "emails_valid": scan.emails_valid,
+        "people_found": scan.people_found,
+        "emails_discovered": scan.emails_discovered,
+        "emails_validated": scan.emails_validated,
+        "emails_rejected_domain": scan.emails_rejected_domain,
+        "emails_rejected_quality": scan.emails_rejected_quality,
         "started_at": scan.started_at,
         "completed_at": scan.completed_at
     } for scan in scans]
 
 
 # ============================================================================
-# Email Endpoints
+# People Endpoints
 # ============================================================================
 
-@app.post("/emails/")
-async def create_email(email: EmailCreate, db: Session = Depends(get_db)):
-    """Manually add an email"""
-    # Validate email
-    validation = validate_email_full(email.email_address, check_mx=True)
-    
-    if not validation['is_valid']:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid email: {validation['reason']}"
-        )
-    
-    # Validate role if provided
-    if email.role and not is_allowed_role(email.role):
-        raise HTTPException(status_code=400, detail="Role not in allowed list")
-    
-    # Check if email already exists
-    existing = db.query(Email).filter(
-        Email.email_address == email.email_address
-    ).first()
-    
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already exists")
-    
-    db_email = Email(
-        email_address=email.email_address,
-        person_name=email.person_name,
-        role=email.role,
-        company_id=email.company_id,
-        quality_score=validation['quality_score'],
-        is_validated=True,
-        mx_valid=validation['mx_valid'],
-        is_role_email=validation['is_role_email'],
-        is_disposable=validation['is_disposable'],
-        verification_status=VerificationStatus.VALID,
-        verified_at=datetime.utcnow(),
-        status=EmailStatus.DRAFT
-    )
-    
-    db.add(db_email)
-    db.commit()
-    db.refresh(db_email)
-    
-    return {
-        "id": db_email.id,
-        "email": db_email.email_address,
-        "status": db_email.status,
-        "quality_score": db_email.quality_score
-    }
-
-
-class BulkEmailImport(BaseModel):
-    emails: List[dict]  # List of {email, name, role, company_name, domain}
-    company_id: Optional[int] = None  # If provided, assign all to this company
-
-
-@app.post("/emails/import")
-async def import_emails_bulk(data: BulkEmailImport, db: Session = Depends(get_db)):
-    """
-    Bulk import emails - for importing from CSV, Apollo, Hunter, etc.
-    Each email should have: email, name (optional), role (optional), company_name (optional)
-    """
-    imported = 0
-    skipped = 0
-    errors = []
-    
-    for item in data.emails:
-        email_address = item.get('email', '').strip().lower()
-        if not email_address or '@' not in email_address:
-            errors.append(f"Invalid email format: {email_address}")
-            continue
-        
-        # Check if exists
-        existing = db.query(Email).filter(Email.email_address == email_address).first()
-        if existing:
-            skipped += 1
-            continue
-        
-        # Validate
-        validation = validate_email_full(email_address, check_mx=False)
-        if not validation['is_valid']:
-            errors.append(f"Invalid: {email_address}")
-            continue
-        
-        # Get or create company
-        company_id = data.company_id
-        if not company_id and item.get('company_name'):
-            domain = item.get('domain') or email_address.split('@')[1]
-            company = db.query(Company).filter(Company.domain == domain).first()
-            if not company:
-                company = Company(
-                    name=item.get('company_name', domain),
-                    domain=domain,
-                    website=f"https://{domain}"
-                )
-                db.add(company)
-                db.commit()
-                db.refresh(company)
-            company_id = company.id
-        
-        # Create email
-        db_email = Email(
-            email_address=email_address,
-            person_name=item.get('name'),
-            role=item.get('role'),
-            company_id=company_id,
-            quality_score=validation.get('quality_score', 75),
-            is_validated=True,
-            mx_valid=True,
-            is_role_email=validation.get('is_role_email', False),
-            is_disposable=False,
-            verification_status=VerificationStatus.VALID,
-            status=EmailStatus.DRAFT
-        )
-        db.add(db_email)
-        imported += 1
-    
-    db.commit()
-    
-    return {
-        "imported": imported,
-        "skipped": skipped,
-        "errors": errors[:10] if len(errors) > 10 else errors,
-        "total_errors": len(errors)
-    }
-
-
-@app.get("/emails/")
-async def list_emails(
-    status: Optional[str] = None,
-    verification_status: Optional[str] = None,
+@app.get("/people/")
+async def list_people(
     company_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """List emails with filters"""
-    query = db.query(Email)
+    """List discovered people (decision makers only)"""
+    query = db.query(Person)
+    
+    if company_id:
+        query = query.filter(Person.company_id == company_id)
+    
+    people = query.offset(skip).limit(limit).all()
+    
+    result = []
+    for p in people:
+        # Only count validated emails
+        validated_emails = db.query(Email).filter(
+            Email.person_id == p.id,
+            Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+        ).count()
+        
+        result.append({
+            "id": p.id,
+            "full_name": p.full_name,
+            "role": p.role,
+            "role_confidence": p.role_confidence,
+            "company": p.company.name if p.company else None,
+            "email_count": validated_emails,
+            "created_at": p.created_at
+        })
+    
+    return result
+
+
+@app.get("/people/{person_id}")
+async def get_person(person_id: int, db: Session = Depends(get_db)):
+    """Get person details"""
+    person = db.query(Person).filter(Person.id == person_id).first()
+    if not person:
+        raise HTTPException(status_code=404, detail="Person not found")
+    
+    # Only return validated emails
+    validated_emails = db.query(Email).filter(
+        Email.person_id == person_id,
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).all()
+    
+    return {
+        "id": person.id,
+        "full_name": person.full_name,
+        "role": person.role,
+        "role_confidence": person.role_confidence,
+        "source_page": person.source_page,
+        "company": {
+            "id": person.company.id,
+            "name": person.company.name
+        } if person.company else None,
+        "emails": [{
+            "id": e.id,
+            "email_address": e.email_address,
+            "status": e.status,
+            "quality_score": e.quality_score,
+            "confidence_score": e.confidence_score,
+            "confidence_level": e.confidence_level,
+            "source_type": e.source_type,
+            "discovery_method": e.discovery_method
+        } for e in validated_emails],
+        "created_at": person.created_at
+    }
+
+
+# ============================================================================
+# Email Endpoints (ONLY VALIDATED EMAILS)
+# ============================================================================
+
+@app.get("/emails/")
+async def list_emails(
+    status: Optional[str] = None,
+    company_id: Optional[int] = None,
+    person_id: Optional[int] = None,
+    min_confidence: Optional[float] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    List emails with filters
+    ONLY RETURNS VALIDATED EMAILS (frontend never sees rejected)
+    """
+    query = db.query(Email).filter(
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    )
     
     if status:
         query = query.filter(Email.status == status)
     
-    if verification_status:
-        query = query.filter(Email.verification_status == verification_status)
-    
     if company_id:
         query = query.filter(Email.company_id == company_id)
+    
+    if person_id:
+        query = query.filter(Email.person_id == person_id)
+    
+    if min_confidence:
+        query = query.filter(Email.confidence_score >= min_confidence)
     
     emails = query.offset(skip).limit(limit).all()
     
     return [{
         "id": e.id,
         "email_address": e.email_address,
-        "person_name": e.person_name,
-        "role": e.role,
+        "person": {
+            "id": e.person.id,
+            "full_name": e.person.full_name,
+            "role": e.person.role,
+            "role_confidence": e.person.role_confidence
+        } if e.person else None,
         "status": e.status,
         "verification_status": e.verification_status,
         "quality_score": e.quality_score,
+        "confidence_score": e.confidence_score,
+        "confidence_level": e.confidence_level,
+        "source_type": e.source_type,
+        "source_url": e.source_url,
+        "discovery_method": e.discovery_method,
         "company": e.company.name if e.company else None
     } for e in emails]
 
 
-@app.delete("/emails/{email_id}")
-async def delete_email(email_id: int, db: Session = Depends(get_db)):
-    """Delete a single email"""
-    email = db.query(Email).filter(Email.id == email_id).first()
-    if not email:
-        raise HTTPException(status_code=404, detail="Email not found")
-    
-    db.delete(email)
-    db.commit()
-    
-    return {"message": "Email deleted", "id": email_id}
-
-
-@app.post("/emails/delete-bulk")
-async def delete_emails_bulk(request: EmailQueueRequest, db: Session = Depends(get_db)):
-    """Delete multiple emails"""
-    deleted_count = 0
-    not_found = 0
-    
-    for email_id in request.email_ids:
-        email = db.query(Email).filter(Email.id == email_id).first()
-        if email:
-            db.delete(email)
-            deleted_count += 1
-        else:
-            not_found += 1
-    
-    db.commit()
-    
-    return {
-        "deleted": deleted_count,
-        "not_found": not_found,
-        "total": len(request.email_ids)
-    }
-
-
 @app.post("/emails/queue")
 async def queue_emails(request: EmailQueueRequest, db: Session = Depends(get_db)):
-    """Queue emails for sending"""
+    """Queue emails for sending (only validated emails)"""
     queued_count = 0
     already_queued = 0
     
     for email_id in request.email_ids:
-        email = db.query(Email).filter(Email.id == email_id).first()
+        email = db.query(Email).filter(
+            Email.id == email_id,
+            Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+        ).first()
         
         if email:
             if email.status == EmailStatus.DRAFT:
@@ -547,19 +520,30 @@ async def verify_single_email(
     db: Session = Depends(get_db)
 ):
     """Verify a specific email"""
-    email = db.query(Email).filter(Email.id == email_id).first()
+    email = db.query(Email).filter(
+        Email.id == email_id,
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).first()
     
     if not email:
         raise HTTPException(status_code=404, detail="Email not found")
     
+    # Get company domain
+    company = db.query(Company).filter(Company.id == email.company_id).first()
+    
     validation = validate_email_full(
         email.email_address,
+        company.domain,
+        role_confidence=email.person.role_confidence if email.person else 1.0,
+        discovery_method=email.discovery_method,
         check_mx=True,
         check_smtp=check_smtp
     )
     
     # Update email record
     email.quality_score = validation['quality_score']
+    email.confidence_score = validation['confidence_score']
+    email.confidence_level = validation['confidence_level']
     email.is_validated = True
     email.mx_valid = validation['mx_valid']
     email.smtp_valid = validation.get('smtp_valid', False)
@@ -570,6 +554,7 @@ async def verify_single_email(
     
     if not validation['is_valid']:
         email.status = EmailStatus.DELETED
+        email.discovery_status = EmailDiscoveryStatus.REJECTED_QUALITY
         email.verification_error = validation['reason']
     
     db.commit()
@@ -579,6 +564,8 @@ async def verify_single_email(
         "is_valid": validation['is_valid'],
         "verification_status": validation['verification_status'],
         "quality_score": validation['quality_score'],
+        "confidence_score": validation['confidence_score'],
+        "confidence_level": validation['confidence_level'],
         "reason": validation['reason']
     }
 
@@ -589,9 +576,10 @@ async def verify_bulk_emails(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """Verify multiple emails in bulk"""
+    """Verify multiple emails in bulk (only validated emails)"""
     emails_to_verify = db.query(Email).filter(
-        Email.id.in_(request.email_ids)
+        Email.id.in_(request.email_ids),
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
     ).all()
     
     if not emails_to_verify:
@@ -614,13 +602,20 @@ async def verify_bulk_emails(
         db.commit()
         
         for idx, email in enumerate(emails_to_verify):
+            company = db.query(Company).filter(Company.id == email.company_id).first()
+            
             validation = validate_email_full(
                 email.email_address,
+                company.domain,
+                role_confidence=email.person.role_confidence if email.person else 1.0,
+                discovery_method=email.discovery_method,
                 check_mx=request.check_mx,
                 check_smtp=request.check_smtp
             )
             
             email.quality_score = validation['quality_score']
+            email.confidence_score = validation['confidence_score']
+            email.confidence_level = validation['confidence_level']
             email.is_validated = True
             email.mx_valid = validation['mx_valid']
             email.is_disposable = validation['is_disposable']
@@ -630,6 +625,7 @@ async def verify_bulk_emails(
             
             if not validation['is_valid']:
                 email.status = EmailStatus.DELETED
+                email.discovery_status = EmailDiscoveryStatus.REJECTED_QUALITY
                 job.invalid_count += 1
             elif validation['verification_status'] == VerificationStatus.VALID:
                 job.valid_count += 1
@@ -822,9 +818,15 @@ async def get_campaign_stats(campaign_id: int, db: Session = Depends(get_db)):
     if not stats:
         raise HTTPException(status_code=404, detail="Campaign not found")
     
-    # Add queue stats
-    queued = db.query(Email).filter(Email.status == EmailStatus.QUEUED).count()
-    draft = db.query(Email).filter(Email.status == EmailStatus.DRAFT).count()
+    # Add queue stats (only validated emails)
+    queued = db.query(Email).filter(
+        Email.status == EmailStatus.QUEUED,
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).count()
+    draft = db.query(Email).filter(
+        Email.status == EmailStatus.DRAFT,
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).count()
     
     stats['emails_queued'] = queued
     stats['emails_draft'] = draft
@@ -870,54 +872,36 @@ async def get_batch_status(batch_id: int, db: Session = Depends(get_db)):
 # Statistics Endpoints
 # ============================================================================
 
-@app.get("/api/stats")
-async def get_stats(db: Session = Depends(get_db)):
-    """Get statistics for frontend - simplified format"""
-    try:
-        total_emails = db.query(Email).count()
-        
-        verified = db.query(Email).filter(
-            Email.verification_status == VerificationStatus.VALID
-        ).count()
-        
-        try:
-            sent = db.query(SendLog).filter(
-                SendLog.status == SendStatus.SENT
-            ).count()
-        except Exception:
-            sent = 0
-        
-        pending = db.query(Email).filter(
-            Email.status.in_([EmailStatus.DRAFT, EmailStatus.QUEUED])
-        ).count()
-        
-        return {
-            "totalEmails": total_emails,
-            "verified": verified,
-            "sent": sent,
-            "pending": pending
-        }
-    except Exception as e:
-        # Return default values if database is not initialized
-        return {
-            "totalEmails": 0,
-            "verified": 0,
-            "sent": 0,
-            "pending": 0
-        }
-
-
 @app.get("/stats/overview")
 async def get_overview_stats(db: Session = Depends(get_db)):
-    """Get overall system statistics"""
+    """Get overall system statistics (only validated emails)"""
     total_companies = db.query(Company).count()
-    total_emails = db.query(Email).count()
-    draft_emails = db.query(Email).filter(Email.status == EmailStatus.DRAFT).count()
-    queued_emails = db.query(Email).filter(Email.status == EmailStatus.QUEUED).count()
-    scraped_emails = db.query(Email).filter(Email.status == EmailStatus.SCRAPED).count()
+    total_people = db.query(Person).count()
+    
+    # Only count validated emails
+    total_emails = db.query(Email).filter(
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).count()
+    
+    draft_emails = db.query(Email).filter(
+        Email.status == EmailStatus.DRAFT,
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).count()
+    
+    queued_emails = db.query(Email).filter(
+        Email.status == EmailStatus.QUEUED,
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).count()
     
     valid_emails = db.query(Email).filter(
-        Email.verification_status == VerificationStatus.VALID
+        Email.verification_status == VerificationStatus.VALID,
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
+    ).count()
+    
+    # High confidence emails
+    high_confidence = db.query(Email).filter(
+        Email.confidence_level == 'high',
+        Email.discovery_status == EmailDiscoveryStatus.VALIDATED
     ).count()
     
     total_campaigns = db.query(Campaign).count()
@@ -931,12 +915,16 @@ async def get_overview_stats(db: Session = Depends(get_db)):
     
     return {
         "companies": total_companies,
+        "people": {
+            "total": total_people,
+            "decision_makers": total_people
+        },
         "emails": {
             "total": total_emails,
-            "scraped": scraped_emails,
             "draft": draft_emails,
             "queued": queued_emails,
-            "valid": valid_emails
+            "valid": valid_emails,
+            "high_confidence": high_confidence
         },
         "campaigns": {
             "total": total_campaigns,

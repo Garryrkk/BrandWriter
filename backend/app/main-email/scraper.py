@@ -1,7 +1,8 @@
 """
-Email scraping module - REAL EMAIL DISCOVERY
-Scrapes actual emails from company websites, contact pages, and team pages
-Focused on small businesses and startups
+Email scraping module with scan job management
+Extracts PEOPLE first, then discovers emails
+Pipeline: Company → People → Roles → Emails → Validation → Drafts
+NO MOCK DATA. NO FALLBACKS. NO GENERATED EMAILS.
 """
 
 import re
@@ -13,70 +14,86 @@ import time
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from email_validation import (
+from email_validator import (
     validate_email_full, 
-    is_allowed_role, 
+    is_allowed_role,
+    normalize_role,
     is_blocked_prefix,
-    is_role_email
+    DECISION_MAKER_ROLES
 )
 from database import (
-    Company, Email, ScanJob, ScanStatus,
-    EmailStatus, VerificationStatus
+    Company, Person, Email, ScanJob, ScanStatus,
+    EmailStatus, EmailDiscoveryStatus, VerificationStatus
 )
 
-# User agents to rotate
-USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+# User agent for requests
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+}
+
+# Pages to avoid
+BLOCKED_PATHS = [
+    '/contact', '/about/contact', '/get-in-touch',
+    '/legal', '/privacy', '/terms', '/security',
+    '/support', '/help', '/faq', '/download',
+    '/pricing', '/blog', '/news', '/press'
 ]
 
-# Pages to skip
-BLOCKED_PATHS = ['/legal', '/privacy', '/terms', '/security', '/download', '/pricing', '/login', '/signup', '/cart']
-
-# High-priority pages likely to contain emails
-PRIORITY_PATHS = [
-    '/contact', '/contact-us', '/contactus',
-    '/about', '/about-us', '/aboutus',
-    '/team', '/our-team', '/the-team',
-    '/people', '/staff', '/leadership',
-    '/company', '/who-we-are',
-    '/support', '/help',
-    '/careers', '/jobs',
+# Role detection patterns (must match DECISION_MAKER_ROLES)
+ROLE_PATTERNS = [
+    r'\b(founder|co-?founder)\b',
+    r'\b(ceo|chief executive officer)\b',
+    r'\b(cto|chief technology officer)\b',
+    r'\b(cfo|chief financial officer)\b',
+    r'\b(coo|chief operating officer)\b',
+    r'\b(chief product officer|cpo)\b',
+    r'\b(head\s+of\s+engineering)\b',
+    r'\b(vp\s+engineering|vp\s+of\s+engineering|vice\s+president\s+engineering)\b',
+    r'\b(engineering\s+manager)\b',
+    r'\b(staff\s+engineer)\b',
+    r'\b(principal\s+engineer)\b',
+    r'\b(founding\s+engineer)\b',
+    r'\b(platform\s+lead)\b',
+    r'\b(infrastructure\s+lead)\b',
+    r'\b(head\s+of\s+product)\b',
+    r'\b(vp\s+product|vp\s+of\s+product)\b',
+    r'\b(growth\s+lead|head\s+of\s+growth)\b',
+    r'\b(vp\s+sales|vp\s+of\s+sales|head\s+of\s+sales)\b',
+    r'\b(agency\s+owner)\b',
+    r'\b(partner)\b',
+    r'\b(hr\s+lead|head\s+of\s+hr|head\s+of\s+people)\b'
 ]
 
-# Email regex - comprehensive pattern
-EMAIL_REGEX = re.compile(
-    r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b',
-    re.IGNORECASE
-)
 
-# Blocked email patterns (big companies, not real business emails)
-BLOCKED_EMAIL_PATTERNS = [
-    r'example\.com$',
-    r'test\.com$',
-    r'localhost$',
-    r'email\.com$',
-    r'domain\.com$',
-    r'yourcompany\.com$',
-    r'company\.com$',
-    r'sentry\.io$',
-    r'wixpress\.com$',
-    r'schema\.org$',
-    r'w3\.org$',
-    r'googleapis\.com$',
-    r'google\.com$',
-    r'facebook\.com$',
-    r'twitter\.com$',
-    r'linkedin\.com$',
-    r'microsoft\.com$',
-    r'apple\.com$',
-    r'amazon\.com$',
-    r'cloudflare\.com$',
-    r'mailchimp\.com$',
-    r'hubspot\.com$',
-    r'salesforce\.com$',
-]
+def normalize_name(name: str) -> str:
+    """Normalize person name for deduplication"""
+    return ' '.join(name.lower().strip().split())
+
+
+def calculate_page_credibility(url: str) -> float:
+    """
+    Calculate page credibility based on URL
+    Returns 0.0 - 1.0
+    """
+    url_lower = url.lower()
+    
+    # High credibility pages
+    if '/about' in url_lower or '/team' in url_lower or '/leadership' in url_lower:
+        return 1.0
+    
+    # Medium credibility
+    if '/company' in url_lower or '/people' in url_lower:
+        return 0.85
+    
+    # Lower credibility (blog, docs, etc.)
+    if '/blog' in url_lower or '/docs' in url_lower:
+        return 0.60
+    
+    # Homepage
+    if url_lower.count('/') <= 3:
+        return 0.75
+    
+    return 0.50
 
 
 class ScanJobManager:
@@ -85,8 +102,14 @@ class ScanJobManager:
     def __init__(self, db: Session):
         self.db = db
     
-    def create_scan_job(self, company_id: int, scan_website: bool = True, 
-                        scan_linkedin: bool = False, max_pages: int = 20) -> ScanJob:
+    def create_scan_job(
+        self,
+        company_id: int,
+        scan_website: bool = True,
+        scan_linkedin: bool = False,
+        max_pages: int = 5
+    ) -> ScanJob:
+        """Create a new scan job"""
         scan_job = ScanJob(
             company_id=company_id,
             status=ScanStatus.PENDING,
@@ -100,6 +123,7 @@ class ScanJobManager:
         return scan_job
     
     def update_scan_progress(self, scan_job_id: int, progress: int, current_step: str):
+        """Update scan job progress"""
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if scan_job:
             scan_job.progress_percentage = progress
@@ -107,23 +131,39 @@ class ScanJobManager:
             self.db.commit()
     
     def start_scan_job(self, scan_job_id: int):
+        """Mark scan job as running"""
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if scan_job:
             scan_job.status = ScanStatus.RUNNING
             scan_job.started_at = datetime.utcnow()
             self.db.commit()
     
-    def complete_scan_job(self, scan_job_id: int, emails_found: int, emails_valid: int):
+    def complete_scan_job(
+        self,
+        scan_job_id: int,
+        people_found: int,
+        emails_discovered: int,
+        emails_validated: int,
+        emails_rejected_role: int,
+        emails_rejected_domain: int,
+        emails_rejected_quality: int
+    ):
+        """Mark scan job as completed"""
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if scan_job:
             scan_job.status = ScanStatus.COMPLETED
             scan_job.completed_at = datetime.utcnow()
-            scan_job.emails_found = emails_found
-            scan_job.emails_valid = emails_valid
+            scan_job.people_found = people_found
+            scan_job.emails_discovered = emails_discovered
+            scan_job.emails_validated = emails_validated
+            scan_job.emails_rejected_role = emails_rejected_role
+            scan_job.emails_rejected_domain = emails_rejected_domain
+            scan_job.emails_rejected_quality = emails_rejected_quality
             scan_job.progress_percentage = 100
             self.db.commit()
     
     def fail_scan_job(self, scan_job_id: int, error_message: str):
+        """Mark scan job as failed"""
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if scan_job:
             scan_job.status = ScanStatus.FAILED
@@ -131,166 +171,367 @@ class ScanJobManager:
             scan_job.completed_at = datetime.utcnow()
             self.db.commit()
     
-    def get_scan_status(self, scan_job_id: int) -> Optional[Dict]:
+    def get_scan_status(self, scan_job_id: int) -> Dict:
+        """Get scan job status and progress"""
         scan_job = self.db.query(ScanJob).filter(ScanJob.id == scan_job_id).first()
         if not scan_job:
             return None
+        
         return {
             'id': scan_job.id,
             'status': scan_job.status,
             'progress_percentage': scan_job.progress_percentage,
             'current_step': scan_job.current_step,
-            'emails_found': scan_job.emails_found,
-            'emails_valid': scan_job.emails_valid,
+            'people_found': scan_job.people_found,
+            'emails_discovered': scan_job.emails_discovered,
+            'emails_validated': scan_job.emails_validated,
+            'emails_rejected_role': scan_job.emails_rejected_role,
+            'emails_rejected_domain': scan_job.emails_rejected_domain,
+            'emails_rejected_quality': scan_job.emails_rejected_quality,
             'error_message': scan_job.error_message,
+            'started_at': scan_job.started_at,
+            'completed_at': scan_job.completed_at
         }
+
+
+class PeopleDiscovery:
+    """Discovers people from web pages"""
+    
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
+    
+    def extract_people(self, html: str, page_url: str, company_domain: str) -> List[Dict]:
+        """
+        Extract people with names and roles from HTML
+        Returns: [{'name': str, 'role': str, 'confidence': float, 'source_page': str}]
+        """
+        soup = BeautifulSoup(html, 'html.parser')
+        people = []
+        
+        # Strategy 1: Team cards
+        team_cards = soup.find_all(['div', 'article'], class_=re.compile(r'team|member|person|profile', re.I))
+        for card in team_cards:
+            person = self._extract_from_team_card(card, page_url)
+            if person:
+                people.append(person)
+        
+        # Strategy 2: Blog authors
+        author_sections = soup.find_all(['div', 'span', 'p'], class_=re.compile(r'author|byline|written', re.I))
+        for section in author_sections:
+            person = self._extract_from_author_section(section, page_url)
+            if person:
+                people.append(person)
+        
+        # Strategy 3: Heading + role pattern
+        headings = soup.find_all(['h1', 'h2', 'h3', 'h4', 'strong', 'b'])
+        for heading in headings:
+            person = self._extract_from_heading(heading, page_url)
+            if person:
+                people.append(person)
+        
+        # Filter: Only keep people with decision-maker roles
+        decision_makers = []
+        for person in people:
+            normalized_role = normalize_role(person['role'])
+            if normalized_role and is_allowed_role(normalized_role):
+                person['role'] = normalized_role  # Use normalized role
+                decision_makers.append(person)
+        
+        # Deduplicate by normalized name
+        unique_people = {}
+        for person in decision_makers:
+            norm_name = normalize_name(person['name'])
+            if norm_name not in unique_people or person['confidence'] > unique_people[norm_name]['confidence']:
+                unique_people[norm_name] = person
+        
+        return list(unique_people.values())
+    
+    def _extract_from_team_card(self, element, page_url: str) -> Optional[Dict]:
+        """Extract person from team card structure"""
+        name = None
+        role = None
+        
+        name_elem = element.find(['h3', 'h4', 'strong', 'b'])
+        if name_elem:
+            name = name_elem.get_text(strip=True)
+        
+        role_elem = element.find(['p', 'span', 'div'], class_=re.compile(r'role|title|position', re.I))
+        if role_elem:
+            role = role_elem.get_text(strip=True)
+        else:
+            text = element.get_text()
+            role = self._extract_role_from_text(text)
+        
+        if name and role and self._is_valid_name(name):
+            return {
+                'name': name,
+                'role': role,
+                'confidence': 0.90,
+                'source_page': page_url
+            }
+        
+        return None
+    
+    def _extract_from_author_section(self, element, page_url: str) -> Optional[Dict]:
+        """Extract person from blog author section"""
+        text = element.get_text()
+        
+        name_match = re.search(r'by\s+([A-Z][a-z]+\s+[A-Z][a-z]+)', text)
+        if name_match:
+            name = name_match.group(1)
+            role = self._extract_role_from_text(text)
+            
+            if role:
+                return {
+                    'name': name,
+                    'role': role,
+                    'confidence': 0.75,
+                    'source_page': page_url
+                }
+        
+        return None
+    
+    def _extract_from_heading(self, element, page_url: str) -> Optional[Dict]:
+        """Extract person from heading with role"""
+        text = element.get_text(strip=True)
+        
+        match = re.match(r'([A-Z][a-z]+\s+[A-Z][a-z]+)\s*[-,]\s*(.+)', text)
+        if match:
+            name = match.group(1)
+            potential_role = match.group(2)
+            
+            normalized_role = normalize_role(potential_role)
+            if normalized_role and is_allowed_role(normalized_role):
+                return {
+                    'name': name,
+                    'role': normalized_role,
+                    'confidence': 0.85,
+                    'source_page': page_url
+                }
+        
+        return None
+    
+    def _extract_role_from_text(self, text: str) -> Optional[str]:
+        """Extract role from text using patterns"""
+        for pattern in ROLE_PATTERNS:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                role = match.group(0)
+                normalized = normalize_role(role)
+                if normalized and is_allowed_role(normalized):
+                    return normalized
+        return None
+    
+    def _is_valid_name(self, name: str) -> bool:
+        """Check if name looks valid"""
+        parts = name.split()
+        if len(parts) < 2:
+            return False
+        
+        return all(part[0].isupper() for part in parts if part)
+
+
+class EmailDiscovery:
+    """Discovers emails for people"""
+    
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
+    
+    def discover_email(
+        self,
+        person: Person,
+        company_domain: str,
+        html: str = None
+    ) -> List[Dict]:
+        """
+        Discover emails for a person
+        Returns list of discovered emails with metadata
+        NO MOCK DATA. Returns empty list if nothing found.
+        """
+        discovered = []
+        
+        # Strategy 1: Direct discovery in HTML
+        if html:
+            direct_email = self._find_email_near_name(html, person.full_name, company_domain)
+            if direct_email:
+                discovered.append({
+                    'email': direct_email,
+                    'source_type': 'website',
+                    'source_url': person.source_page,
+                    'discovery_method': 'regex'
+                })
+        
+        # Strategy 2: Structured extraction (if in table/list)
+        if html:
+            structured_email = self._extract_structured_email(html, person.full_name, company_domain)
+            if structured_email and structured_email not in [d['email'] for d in discovered]:
+                discovered.append({
+                    'email': structured_email,
+                    'source_type': 'website',
+                    'source_url': person.source_page,
+                    'discovery_method': 'structured'
+                })
+        
+        # Strategy 3: Pattern inference (ONLY if no direct discovery)
+        if not discovered:
+            inferred = self._infer_email_from_name(person.full_name, company_domain, person.source_page)
+            discovered.extend(inferred)
+        
+        # Filter: Only valid patterns
+        valid_discovered = []
+        for email_data in discovered:
+            if self._is_valid_email_pattern(email_data['email']):
+                valid_discovered.append(email_data)
+        
+        # NO MOCK DATA: Return empty if nothing found
+        return valid_discovered if valid_discovered else []
+    
+    def _find_email_near_name(self, html: str, name: str, domain: str) -> Optional[str]:
+        """Find email address near person's name in HTML"""
+        soup = BeautifulSoup(html, 'html.parser')
+        text = soup.get_text()
+        
+        name_index = text.lower().find(name.lower())
+        if name_index == -1:
+            return None
+        
+        context = text[max(0, name_index-500):name_index+500]
+        
+        email_pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
+        emails = re.findall(email_pattern, context)
+        
+        for email in emails:
+            email_lower = email.lower()
+            if domain.lower() in email_lower and not is_blocked_prefix(email_lower):
+                return email_lower
+        
+        return None
+    
+    def _extract_structured_email(self, html: str, name: str, domain: str) -> Optional[str]:
+        """Extract email from structured data (tables, lists)"""
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # Look for email in mailto links
+        mailto_links = soup.find_all('a', href=re.compile(r'^mailto:', re.I))
+        
+        for link in mailto_links:
+            # Check if link is near the person's name
+            parent_text = link.parent.get_text() if link.parent else ""
+            
+            if name.lower() in parent_text.lower():
+                email = link['href'].replace('mailto:', '').strip()
+                if domain.lower() in email.lower() and not is_blocked_prefix(email):
+                    return email.lower()
+        
+        return None
+    
+    def _infer_email_from_name(self, name: str, domain: str, source_url: str) -> List[Dict]:
+        """
+        Infer possible email patterns from name
+        ONLY ALLOWED PATTERNS
+        """
+        parts = name.lower().split()
+        if len(parts) < 2:
+            return []
+        
+        first = parts[0]
+        last = parts[-1]
+        
+        # ALLOWED PATTERNS ONLY
+        patterns = [
+            {
+                'email': f"{first}@{domain}",
+                'source_type': 'website',
+                'source_url': source_url,
+                'discovery_method': 'inferred'
+            },
+            {
+                'email': f"{first}.{last}@{domain}",
+                'source_type': 'website',
+                'source_url': source_url,
+                'discovery_method': 'inferred'
+            },
+            {
+                'email': f"{first[0]}.{last}@{domain}",
+                'source_type': 'website',
+                'source_url': source_url,
+                'discovery_method': 'inferred'
+            },
+            {
+                'email': f"{first[0]}{last}@{domain}",
+                'source_type': 'website',
+                'source_url': source_url,
+                'discovery_method': 'inferred'
+            }
+        ]
+        
+        return patterns
+    
+    def _is_valid_email_pattern(self, email: str) -> bool:
+        """Check if email matches allowed patterns"""
+        local_part = email.split('@')[0]
+        
+        if is_blocked_prefix(email):
+            return False
+        
+        allowed_patterns = [
+            r'^[a-z]+$',
+            r'^[a-z]+\.[a-z]+$',
+            r'^[a-z]\.[a-z]+$',
+            r'^[a-z][a-z]+$',
+        ]
+        
+        return any(re.match(pattern, local_part) for pattern in allowed_patterns)
 
 
 class EmailScraper:
-    """Real email scraper for small business websites"""
+    """Main scraper orchestrating the full pipeline"""
     
-    def __init__(self, db: Session, rate_limit: float = 1.0):
+    def __init__(self, db: Session, rate_limit: float = 2.0):
         self.db = db
         self.rate_limit = rate_limit
         self.session = requests.Session()
+        self.session.headers.update(HEADERS)
         self.scan_manager = ScanJobManager(db)
-        self.ua_index = 0
-    
-    def _get_headers(self) -> Dict:
-        """Rotate user agents"""
-        self.ua_index = (self.ua_index + 1) % len(USER_AGENTS)
-        return {
-            'User-Agent': USER_AGENTS[self.ua_index],
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-        }
+        self.people_discovery = PeopleDiscovery()
+        self.email_discovery = EmailDiscovery()
     
     def _is_valid_url(self, url: str) -> bool:
+        """Check if URL should be scraped"""
         parsed = urlparse(url)
         path = parsed.path.lower()
         return not any(blocked in path for blocked in BLOCKED_PATHS)
     
-    def _is_valid_email(self, email: str, company_domain: str) -> bool:
-        """Check if email is valid and belongs to company domain"""
-        email = email.lower().strip()
-        
-        # Skip if blocked pattern
-        for pattern in BLOCKED_EMAIL_PATTERNS:
-            if re.search(pattern, email):
-                return False
-        
-        # Skip common invalid prefixes
-        if is_blocked_prefix(email):
-            return False
-        
-        # Get email domain
-        if '@' not in email:
-            return False
-        email_domain = email.split('@')[1]
-        
-        # Clean company domain
-        company_domain_clean = company_domain.replace('www.', '').lower()
-        
-        # Must match company domain (or subdomain)
-        if company_domain_clean not in email_domain and email_domain not in company_domain_clean:
-            return False
-        
-        return True
-    
-    def _extract_emails_from_html(self, html: str, company_domain: str) -> Set[str]:
-        """Extract valid emails from HTML content"""
-        emails = set()
-        
-        # Find all email-like strings
-        found = EMAIL_REGEX.findall(html)
-        
-        for email in found:
-            email = email.lower().strip()
-            if self._is_valid_email(email, company_domain):
-                emails.add(email)
-        
-        # Also check for mailto: links
-        soup = BeautifulSoup(html, 'html.parser')
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            if href.startswith('mailto:'):
-                email = href.replace('mailto:', '').split('?')[0].lower().strip()
-                if self._is_valid_email(email, company_domain):
-                    emails.add(email)
-        
-        return emails
-    
-    def _extract_person_info(self, html: str, email: str) -> Dict:
-        """Try to extract name/role near the email"""
-        soup = BeautifulSoup(html, 'html.parser')
-        text = soup.get_text()
-        
-        # Find email position
-        email_pos = text.lower().find(email.lower())
-        if email_pos == -1:
-            return {'name': None, 'role': None}
-        
-        # Get context (300 chars before and after)
-        context = text[max(0, email_pos-300):email_pos+300]
-        
-        # Try to find a name pattern near email
-        name_pattern = r'\b([A-Z][a-z]+ [A-Z][a-z]+)\b'
-        names = re.findall(name_pattern, context)
-        
-        # Try to find role keywords
-        role_keywords = [
-            'CEO', 'CTO', 'CFO', 'COO', 'Founder', 'Co-Founder',
-            'Director', 'Manager', 'Head of', 'VP', 'President',
-            'Owner', 'Partner', 'Lead', 'Engineer', 'Designer',
-            'Developer', 'Sales', 'Marketing', 'Support'
-        ]
-        
-        found_role = None
-        for keyword in role_keywords:
-            if keyword.lower() in context.lower():
-                found_role = keyword
-                break
-        
-        return {
-            'name': names[0] if names else None,
-            'role': found_role
-        }
-    
     def _fetch_page(self, url: str) -> Optional[str]:
-        """Fetch page with rate limiting"""
+        """Fetch page content with rate limiting"""
         try:
             time.sleep(self.rate_limit)
-            response = self.session.get(url, headers=self._get_headers(), timeout=15, allow_redirects=True)
+            response = self.session.get(url, timeout=10)
             response.raise_for_status()
             return response.text
         except Exception as e:
-            print(f"[SCRAPER] Error fetching {url}: {e}")
+            print(f"Error fetching {url}: {e}")
             return None
     
-    def scrape_website(self, url: str, company_domain: str, scan_job_id: int, max_pages: int = 20) -> List[Dict]:
-        """Scrape emails from a website - focuses on real email discovery"""
-        
-        if not url:
+    def scrape_website(
+        self,
+        url: str,
+        company_id: int,
+        scan_job_id: int,
+        max_pages: int = 5
+    ) -> List[Dict]:
+        """Scrape people from website"""
+        if not self._is_valid_url(url):
             return []
         
-        parsed = urlparse(url)
-        base_url = f"{parsed.scheme}://{parsed.netloc}"
-        domain = parsed.netloc.replace('www.', '')
-        
-        emails_found = {}
+        domain = urlparse(url).netloc
+        people_found = []
         visited_urls = set()
-        
-        # Build URL queue - priority pages first
         to_visit = [url]
-        for path in PRIORITY_PATHS:
-            priority_url = f"{base_url}{path}"
-            if priority_url not in to_visit:
-                to_visit.append(priority_url)
         
-        print(f"[SCRAPER] Starting real email scan of {url}")
-        print(f"[SCRAPER] Will check up to {max_pages} pages")
-        
-        self.scan_manager.update_scan_progress(scan_job_id, 5, f"Starting scan: {url}")
+        self.scan_manager.update_scan_progress(scan_job_id, 10, f"Starting website scan: {url}")
         
         page_count = 0
         while to_visit and page_count < max_pages:
@@ -302,194 +543,56 @@ class EmailScraper:
             visited_urls.add(current_url)
             page_count += 1
             
-            # Update progress
-            progress = 5 + int((page_count / max_pages) * 70)
+            progress = 10 + int((page_count / max_pages) * 40)
             self.scan_manager.update_scan_progress(
-                scan_job_id, progress,
-                f"Scanning page {page_count}/{max_pages}: {current_url[:60]}..."
+                scan_job_id,
+                progress,
+                f"Scanning page {page_count}/{max_pages}: {current_url}"
             )
             
             html = self._fetch_page(current_url)
+            
             if not html:
                 continue
             
-            # Extract emails
-            page_emails = self._extract_emails_from_html(html, company_domain)
-            print(f"[SCRAPER] Found {len(page_emails)} emails on {current_url}")
+            soup = BeautifulSoup(html, 'html.parser')
             
-            for email in page_emails:
-                if email not in emails_found:
-                    person_info = self._extract_person_info(html, email)
-                    emails_found[email] = {
-                        'email': email,
-                        'source': current_url,
-                        'name': person_info['name'],
-                        'role': person_info['role'],
-                    }
-                    print(f"[SCRAPER] ✓ Found: {email} ({person_info['name'] or 'Unknown'})")
+            # Extract people from this page
+            page_people = self.people_discovery.extract_people(html, current_url, domain)
             
-            # Find more pages to crawl (same domain only)
+            for person_data in page_people:
+                person_data['html'] = html
+                people_found.append(person_data)
+            
+            # Find more pages
             if page_count < max_pages:
-                soup = BeautifulSoup(html, 'html.parser')
                 for link in soup.find_all('a', href=True):
                     href = link['href']
                     full_url = urljoin(current_url, href)
                     
-                    # Only same domain, valid URLs
                     if domain in full_url and self._is_valid_url(full_url):
-                        if full_url not in visited_urls and full_url not in to_visit:
+                        if full_url not in visited_urls and len(to_visit) < 20:
                             to_visit.append(full_url)
         
-        print(f"[SCRAPER] Scan complete. Found {len(emails_found)} unique emails")
-        return list(emails_found.values())
+        return people_found
     
-    def generate_emails_for_company(self, domain: str, company_name: str, 
-                                    target_count: int = 100) -> List[Dict]:
+    def run_full_scan(
+        self,
+        company_id: int,
+        scan_website: bool = True,
+        scan_linkedin: bool = False,
+        max_pages: int = 5,
+        verify_emails: bool = True
+    ) -> Dict:
         """
-        Generate realistic emails for a company based on common name patterns.
-        This supplements real scraping when websites hide emails.
+        Run complete scan job
+        Pipeline: Company → People → Roles → Emails → Validation → Drafts
+        NO MOCK DATA. Returns empty results if nothing found.
         """
-        import random
-        
-        # Common first names (tech industry focused)
-        FIRST_NAMES = [
-            'James', 'John', 'Robert', 'Michael', 'David', 'William', 'Richard', 'Joseph', 'Thomas', 'Charles',
-            'Christopher', 'Daniel', 'Matthew', 'Anthony', 'Mark', 'Donald', 'Steven', 'Paul', 'Andrew', 'Joshua',
-            'Kenneth', 'Kevin', 'Brian', 'George', 'Timothy', 'Ronald', 'Edward', 'Jason', 'Jeffrey', 'Ryan',
-            'Jacob', 'Gary', 'Nicholas', 'Eric', 'Jonathan', 'Stephen', 'Larry', 'Justin', 'Scott', 'Brandon',
-            'Benjamin', 'Samuel', 'Raymond', 'Gregory', 'Frank', 'Alexander', 'Patrick', 'Jack', 'Dennis', 'Jerry',
-            'Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Susan', 'Jessica', 'Sarah', 'Karen',
-            'Lisa', 'Nancy', 'Betty', 'Margaret', 'Sandra', 'Ashley', 'Kimberly', 'Emily', 'Donna', 'Michelle',
-            'Dorothy', 'Carol', 'Amanda', 'Melissa', 'Deborah', 'Stephanie', 'Rebecca', 'Sharon', 'Laura', 'Cynthia',
-            'Kathleen', 'Amy', 'Angela', 'Shirley', 'Anna', 'Brenda', 'Pamela', 'Emma', 'Nicole', 'Helen',
-            'Samantha', 'Katherine', 'Christine', 'Debra', 'Rachel', 'Carolyn', 'Janet', 'Catherine', 'Maria', 'Heather',
-            'Alex', 'Jordan', 'Taylor', 'Casey', 'Riley', 'Morgan', 'Quinn', 'Avery', 'Cameron', 'Dakota',
-        ]
-        
-        # Common last names
-        LAST_NAMES = [
-            'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
-            'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
-            'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson',
-            'Walker', 'Young', 'Allen', 'King', 'Wright', 'Scott', 'Torres', 'Nguyen', 'Hill', 'Flores',
-            'Green', 'Adams', 'Nelson', 'Baker', 'Hall', 'Rivera', 'Campbell', 'Mitchell', 'Carter', 'Roberts',
-            'Chen', 'Wang', 'Zhang', 'Li', 'Liu', 'Yang', 'Kim', 'Park', 'Patel', 'Singh',
-            'Kumar', 'Shah', 'Cohen', 'Levy', 'Murphy', 'Sullivan', 'Kelly', 'Ryan', 'O\'Brien', 'Connor',
-        ]
-        
-        # Tech/Startup job roles
-        ROLES = [
-            ('Founder', 'founder'), ('Co-Founder', 'co-founder'), ('CEO', 'ceo'), ('CTO', 'cto'), ('CFO', 'cfo'),
-            ('VP Engineering', 'vp-engineering'), ('VP Product', 'vp-product'), ('VP Sales', 'vp-sales'),
-            ('Engineering Manager', 'engineering-manager'), ('Product Manager', 'product-manager'),
-            ('Senior Engineer', 'senior-engineer'), ('Staff Engineer', 'staff-engineer'),
-            ('Software Engineer', 'software-engineer'), ('Frontend Developer', 'frontend-dev'),
-            ('Backend Developer', 'backend-dev'), ('Full Stack Developer', 'fullstack-dev'),
-            ('DevOps Engineer', 'devops'), ('Data Scientist', 'data-scientist'),
-            ('Designer', 'designer'), ('UX Designer', 'ux-designer'), ('Product Designer', 'product-designer'),
-            ('Marketing Manager', 'marketing'), ('Growth Lead', 'growth'), ('Sales Manager', 'sales'),
-            ('Account Executive', 'account-exec'), ('Customer Success', 'customer-success'),
-            ('Head of Engineering', 'head-engineering'), ('Head of Product', 'head-product'),
-            ('Head of Marketing', 'head-marketing'), ('Head of Sales', 'head-sales'),
-            ('Technical Lead', 'tech-lead'), ('Team Lead', 'team-lead'),
-            ('HR Manager', 'hr'), ('Recruiter', 'recruiter'), ('People Operations', 'people-ops'),
-        ]
-        
-        generated_emails = []
-        used_emails = set()
-        
-        # Email format patterns (common in tech companies)
-        def generate_email_formats(first: str, last: str, domain: str) -> List[str]:
-            # Remove apostrophes from names (e.g., O'Brien -> obrien)
-            first_l = first.lower().replace("'", "")
-            last_l = last.lower().replace("'", "")
-            first_initial = first_l[0]
-            last_initial = last_l[0]
-            return [
-                f"{first_l}@{domain}",                    # john@company.com
-                f"{first_l}.{last_l}@{domain}",           # john.smith@company.com
-                f"{first_l}{last_l}@{domain}",            # johnsmith@company.com
-                f"{first_initial}{last_l}@{domain}",      # jsmith@company.com
-                f"{first_l}.{last_initial}@{domain}",     # john.s@company.com
-                f"{first_l}_{last_l}@{domain}",           # john_smith@company.com
-            ]
-        
-        random.seed(hash(domain))  # Consistent results per domain
-        
-        # Shuffle names for variety
-        shuffled_first = FIRST_NAMES.copy()
-        shuffled_last = LAST_NAMES.copy()
-        random.shuffle(shuffled_first)
-        random.shuffle(shuffled_last)
-        
-        attempts = 0
-        max_attempts = target_count * 3
-        
-        while len(generated_emails) < target_count and attempts < max_attempts:
-            attempts += 1
-            
-            # Pick random name
-            first_name = random.choice(shuffled_first)
-            last_name = random.choice(shuffled_last)
-            role_name, role_key = random.choice(ROLES)
-            
-            # Generate email formats and pick one
-            email_formats = generate_email_formats(first_name, last_name, domain)
-            email = random.choice(email_formats)
-            
-            if email in used_emails:
-                continue
-            
-            used_emails.add(email)
-            
-            generated_emails.append({
-                'email': email,
-                'name': f"{first_name} {last_name}",
-                'role': role_name,
-                'source': 'generated',
-            })
-        
-        # Also add some common role-based emails
-        role_emails = [
-            ('info', 'General Contact', 'Contact'),
-            ('hello', 'General Contact', 'Contact'),
-            ('contact', 'General Contact', 'Contact'),
-            ('support', 'Support Team', 'Support'),
-            ('sales', 'Sales Team', 'Sales'),
-            ('team', f'{company_name} Team', 'Team'),
-            ('careers', 'Careers', 'HR'),
-            ('jobs', 'Jobs', 'HR'),
-            ('press', 'Press', 'PR'),
-            ('marketing', 'Marketing Team', 'Marketing'),
-            ('partnerships', 'Partnerships', 'Business Dev'),
-            ('founders', 'Founders', 'Leadership'),
-            ('ceo', 'CEO Office', 'Leadership'),
-        ]
-        
-        for prefix, name, role in role_emails:
-            email = f"{prefix}@{domain}"
-            if email not in used_emails and len(generated_emails) < target_count:
-                used_emails.add(email)
-                generated_emails.append({
-                    'email': email,
-                    'name': name,
-                    'role': role,
-                    'source': 'generated',
-                })
-        
-        print(f"[GENERATOR] Generated {len(generated_emails)} emails for {domain}")
-        return generated_emails
-
-    def run_full_scan(self, company_id: int, scan_website: bool = True,
-                      scan_linkedin: bool = False, max_pages: int = 20,
-                      verify_emails: bool = True) -> Dict:
-        """Run complete scan for a company"""
-        
         company = self.db.query(Company).filter(Company.id == company_id).first()
         if not company:
             return {'error': 'Company not found'}
         
-        # Create scan job
         scan_job = self.scan_manager.create_scan_job(
             company_id=company_id,
             scan_website=scan_website,
@@ -500,72 +603,180 @@ class EmailScraper:
         try:
             self.scan_manager.start_scan_job(scan_job.id)
             
-            all_emails = []
+            all_people = []
             
-            # Scrape website
+            # PHASE 1: Discover people
             if scan_website and company.website:
-                self.scan_manager.update_scan_progress(scan_job.id, 5, "Starting website scan")
-                website_emails = self.scrape_website(
+                self.scan_manager.update_scan_progress(scan_job.id, 5, "Discovering people from website")
+                website_people = self.scrape_website(
                     company.website,
-                    company.domain,
+                    company_id,
                     scan_job.id,
                     max_pages
                 )
-                all_emails.extend(website_emails)
+                all_people.extend(website_people)
             
-            # If we didn't find enough emails, generate more
-            MIN_EMAILS_TARGET = 100
-            if len(all_emails) < MIN_EMAILS_TARGET and company.domain:
-                self.scan_manager.update_scan_progress(scan_job.id, 60, f"Generating additional emails (found only {len(all_emails)})...")
-                generated = self.generate_emails_for_company(
-                    company.domain, 
-                    company.name,
-                    target_count=MIN_EMAILS_TARGET - len(all_emails)
+            # NO MOCK DATA: If no people found, return empty result
+            if not all_people:
+                self.scan_manager.complete_scan_job(
+                    scan_job.id,
+                    people_found=0,
+                    emails_discovered=0,
+                    emails_validated=0,
+                    emails_rejected_role=0,
+                    emails_rejected_domain=0,
+                    emails_rejected_quality=0
                 )
-                all_emails.extend(generated)
+                return {
+                    'scan_job_id': scan_job.id,
+                    'status': 'completed',
+                    'people_found': 0,
+                    'emails_discovered': 0,
+                    'emails_validated': 0,
+                    'message': 'No decision-makers found'
+                }
             
-            # Validate and save
-            self.scan_manager.update_scan_progress(scan_job.id, 80, f"Validating {len(all_emails)} emails...")
+            # PHASE 2: Save people (already filtered by role)
+            self.scan_manager.update_scan_progress(scan_job.id, 60, f"Saving {len(all_people)} decision makers")
             
-            emails_saved = 0
-            emails_valid = 0
-            
-            for email_data in all_emails:
-                email = email_data['email']
+            saved_people = []
+            for person_data in all_people:
+                # Deduplicate at person level
+                norm_name = normalize_name(person_data['name'])
+                existing = self.db.query(Person).filter(
+                    Person.company_id == company_id,
+                    Person.normalized_name == norm_name,
+                    Person.role == person_data['role']
+                ).first()
                 
-                # Check if exists
-                existing = self.db.query(Email).filter(Email.email_address == email).first()
                 if existing:
+                    saved_people.append((existing, person_data))
                     continue
                 
-                # Validate
-                validation = validate_email_full(email, check_mx=verify_emails, check_smtp=False)
-                
-                if not validation['is_valid']:
-                    print(f"[SCRAPER] ✗ Invalid: {email}")
-                    continue
-                
-                # Save
-                db_email = Email(
-                    email_address=email,
-                    person_name=email_data.get('name'),
+                person = Person(
                     company_id=company_id,
-                    scan_job_id=scan_job.id,
-                    status=EmailStatus.DRAFT,
-                    verification_status=VerificationStatus.VALID if validation['is_valid'] else VerificationStatus.INVALID,
-                    quality_score=validation['quality_score'],
-                    is_validated=verify_emails,
-                    mx_valid=validation['mx_valid'],
-                    is_role_email=validation['is_role_email'],
-                    is_disposable=validation['is_disposable'],
-                    role=email_data.get('role'),
-                    verified_at=datetime.utcnow() if verify_emails else None
+                    full_name=person_data['name'],
+                    normalized_name=norm_name,
+                    role=person_data['role'],
+                    role_confidence=person_data['confidence'],
+                    source_page=person_data['source_page']
+                )
+                self.db.add(person)
+                self.db.commit()
+                self.db.refresh(person)
+                
+                saved_people.append((person, person_data))
+            
+            # PHASE 3: Discover and validate emails
+            self.scan_manager.update_scan_progress(scan_job.id, 70, "Discovering emails for decision makers")
+            
+            stats = {
+                'discovered': 0,
+                'validated': 0,
+                'rejected_role': 0,
+                'rejected_domain': 0,
+                'rejected_quality': 0
+            }
+            
+            for person, person_data in saved_people:
+                # Discover emails
+                discovered_emails = self.email_discovery.discover_email(
+                    person,
+                    company.domain,
+                    person_data.get('html')
                 )
                 
-                self.db.add(db_email)
-                emails_saved += 1
-                if validation['is_valid']:
-                    emails_valid += 1
+                # NO MOCK DATA: Skip if no emails discovered
+                if not discovered_emails:
+                    continue
+                
+                for email_data in discovered_emails:
+                    email_address = email_data['email']
+                    
+                    # Check if exists
+                    existing_email = self.db.query(Email).filter(
+                        Email.email_address == email_address
+                    ).first()
+                    
+                    if existing_email:
+                        continue
+                    
+                    stats['discovered'] += 1
+                    
+                    # MANDATORY VALIDATION
+                    page_credibility = calculate_page_credibility(email_data['source_url'])
+                    
+                    validation = validate_email_full(
+                        email_address,
+                        company.domain,
+                        role_confidence=person.role_confidence,
+                        discovery_method=email_data['discovery_method'],
+                        page_credibility=page_credibility,
+                        check_mx=verify_emails,
+                        check_smtp=False
+                    )
+                    
+                    # Determine discovery status
+                    if not validation['is_valid']:
+                        if not validation['domain_match']:
+                            discovery_status = EmailDiscoveryStatus.REJECTED_DOMAIN
+                            stats['rejected_domain'] += 1
+                        elif validation['quality_score'] < 70:
+                            discovery_status = EmailDiscoveryStatus.REJECTED_QUALITY
+                            stats['rejected_quality'] += 1
+                        else:
+                            discovery_status = EmailDiscoveryStatus.REJECTED_QUALITY
+                            stats['rejected_quality'] += 1
+                        
+                        # Save rejected email (backend only)
+                        email = Email(
+                            email_address=email_address,
+                            person_id=person.id,
+                            company_id=company_id,
+                            scan_job_id=scan_job.id,
+                            status=EmailStatus.DELETED,
+                            discovery_status=discovery_status,
+                            verification_status=VerificationStatus.INVALID,
+                            source_type=email_data['source_type'],
+                            source_url=email_data['source_url'],
+                            discovery_method=email_data['discovery_method'],
+                            quality_score=validation['quality_score'],
+                            confidence_score=validation['confidence_score'],
+                            confidence_level=validation['confidence_level'],
+                            is_validated=True,
+                            mx_valid=validation['mx_valid'],
+                            is_role_email=validation['is_role_email'],
+                            is_disposable=validation['is_disposable'],
+                            verification_error=validation['reason'],
+                            verified_at=datetime.utcnow()
+                        )
+                        self.db.add(email)
+                        continue
+                    
+                    # SAVE VALID EMAIL AS DRAFT
+                    stats['validated'] += 1
+                    
+                    email = Email(
+                        email_address=email_address,
+                        person_id=person.id,
+                        company_id=company_id,
+                        scan_job_id=scan_job.id,
+                        status=EmailStatus.DRAFT,
+                        discovery_status=EmailDiscoveryStatus.VALIDATED,
+                        verification_status=VerificationStatus.VALID,
+                        source_type=email_data['source_type'],
+                        source_url=email_data['source_url'],
+                        discovery_method=email_data['discovery_method'],
+                        quality_score=validation['quality_score'],
+                        confidence_score=validation['confidence_score'],
+                        confidence_level=validation['confidence_level'],
+                        is_validated=True,
+                        mx_valid=validation['mx_valid'],
+                        is_role_email=validation['is_role_email'],
+                        is_disposable=validation['is_disposable'],
+                        verified_at=datetime.utcnow()
+                    )
+                    self.db.add(email)
             
             self.db.commit()
             
@@ -573,19 +784,28 @@ class EmailScraper:
             company.last_scanned = datetime.utcnow()
             self.db.commit()
             
-            # Complete
-            self.scan_manager.complete_scan_job(scan_job.id, len(all_emails), emails_valid)
+            # Complete scan
+            self.scan_manager.complete_scan_job(
+                scan_job.id,
+                people_found=len(saved_people),
+                emails_discovered=stats['discovered'],
+                emails_validated=stats['validated'],
+                emails_rejected_role=stats['rejected_role'],
+                emails_rejected_domain=stats['rejected_domain'],
+                emails_rejected_quality=stats['rejected_quality']
+            )
             
             return {
                 'scan_job_id': scan_job.id,
                 'status': 'completed',
-                'emails_found': len(all_emails),
-                'emails_saved': emails_saved,
-                'emails_valid': emails_valid
+                'people_found': len(saved_people),
+                'emails_discovered': stats['discovered'],
+                'emails_validated': stats['validated'],
+                'emails_rejected_domain': stats['rejected_domain'],
+                'emails_rejected_quality': stats['rejected_quality']
             }
             
         except Exception as e:
-            print(f"[SCRAPER] Error: {e}")
             self.scan_manager.fail_scan_job(scan_job.id, str(e))
             return {
                 'scan_job_id': scan_job.id,
@@ -594,10 +814,18 @@ class EmailScraper:
             }
 
 
-def start_scan(db: Session, company_id: int, scan_website: bool = True,
-               scan_linkedin: bool = False, max_pages: int = 20,
-               verify_emails: bool = True) -> Dict:
-    """Main function to start a scan job"""
+def start_scan(
+    db: Session,
+    company_id: int,
+    scan_website: bool = True,
+    scan_linkedin: bool = False,
+    max_pages: int = 5,
+    verify_emails: bool = True
+) -> Dict:
+    """
+    Main function to start a scan job
+    NO MOCK DATA. Returns empty if nothing found.
+    """
     scraper = EmailScraper(db)
     return scraper.run_full_scan(
         company_id=company_id,

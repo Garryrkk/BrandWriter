@@ -3,30 +3,33 @@ Database models and connection for email outreach system
 Uses PostgreSQL with SQLAlchemy ORM
 """
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Enum
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Enum, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import os
 import enum
 
-# Database connection - Use SQLite for simplicity
-# Use absolute path to project root so the same DB is used regardless of where we run from
-import pathlib
-PROJECT_ROOT = pathlib.Path(__file__).parent.parent.parent.parent  # Go up to BrandWriter-main
-DATABASE_PATH = PROJECT_ROOT / "emails.db"
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATABASE_PATH}")
-engine = create_engine(DATABASE_URL, echo=True, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+# Database connection
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:garima123@localhost:5432/brandwriter")
+engine = create_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
 # Enums for status tracking
 class EmailStatus(str, enum.Enum):
-    SCRAPED = "scraped"
     DRAFT = "draft"
     QUEUED = "queued"
     DELETED = "deleted"
+
+
+class EmailDiscoveryStatus(str, enum.Enum):
+    DISCOVERED = "discovered"
+    VALIDATED = "validated"
+    REJECTED_ROLE = "rejected_role"
+    REJECTED_DOMAIN = "rejected_domain"
+    REJECTED_QUALITY = "rejected_quality"
 
 
 class CampaignStatus(str, enum.Enum):
@@ -82,9 +85,12 @@ class Person(Base):
     __tablename__ = "people"
     
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
-    role = Column(String(255), nullable=False, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    full_name = Column(String(255), nullable=False)
+    normalized_name = Column(String(255), nullable=False, index=True)
+    role = Column(String(255))
+    role_confidence = Column(Float)
+    source_page = Column(String(500), nullable=False)
     linkedin = Column(String(500))
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -98,18 +104,24 @@ class Email(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     email_address = Column(String(255), unique=True, nullable=False, index=True)
-    person_name = Column(String(255))
-    role = Column(String(255))
+    person_id = Column(Integer, ForeignKey("people.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
-    person_id = Column(Integer, ForeignKey("people.id"))
-    scan_job_id = Column(Integer, ForeignKey("scan_jobs.id"))
+    scan_job_id = Column(Integer, ForeignKey("scan_jobs.id"), nullable=False)
     
     # Status tracking
-    status = Column(String(50), default=EmailStatus.SCRAPED, index=True)
+    status = Column(String(50), default=EmailStatus.DRAFT, index=True)
+    discovery_status = Column(String(50), default=EmailDiscoveryStatus.DISCOVERED, index=True)
     verification_status = Column(String(50), default=VerificationStatus.PENDING, index=True)
+    
+    # Source traceability (MANDATORY)
+    source_type = Column(String(50), nullable=False)  # website, linkedin, pattern_guess
+    source_url = Column(String(500), nullable=False)
+    discovery_method = Column(String(50), nullable=False)  # regex, structured, inferred
     
     # Quality metrics
     quality_score = Column(Integer, default=0)
+    confidence_score = Column(Float, default=0.0)
+    confidence_level = Column(String(20))  # low, medium, high
     is_validated = Column(Boolean, default=False)
     
     # Verification details
@@ -119,6 +131,9 @@ class Email(Base):
     is_role_email = Column(Boolean, default=False)
     verification_error = Column(Text)
     verified_at = Column(DateTime)
+    
+    # Send tracking
+    last_sent_at = Column(DateTime)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -144,8 +159,12 @@ class ScanJob(Base):
     max_pages = Column(Integer, default=5)
     
     # Results
-    emails_found = Column(Integer, default=0)
-    emails_valid = Column(Integer, default=0)
+    people_found = Column(Integer, default=0)
+    emails_discovered = Column(Integer, default=0)
+    emails_validated = Column(Integer, default=0)
+    emails_rejected_role = Column(Integer, default=0)
+    emails_rejected_domain = Column(Integer, default=0)
+    emails_rejected_quality = Column(Integer, default=0)
     
     # Progress tracking
     progress_percentage = Column(Integer, default=0)
@@ -263,7 +282,7 @@ class EmailVerificationJob(Base):
     status = Column(String(50), default="pending", index=True)
     
     # Job configuration
-    email_ids = Column(Text)  # JSON array of email IDs
+    email_ids = Column(Text)
     total_emails = Column(Integer, default=0)
     verified_count = Column(Integer, default=0)
     
