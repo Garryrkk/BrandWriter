@@ -26,6 +26,8 @@ from database import (
     EmailStatus, EmailDiscoveryStatus, VerificationStatus
 )
 
+DEV_MODE = True
+
 # User agent for requests
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -489,7 +491,7 @@ class EmailDiscovery:
 class EmailScraper:
     """Main scraper orchestrating the full pipeline"""
     
-    def __init__(self, db: Session, rate_limit: float = 2.0):
+    def __init__(self, db: Session, rate_limit: float = 0.5):
         self.db = db
         self.rate_limit = rate_limit
         self.session = requests.Session()
@@ -534,7 +536,14 @@ class EmailScraper:
         self.scan_manager.update_scan_progress(scan_job_id, 10, f"Starting website scan: {url}")
         
         page_count = 0
+        START_TIME = time.time()
+        MAX_DURATION = 6  # seconds
+
         while to_visit and page_count < max_pages:
+            if time.time() - START_TIME > MAX_DURATION:
+                print("[SCAN] Max scan duration reached, stopping crawl")
+                break
+
             current_url = to_visit.pop(0)
             
             if current_url in visited_urls:
@@ -561,7 +570,6 @@ class EmailScraper:
             page_people = self.people_discovery.extract_people(html, current_url, domain)
             
             for person_data in page_people:
-                person_data['html'] = html
                 people_found.append(person_data)
             
             # Find more pages
@@ -570,8 +578,15 @@ class EmailScraper:
                     href = link['href']
                     full_url = urljoin(current_url, href)
                     
-                    if domain in full_url and self._is_valid_url(full_url):
-                        if full_url not in visited_urls and len(to_visit) < 20:
+                    parsed_start = urlparse(url)
+                    parsed_link = urlparse(full_url)
+
+                    if (
+                        parsed_link.netloc == parsed_start.netloc
+                        and self._is_valid_url(full_url)
+                    ):
+
+                        if full_url not in visited_urls and len(to_visit) < 3:
                             to_visit.append(full_url)
         
         return people_found
@@ -590,6 +605,10 @@ class EmailScraper:
         Pipeline: Company → People → Roles → Emails → Validation → Drafts
         NO MOCK DATA. Returns empty results if nothing found.
         """
+        if DEV_MODE:
+            max_pages = 1
+            verify_emails = False
+
         company = self.db.query(Company).filter(Company.id == company_id).first()
         if not company:
             return {'error': 'Company not found'}
@@ -695,8 +714,9 @@ class EmailScraper:
                 discovered_emails = self.email_discovery.discover_email(
                     person,
                     company.domain,
-                    person_data.get('html')
+                    html=None  # infer-only unless explicit
                 )
+
                 
                 # NO MOCK DATA: Skip if no emails discovered
                 if not discovered_emails:
